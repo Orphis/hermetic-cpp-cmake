@@ -1,14 +1,15 @@
 name: Tests
-# Tier 1: runs on every push and pull request; each job builds at most two
-# runtime sets and stays well under 15 minutes.
+# Tier 1, two stages: every host builds its presets (no Docker or QEMU
+# needed) and uploads the test binaries; then one job per execution
+# environment downloads every binary for its platform, whatever host built
+# it, runs it, and compares the hashes across hosts.
 on:
   push:
-    branches: [master]
   pull_request:
+  workflow_dispatch:
 
 env:
   HERMETIC_LLVM_KEEP_ARCHIVES: "1"
-  HERMETIC_TESTS_REQUIRE_DOCKER: "1"
 
 jobs:
   tables:
@@ -21,45 +22,94 @@ jobs:
       - run: cmake -DHERMETIC_LLVM_DRY_RUN=ON -DHERMETIC_LLVM_TARGET=linux-aarch64 -DHERMETIC_LLVM_LIBC=musl -P scripts/prefetch.cmake
 
   build:
-    name: ${{ matrix.name }}
+    name: build on ${{ matrix.host }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: linux-x86_64 host
+          - host: linux-x86_64
             os: ubuntu-latest
             presets: host linux-x86_64-musl linux-aarch64-musl
-          - name: linux-aarch64 host
+          - host: linux-aarch64
             os: ubuntu-24.04-arm
-            presets: host linux-x86_64-musl
-          - name: macos-aarch64 host
+            presets: host linux-x86_64-musl linux-x86_64
+          - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64
+            presets: host linux-aarch64 linux-x86_64-musl
+          - host: windows-x86_64
+            os: windows-latest
+            presets: linux-x86_64-musl linux-x86_64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
+    env:
+      HERMETIC_TESTS_SKIP_DOCKER: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Cache downloaded archives
         uses: actions/cache@v4
         with:
-          path: ~/.cache/hermetic-llvm/downloads
+          path: |
+            ~/.cache/hermetic-llvm/downloads
+            C:/hl/downloads
           key: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'cmake/HermeticLLVMRuntimes.cmake') }}
           restore-keys: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-
       - name: Install Ninja
+        shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ninja-build file; else brew install ninja; fi
-      - name: Register QEMU for foreign Linux architectures
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-      - name: Docker is optional on macOS runners
-        if: runner.os == 'macOS'
-        run: echo "HERMETIC_TESTS_REQUIRE_DOCKER=0" >> "$GITHUB_ENV"
-      - name: Build and run presets
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y ninja-build file ;;
+            macOS) brew install ninja ;;
+            Windows) choco install -y ninja ;;
+          esac
+      - name: Use a short cache path on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "HERMETIC_LLVM_CACHE_DIR=C:/hl" >> "$GITHUB_ENV"
+      - name: Build presets (and run native ctest)
+        shell: bash
         run: tests/run_tests.sh ${{ matrix.presets }}
+      - name: Stage binaries
+        shell: bash
+        run: tests/stage_artifacts.sh ${{ matrix.host }} ${{ matrix.presets }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.host }}
+          path: artifacts
+          retention-days: 3
       - name: Upload runtime set build logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: logs-${{ matrix.os }}
-          path: ~/.cache/hermetic-llvm/logs
+          name: logs-${{ matrix.host }}
+          path: |
+            ~/.cache/hermetic-llvm/logs
+            C:/hl/logs
           if-no-files-found: ignore
+
+  run:
+    name: run ${{ matrix.environment }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: linux-x86_64
+            os: ubuntu-latest
+          - environment: linux-aarch64
+            os: ubuntu-24.04-arm
+          - environment: darwin-aarch64
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: artifacts
+          merge-multiple: true
+      - name: Run every binary for this environment, enforce identical builds across hosts
+        shell: bash
+        env:
+          HERMETIC_TESTS_ENFORCE_REPRODUCIBLE: "1"
+        run: tests/run_artifacts.sh ${{ matrix.environment }}

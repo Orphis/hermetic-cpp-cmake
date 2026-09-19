@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 3)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 6)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -297,11 +297,27 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
   file(MAKE_DIRECTORY "${tmp}/usr/include" "${tmp}/usr/lib" "${tmp}/resource")
 
+  # Reproducibility: no build-host path may end up in the objects (__FILE__,
+  # debug info, assertion messages). Map every directory involved to a fixed
+  # name, longest prefixes first.
+  set(prefix_map
+    # Clang on a Windows host joins include paths with backslashes and
+    # -ffile-reproducible does not undo that, so __FILE__ (only used in
+    # assertion and abort messages by the runtimes) becomes the bare file
+    # name, which every host derives identically.
+    -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
+    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
+    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+  string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
   set(bootstrap
     "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
     "HERMETIC_LLVM_BOOTSTRAP_TRIPLE=${triple}"
     "HERMETIC_LLVM_BOOTSTRAP_SYSTEM_NAME=Linux"
-    "HERMETIC_LLVM_BOOTSTRAP_PROCESSOR=${tgt_SYSTEM_PROCESSOR}")
+    "HERMETIC_LLVM_BOOTSTRAP_PROCESSOR=${tgt_SYSTEM_PROCESSOR}"
+    "HERMETIC_LLVM_BOOTSTRAP_PREFIX_MAP=${prefix_map_flags}")
 
   # 1. libc: headers, crt objects and libraries into <set>/usr.
   if(family STREQUAL "musl")
@@ -323,11 +339,12 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
     hermetic_llvm_fetch_glibc_headers("${libc_version}" "${tgt_ARCH}" glibc_headers)
     hermetic_llvm_fetch_kernel_headers("${kernel_version}" "${tgt_ARCH}" kernel_headers)
     hermetic_llvm_fetch_extras(extras)
+    hermetic_llvm_host_executable("${extras}/bin/glibc-stubs-generator" stubs_generator)
     hermetic_llvm_build_stage(NAME libc SOURCE "${HERMETIC_LLVM_DIR}/runtimes/glibc" BUILD "${build_root}/libc"
       INSTALL_PREFIX "${tmp}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
       ARGS "-DGLIBC_SOURCE_DIR=${glibc_src}" "-DGLIBC_VERSION=${libc_version}" "-DGLIBC_ARCH=${tgt_ARCH}"
            "-DGLIBC_HEADERS_DIR=${glibc_headers}" "-DKERNEL_HEADERS_DIR=${kernel_headers}"
-           "-DGLIBC_STUBS_GENERATOR=${extras}/bin/glibc-stubs-generator${CMAKE_HOST_EXECUTABLE_SUFFIX}"
+           "-DGLIBC_STUBS_GENERATOR=${stubs_generator}"
            "-DGLIBC_ABILISTS=${HERMETIC_LLVM_DIR}/runtimes/glibc/abilists")
     set(libc_description "glibc ${libc_version}")
   endif()

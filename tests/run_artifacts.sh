@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Runs staged test binaries (see stage_artifacts.sh) that belong to the given
+# execution environment, whatever host built them:
+#
+#   tests/run_artifacts.sh <environment> [artifacts dir]
+#
+# Environments:
+#   linux-x86_64, linux-aarch64   Linux binaries for that architecture, run in a
+#                                 Debian container matching the libc (native Docker)
+#   linux-qemu                    Linux binaries for every other architecture, run
+#                                 in Debian containers through QEMU
+#   darwin-aarch64, darwin-x86_64 macOS binaries run directly
+#
+# glibc binaries additionally get a negative check: one built against
+# glibc 2.4x must be refused by Debian bullseye.
+#
+# Afterwards the SHA-256 of every binary is listed per target and preset, so
+# that builds of the same target from different hosts can be compared.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+env_name="$1"
+artifacts="${2:-${here}/../artifacts}"
+
+image_for_libc() {
+  case "$1" in
+    gnu.2.4[2-9]) echo debian:sid-slim ;;
+    gnu.2.3[7-9]|gnu.2.4[01]) echo debian:trixie-slim ;;
+    gnu.2.3[2-6]) echo debian:bookworm-slim ;;
+    *) echo debian:bullseye-slim ;;
+  esac
+}
+platform_for_target() {
+  case "$1" in
+    linux-x86_64) echo linux/amd64 ;;
+    linux-aarch64) echo linux/arm64 ;;
+    linux-armv7) echo linux/arm/v7 ;;
+    linux-riscv64) echo linux/riscv64 ;;
+    linux-s390x) echo linux/s390x ;;
+  esac
+}
+# riscv64 and s390x Debian images exist for trixie only.
+image_for() {
+  local target="$1" libc="$2"
+  case "${target}" in
+    linux-riscv64|linux-s390x) case "${libc}" in gnu.2.4[2-9]) echo debian:sid-slim ;; *) echo debian:trixie-slim ;; esac ;;
+    *) image_for_libc "${libc}" ;;
+  esac
+}
+runs_here() {
+  local target="$1"
+  case "${env_name}" in
+    linux-x86_64|linux-aarch64) [[ "${target}" == "${env_name}" ]] ;;
+    linux-qemu) [[ "${target}" == linux-* && "${target}" != linux-x86_64 && "${target}" != linux-aarch64 ]] ;;
+    darwin-*) [[ "${target}" == "${env_name}" ]] ;;
+    *) echo "unknown environment ${env_name}"; exit 2 ;;
+  esac
+}
+
+ran=0
+for dir in "${artifacts}"/*/*/; do
+  [[ -f "${dir}/target.txt" ]] || continue
+  IFS=';' read -r target libc < "${dir}/target.txt"
+  runs_here "${target}" || continue
+  host="$(basename "$(dirname "${dir}")")"
+  preset="$(basename "${dir}")"
+  echo "=== ${target} ${libc:-} (${preset} built on ${host})"
+  chmod +x "${dir}"/hello_* 2>/dev/null || true
+  if [[ "${target}" == linux-* ]]; then
+    platform="$(platform_for_target "${target}")"
+    image="$(image_for "${target}" "${libc}")"
+    abs="$(cd "${dir}" && pwd)"
+    echo "--- docker ${platform} ${image}"
+    docker run --rm --platform="${platform}" -v "${abs}:/b:ro" "${image}" \
+      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi'
+    case "${libc}" in
+      gnu.2.4*)
+        echo "--- expecting a glibc mismatch on bullseye"
+        if docker run --rm --platform="${platform}" -v "${abs}:/b:ro" debian:bullseye-slim /b/hello_c 2>/dev/null; then
+          echo "binary unexpectedly ran on bullseye"; exit 1
+        fi ;;
+    esac
+  else
+    (cd "${dir}" && ./hello_c && ./hello_cxx && { [[ ! -e hello_shared ]] || DYLD_LIBRARY_PATH=. ./hello_shared; })
+  fi
+  ran=$((ran + 1))
+done
+[[ ${ran} -gt 0 ]] || { echo "no artifacts for environment ${env_name}"; exit 1; }
+echo "ran ${ran} artifact set(s)"
+
+# Reproducibility: the same preset built on different hosts must produce
+# identical binaries. Reported always; enforced with
+# HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1.
+echo "=== SHA-256 per target/preset across hosts"
+table="$(for dir in "${artifacts}"/*/*/; do
+  [[ -f "${dir}/target.txt" ]] || continue
+  IFS=';' read -r target libc < "${dir}/target.txt"
+  runs_here "${target}" || continue
+  host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so; do
+    [[ -f "$f" ]] && printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(shasum -a 256 "$f" | cut -c1-16)" "${host}"
+  done
+done | sort)"
+echo "${table}" | awk '{printf "%-28s %-14s %s  %s\n", $1, $2, $3, $4}'
+differing="$(echo "${table}" | awk '{k=$1" "$2; if (k in h && h[k]!=$3) d[k]=1; h[k]=$3} END {for (k in d) print k}')"
+if [[ -n "${differing}" ]]; then
+  echo "--- NOT reproducible across hosts:"; echo "${differing}" | sed 's/^/    /'
+  if [[ "${HERMETIC_TESTS_ENFORCE_REPRODUCIBLE:-0}" == 1 ]]; then exit 1; fi
+else
+  echo "--- all binaries identical across hosts"
+fi

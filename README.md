@@ -76,8 +76,11 @@ are atomic and lock-protected, and reconfigures only check stamp files.
 ## Requirements
 
 - CMake 3.19 or newer and Ninja (for building runtime sets).
-- A Linux or macOS host (Windows hosts are only wired up for cross-compiling
-  to Linux and are untested).
+- A Linux, macOS or Windows host. Windows hosts cross-compile to Linux
+  targets only (there are no Windows targets yet), using hermetic-llvm's
+  MinGW-built compiler prebuilt; they need no MSYS, Visual Studio or WSL.
+  Keep the cache directory short there (`HERMETIC_LLVM_CACHE_DIR=C:/hl`) to
+  stay clear of path length limits.
 - Xcode or the Command Line Tools when building for macOS.
 - Building a runtime set locally needs about 3 GB of disk for the extracted
   LLVM sources plus 100 MB per set, and two to three minutes of CPU.
@@ -199,9 +202,10 @@ Two GitHub Actions workflows run this:
 
 - [`tests.yml`](.github/workflows/tests.yml), on every push and pull request
   (about 4 minutes): tables and selection checks, then native builds and
-  cross builds on Ubuntu x86_64, Ubuntu arm64 and macOS arm64. Each job
-  builds at most two runtime sets from source; cross binaries are executed
-  through Docker and QEMU on the Linux runners.
+  cross builds on Ubuntu x86_64, Ubuntu arm64 and macOS arm64, and cross
+  builds from Windows x86_64. Each job builds at most two runtime sets from
+  source; cross binaries are executed through Docker and QEMU on the Linux
+  runners.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
@@ -217,10 +221,15 @@ mostly the LLVM source archive) and rebuild runtime sets every time, which
 keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 
-Every target and libc listed above has been built and executed this way,
-from Linux and macOS hosts. Publishing prebuilt runtime sets is deliberately
-not done yet: it needs the archives to be reproducible across build hosts
-first.
+The run stage also hashes every binary and fails when the same preset built
+on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). Runtime
+sets are built to be host-independent: every stage compiles with
+`-ffile-prefix-map` for the cache, source, build and repository directories
+and defines `__FILE__` as `__FILE_NAME__` (Clang on a Windows host joins
+include paths with backslashes, which `-ffile-reproducible` does not undo),
+so the test binaries built on Linux x86_64, Linux arm64, macOS and Windows
+hosts are byte-identical. Publishing prebuilt runtime sets is still to
+come; the same hashing will be applied to the set archives themselves first.
 
 ## Maintenance
 

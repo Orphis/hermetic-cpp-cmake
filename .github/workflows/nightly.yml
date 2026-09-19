@@ -1,90 +1,149 @@
 name: Nightly
-# Tier 2: the broad matrix (glibc version sweep, sanitizers, every Linux
-# architecture under QEMU, compiler version selection, macOS x86_64). Runs on
-# a schedule and on demand; each matrix entry is one runner job.
+# Tier 2, two stages like tests.yml but with the broad matrix: glibc version
+# sweep, sanitizers, every Linux architecture (run under QEMU where no runner
+# exists), compiler version selection, macOS x86_64, plus a cold-start job.
 on:
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       presets:
-        description: Space separated presets to run instead of the matrix (all jobs)
+        description: Space separated presets to build instead of the matrix (all build jobs)
         required: false
         default: ""
 
 env:
   HERMETIC_LLVM_KEEP_ARCHIVES: "1"
-  HERMETIC_TESTS_REQUIRE_DOCKER: "1"
 
 jobs:
-  matrix:
-    name: ${{ matrix.name }}
+  build:
+    name: build ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # glibc version pinning: built binaries run on a matching Debian
-          # release and are refused by an older one.
-          - name: glibc sweep (x86_64)
+          - name: glibc sweep (linux-x86_64)
+            host: linux-x86_64-glibc
             os: ubuntu-latest
-            presets: linux-x86_64 linux-x86_64-gnu.2.34 linux-x86_64-gnu.2.44
-          - name: glibc sweep (aarch64)
+            presets: linux-x86_64 linux-x86_64-gnu.2.34 linux-x86_64-gnu.2.44 linux-aarch64
+          - name: glibc sweep (linux-aarch64)
+            host: linux-aarch64-glibc
             os: ubuntu-24.04-arm
-            presets: linux-aarch64 linux-x86_64-gnu.2.44
-          # Sanitizer runtimes, executed natively on the matching runner.
-          - name: sanitizers (x86_64)
+            presets: linux-aarch64 linux-x86_64-gnu.2.44 linux-x86_64
+          - name: sanitizers (linux-x86_64)
+            host: linux-x86_64-san
             os: ubuntu-latest
             presets: linux-x86_64-asan linux-x86_64-ubsan
-          - name: sanitizers (aarch64)
+          - name: sanitizers (linux-aarch64)
+            host: linux-aarch64-san
             os: ubuntu-24.04-arm
             presets: linux-aarch64-asan
-          # Architectures without a native runner, executed under QEMU.
           - name: armv7 / riscv64 / s390x
+            host: linux-x86_64-exotic
             os: ubuntu-latest
             presets: linux-armv7 linux-armv7-musl linux-riscv64 linux-riscv64-musl linux-s390x linux-s390x-musl
-          # Compiler version selection: unpinned latest, the oldest prebuilt,
-          # and a requirement expression.
           - name: compiler versions (linux)
+            host: linux-x86_64-versions
             os: ubuntu-latest
             presets: host-latest host-21.1.8 host-first-22
           - name: compiler versions (macos)
+            host: macos-aarch64-versions
             os: macos-latest
-            presets: host-latest host-21.1.8
-          # macOS x86_64: native on an Intel runner, and cross from arm64.
-          - name: macos-x86_64 host
+            presets: host-latest host-21.1.8 linux-x86_64 linux-x86_64-gnu.2.44
+          - name: macos-x86_64
+            host: macos-x86_64
             os: macos-15-intel
-            presets: host
+            presets: host linux-x86_64-musl
+          - name: windows-x86_64
+            host: windows-x86_64
+            os: windows-latest
+            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44
           - name: darwin-x86_64 from arm64
+            host: macos-aarch64-cross
             os: macos-latest
-            presets: darwin-x86_64
+            presets: darwin-x86_64 darwin-aarch64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      HERMETIC_TESTS_SKIP_DOCKER: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Cache downloaded archives
         uses: actions/cache@v4
         with:
-          path: ~/.cache/hermetic-llvm/downloads
+          path: |
+            ~/.cache/hermetic-llvm/downloads
+            C:/hl/downloads
           key: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'cmake/HermeticLLVMRuntimes.cmake') }}
           restore-keys: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-
       - name: Install Ninja
+        shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ninja-build file; else brew install ninja; fi
-      - name: Register QEMU for foreign Linux architectures
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-      - name: Docker is optional on macOS runners
-        if: runner.os == 'macOS'
-        run: echo "HERMETIC_TESTS_REQUIRE_DOCKER=0" >> "$GITHUB_ENV"
-      - name: Build and run presets
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y ninja-build file ;;
+            macOS) brew install ninja ;;
+            Windows) choco install -y ninja ;;
+          esac
+      - name: Use a short cache path on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "HERMETIC_LLVM_CACHE_DIR=C:/hl" >> "$GITHUB_ENV"
+      - name: Build presets (and run native ctest)
+        shell: bash
         run: tests/run_tests.sh ${{ github.event.inputs.presets || matrix.presets }}
+      - name: Stage binaries
+        shell: bash
+        run: tests/stage_artifacts.sh ${{ matrix.host }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.host }}
+          path: artifacts
+          retention-days: 3
       - name: Upload runtime set build logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: logs-${{ strategy.job-index }}
-          path: ~/.cache/hermetic-llvm/logs
+          name: logs-${{ matrix.host }}
+          path: |
+            ~/.cache/hermetic-llvm/logs
+            C:/hl/logs
           if-no-files-found: ignore
+
+  run:
+    name: run ${{ matrix.environment }}
+    needs: build
+    if: always()
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: linux-x86_64
+            os: ubuntu-latest
+          - environment: linux-aarch64
+            os: ubuntu-24.04-arm
+          - environment: linux-qemu
+            os: ubuntu-latest
+          - environment: darwin-aarch64
+            os: macos-latest
+          - environment: darwin-x86_64
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: artifacts
+          merge-multiple: true
+      - name: Register QEMU
+        if: matrix.environment == 'linux-qemu'
+        uses: docker/setup-qemu-action@v3
+      - name: Run every binary for this environment, enforce identical builds across hosts
+        shell: bash
+        env:
+          HERMETIC_TESTS_ENFORCE_REPRODUCIBLE: "1"
+        run: tests/run_artifacts.sh ${{ matrix.environment }}
 
   # A configuration must also work with an empty cache in one invocation.
   cold-start:

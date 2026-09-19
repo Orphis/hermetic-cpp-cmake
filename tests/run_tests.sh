@@ -81,10 +81,14 @@ for preset in "${presets[@]}"; do
       if [[ "${preset}" == host* ]]; then ctest --preset "${preset}"; fi
       ;;
     linux-*)
-      file "${dir}/hello_cxx" | grep -q "$(elf_pattern_for "${preset}")" || { file "${dir}/hello_cxx"; exit 1; }
-      case "${preset}" in
-        *musl*) file "${dir}/hello_cxx" | grep -q "static" || { echo "expected a static musl binary"; file "${dir}/hello_cxx"; exit 1; } ;;
-      esac
+      if command -v file >/dev/null 2>&1; then
+        file "${dir}/hello_cxx" | grep -q "$(elf_pattern_for "${preset}")" || { file "${dir}/hello_cxx"; exit 1; }
+        case "${preset}" in
+          *musl*) file "${dir}/hello_cxx" | grep -q "static" || { echo "expected a static musl binary"; file "${dir}/hello_cxx"; exit 1; } ;;
+        esac
+      else
+        echo "--- 'file' not available, skipping the ELF check"
+      fi
       if have_docker; then
         run_in_docker "$(platform_for "${preset}")" "$(image_for "${preset}")" "${dir}"
         case "${preset}" in

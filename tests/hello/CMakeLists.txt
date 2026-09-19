@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.19)
 project(hermetic_llvm_hello C CXX)
 
+# No build-tree rpath: it would embed the absolute build directory, which
+# differs per host and would defeat the cross-host reproducibility check.
+set(CMAKE_SKIP_BUILD_RPATH ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -26,7 +30,12 @@ if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
   add_executable(hello_shared hello.cpp)
   target_link_libraries(hello_shared PRIVATE greeter Threads::Threads)
   add_test(NAME hello_shared COMMAND hello_shared)
-  set_tests_properties(hello_shared PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+  # Without a build rpath the library is located through the environment.
+  set_tests_properties(hello_shared PROPERTIES PASS_REGULAR_EXPRESSION "OK"
+    ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR};DYLD_LIBRARY_PATH=${CMAKE_BINARY_DIR}")
 endif()
+
+# Consumed by tests/run_artifacts.sh to pick where a build's binaries can run.
+file(WRITE "${CMAKE_BINARY_DIR}/target.txt" "${HERMETIC_LLVM_TARGET};${HERMETIC_LLVM_EFFECTIVE_LIBC}\n")
 
 message(STATUS "hermetic-llvm: root=${HERMETIC_LLVM_ROOT} triple=${HERMETIC_LLVM_TARGET_TRIPLE} libc=${HERMETIC_LLVM_EFFECTIVE_LIBC} sysroot=${HERMETIC_LLVM_SYSROOT_PATH} cross=${HERMETIC_LLVM_CROSSCOMPILING}")

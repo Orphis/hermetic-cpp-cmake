@@ -13,6 +13,29 @@ foreach(_hl_env HERMETIC_LLVM_KEEP_ARCHIVES HERMETIC_LLVM_KEEP_BUILD_DIRS HERMET
   endif()
 endforeach()
 
+# Suffix of host executables (".exe" on Windows); CMAKE_HOST_EXECUTABLE_SUFFIX
+# is not available in script mode.
+set(HERMETIC_LLVM_HOST_EXE "")
+if(CMAKE_HOST_WIN32)
+  set(HERMETIC_LLVM_HOST_EXE ".exe")
+endif()
+
+# Sets ${OUT} to PATH, PATH.exe or PATH without suffix, whichever exists
+# (prebuilt tool archives are inconsistent about the suffix on Windows).
+function(hermetic_llvm_host_executable PATH OUT)
+  if(EXISTS "${PATH}${HERMETIC_LLVM_HOST_EXE}")
+    set(${OUT} "${PATH}${HERMETIC_LLVM_HOST_EXE}" PARENT_SCOPE)
+    return()
+  endif()
+  if(CMAKE_HOST_WIN32 AND EXISTS "${PATH}")
+    # cmd.exe (used by Ninja) only runs files with an executable extension.
+    file(COPY_FILE "${PATH}" "${PATH}.exe" ONLY_IF_DIFFERENT)
+    set(${OUT} "${PATH}.exe" PARENT_SCOPE)
+    return()
+  endif()
+  set(${OUT} "${PATH}" PARENT_SCOPE)
+endfunction()
+
 function(hermetic_llvm_log)
   message(STATUS "[hermetic-llvm] ${ARGN}")
 endfunction()
@@ -265,13 +288,16 @@ function(hermetic_llvm_fetch_archive)
   set(${A_OUT_DIR} "${dest}" PARENT_SCOPE)
 endfunction()
 
-# Appends every FLAG to the string variable VAR (space separated).
-macro(hermetic_llvm_append_flags VAR)
-  foreach(_flag ${ARGN})
-    if("${${VAR}}" STREQUAL "")
-      set(${VAR} "${_flag}")
+# Appends every FLAG to the string variable VAR (space separated) in the
+# caller's scope.
+function(hermetic_llvm_append_flags VAR)
+  set(value "${${VAR}}")
+  foreach(flag IN LISTS ARGN)
+    if(value STREQUAL "")
+      set(value "${flag}")
     else()
-      set(${VAR} "${${VAR}} ${_flag}")
+      set(value "${value} ${flag}")
     endif()
   endforeach()
-endmacro()
+  set(${VAR} "${value}" PARENT_SCOPE)
+endfunction()
