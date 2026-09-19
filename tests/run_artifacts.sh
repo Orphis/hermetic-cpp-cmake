@@ -65,6 +65,7 @@ ran=0
 for dir in "${artifacts}"/*/*/; do
   [[ -f "${dir}/target.txt" ]] || continue
   IFS=';' read -r target libc < "${dir}/target.txt"
+  target="${target%$'\r'}"; libc="${libc%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"
   preset="$(basename "${dir}")"
@@ -101,10 +102,12 @@ echo "=== SHA-256 per target/preset across hosts"
 table="$(for dir in "${artifacts}"/*/*/; do
   [[ -f "${dir}/target.txt" ]] || continue
   IFS=';' read -r target libc < "${dir}/target.txt"
+  target="${target%$'\r'}"; libc="${libc%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
   for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll; do
     [[ -f "$f" ]] || continue
+    [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
     printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(sha256 "$f" | cut -c1-16)" "${host}"
   done
 done | sort; true)"

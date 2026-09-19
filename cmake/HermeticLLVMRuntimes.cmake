@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 6)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 7)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -304,7 +304,9 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
     # Clang on a Windows host joins include paths with backslashes and
     # -ffile-reproducible does not undo that, so __FILE__ (only used in
     # assertion and abort messages by the runtimes) becomes the bare file
-    # name, which every host derives identically.
+    # name, which every host derives identically. glibc >= 2.44 assert.h
+    # uses __builtin_FILE() in C++ instead, which this cannot intercept;
+    # the runtimes are therefore built with assertions off (below).
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
     "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
     "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
@@ -385,6 +387,10 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
       -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
       # Static archives that also work inside shared libraries.
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      # Release runtimes: assertions off. They default to on for libunwind and
+      # libc++abi, and with glibc >= 2.44 assert() embeds the include path via
+      # __builtin_FILE(), which differs between Windows and Unix build hosts.
+      -DLIBUNWIND_ENABLE_ASSERTIONS=OFF -DLIBCXXABI_ENABLE_ASSERTIONS=OFF
       -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBUNWIND_USE_COMPILER_RT=ON -DLIBUNWIND_INSTALL_HEADERS=ON
       -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON
       -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON
