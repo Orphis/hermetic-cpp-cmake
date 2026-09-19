@@ -177,19 +177,50 @@ The inputs and recipes come from hermetic-llvm:
   ftp.gnu.org, musl from musl.libc.org, all pinned by SHA-256 in
   [`cmake/distributions/runtime_sources.json`](cmake/distributions/runtime_sources.json).
 
-## Tested
+## Testing and CI
 
-| Host | Target | Result |
-| --- | --- | --- |
-| darwin-aarch64 | darwin-aarch64 | builds and runs |
-| darwin-aarch64 | linux-x86_64 gnu.2.28 | dynamic C and C++ binaries run on Debian bullseye (glibc 2.31) in Docker |
-| darwin-aarch64 | linux-x86_64 musl | static-pie C and C++ binaries run in Docker |
-| darwin-aarch64 | linux-aarch64 gnu.2.28 / musl | C and C++ run natively on arm64 in Docker |
-| darwin-aarch64 | linux-aarch64 gnu.2.28, `-fsanitize=address` | detects a heap-buffer-overflow in Docker (amd64 ASan cannot run under the macOS Docker emulator, which kills it while mapping shadow memory) |
-| any | linux-armv7, linux-riscv64, linux-s390x | recipes wired (hermetic-llvm supports them), not run |
+[![Tests](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/tests.yml/badge.svg)](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/tests.yml)
+[![Nightly](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/nightly.yml/badge.svg)](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/nightly.yml)
 
-`tests/run_tests.sh` drives the sample project through the presets in
-[`tests/hello/CMakePresets.json`](tests/hello/CMakePresets.json).
+`tests/run_tests.sh` drives the sample project in [`tests/hello`](tests/hello)
+through the presets in
+[`tests/hello/CMakePresets.json`](tests/hello/CMakePresets.json): it
+configures and builds each preset, checks the ELF architecture of the
+result, and when Docker is available runs the binaries in a Debian container
+for the target platform (foreign architectures need QEMU registered with
+Docker; `HERMETIC_TESTS_REQUIRE_DOCKER=1` fails instead of skipping,
+`HERMETIC_TESTS_SKIP_DOCKER=1` never executes). glibc presets run on the
+Debian release matching their version, and `gnu.2.4x` binaries are
+additionally checked to be refused by an older release, proving the version
+pinning. `cmake -P tests/select_test.cmake` unit-tests version selection and
+libc parsing.
+
+Two GitHub Actions workflows run this:
+
+- [`tests.yml`](.github/workflows/tests.yml), on every push and pull request
+  (about 4 minutes): tables and selection checks, then native builds and
+  cross builds on Ubuntu x86_64, Ubuntu arm64 and macOS arm64. Each job
+  builds at most two runtime sets from source; cross binaries are executed
+  through Docker and QEMU on the Linux runners.
+- [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
+  (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
+  chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
+  on x86_64 and aarch64 with the negative check, ASan and UBSan executed
+  natively on both architectures, armv7, riscv64 and s390x (glibc and musl)
+  under QEMU, compiler version selection (`latest`, `21.1.8`,
+  `first:>=22`), macOS x86_64 native and `darwin-x86_64` cross, and a
+  cold-start job provisioning a target with sanitizers from an empty cache
+  in one invocation.
+
+Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 250 MB,
+mostly the LLVM source archive) and rebuild runtime sets every time, which
+keeps them honest about the from-source path; a set takes one to three
+minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
+
+Every target and libc listed above has been built and executed this way,
+from Linux and macOS hosts. Publishing prebuilt runtime sets is deliberately
+not done yet: it needs the archives to be reproducible across build hosts
+first.
 
 ## Maintenance
 
