@@ -233,11 +233,19 @@ function(hermetic_llvm_fetch_archive)
   endif()
   file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${tmp}" ${patterns})
 
+  # Archives made on macOS may carry AppleDouble (._name) and .DS_Store
+  # entries, which Linux extracts as real files; drop them.
+  file(GLOB_RECURSE junk "${tmp}/._*" "${tmp}/.DS_Store")
+  file(GLOB top_junk "${tmp}/._*" "${tmp}/.DS_Store")
+  if(junk OR top_junk)
+    file(REMOVE ${junk} ${top_junk})
+  endif()
+
   set(current "${tmp}")
   set(remaining "${A_STRIP_COMPONENTS}")
   while(remaining GREATER 0)
     file(GLOB entries LIST_DIRECTORIES true "${current}/*" "${current}/.*")
-    list(FILTER entries EXCLUDE REGEX "/\\.\\.?$")
+    list(FILTER entries EXCLUDE REGEX "/(\\.\\.?|\\._[^/]*|\\.DS_Store)$")
     list(LENGTH entries count)
     if(NOT count EQUAL 1)
       hermetic_llvm_fatal("Cannot strip ${A_STRIP_COMPONENTS} leading path component(s) from ${basename}: ${current} has ${count} entries (${entries})")
