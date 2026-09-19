@@ -1,0 +1,182 @@
+{
+  "_meta": {
+    "description": "Runtime build inputs imported from hermeticbuild/hermetic-llvm by scripts/import_hermetic_llvm_data.py"
+  },
+  "default_libc": "gnu.2.28",
+  "glibc": {
+    "2.28": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/92d25389c255b0da9b56bc05694f0702cd22921a.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "f4cf37f12e0c3a81485ea8743dc41dbcec31ae326b22d6265e724c7ee753529e",
+      "kernel": "4.19.325"
+    },
+    "2.29": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/2417ddb64590b7197d6df15b9df67866561713e0.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "39cb3f84e92fe829f0b5d96d08437d18e90d17a23021119a7235e17d6bb25245",
+      "kernel": "5.1.21"
+    },
+    "2.30": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/f8db9906d759152db9977c8774470d05a80519da.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "617511b27f473280597a1cc2828101a29b9f4c682ee99422b8c246c2f84f46e2",
+      "kernel": "5.4.293"
+    },
+    "2.31": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/7b27c450c34563a28e634cccb399cd415e71ebfe.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "80329e5c6624ebeaa9c0d80f73dda8c28491114206420c44a5718f56302c44ec",
+      "kernel": "5.7.19"
+    },
+    "2.32": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/5ad449c398a845a9c84808e4ac603beaa1006909.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "51900a45edab4cc21059846fb875f3583948dc9449bad7dac997687cb998e8b2",
+      "kernel": "5.9.16"
+    },
+    "2.33": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/5f08d1df2c07904c1dc98bdf2b363c65874266f7.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "9c8b9bea370bd6f03d154b6003542fa5b1d0b7124953ce5709b3859c3dade076",
+      "kernel": "5.12.19"
+    },
+    "2.34": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/26b14f335d53ce4bdaed5dbdd0e7268b8c7b5484.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "1a15c817f8d21ab0bc843f04bea3e4e33b91b640d7ce879d23b8d915de1ed03e",
+      "kernel": "5.15.182"
+    },
+    "2.35": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/d2febe7c407665c18cfea1930c65f41899ab3aa3.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "76e4f569b0058f46d9f2a83eba40342efda4414f2ba5337c1b947e930dcacc51",
+      "kernel": "5.17.15"
+    },
+    "2.36": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/03e0cad3a0d8cfb6e761e8e16cc09e6c96f9fd44.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "3c77f25a49c823ce0777191fafaf1ae65c0bd0d88e9f0080e592368c557af779",
+      "kernel": "6.0.19"
+    },
+    "2.37": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/032545ebd3ab2248b137bc92df0bd2864031cc8b.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "5b7e52f5679744b6b692b2eabe54bbb13283f9baec0e9e08f8c825a984989c55",
+      "kernel": "6.3.13"
+    },
+    "2.38": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/5a08d049dc5037e89eb95bb1506652f0043fa39e.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "b1aff01416addccf7970b69275ee9d66d094ef6b770bdc49dcb3f1737cb563a1",
+      "kernel": "6.6.90"
+    },
+    "2.39": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/68f3f1a1d08f7f3e0fb74391461699717efbb4bc.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "b3d0acbe514fec5352bc195a91513be9de26740b086700135e7528356f8a38cc",
+      "kernel": "6.9.12"
+    },
+    "2.40": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/8d3dd23e3de8b4c6e4b94f8bbfab971c3b8a55be.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "80d4e3a0846423a536a14da79d7b527a84b0f73df3f1d5beadf63c8d16fc2429",
+      "kernel": "6.12.28"
+    },
+    "2.41": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/5cf17ebc659c875aff3c49d2a59ce15f46167389.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "ae2ef9d50a04e5f4e7eece46455a21bf4e4e69518ed31496fdb4c0895f7e18fd",
+      "kernel": "6.14.6"
+    },
+    "2.42": {
+      "urls": [
+        "https://github.com/bminor/glibc/archive/8aaf4b732d7650c2db3beb4dc8bb70eab5b022c3.tar.gz"
+      ],
+      "strip_components": 1,
+      "sha256": "0a1427b902e6fe666508162d92d5be3eaff4d410fe66f3426ccaa9848ed90f05",
+      "kernel": "6.16.12"
+    },
+    "2.43": {
+      "urls": [
+        "https://ftp.gnu.org/gnu/glibc/glibc-2.43.tar.xz"
+      ],
+      "strip_components": 1,
+      "sha256": "d9c86c6b5dbddb43a3e08270c5844fc5177d19442cf5b8df4be7c07cd5fa3831",
+      "kernel": "6.18.15"
+    },
+    "2.44": {
+      "urls": [
+        "https://ftp.gnu.org/gnu/glibc/glibc-2.44.tar.xz"
+      ],
+      "strip_components": 1,
+      "sha256": "37f600f2bef3c5e8300147059568b2a2e40a7ad6ccc65ce942556d49429cc667",
+      "kernel": "7.0.10"
+    }
+  },
+  "musl": {
+    "version": "1.2.6",
+    "urls": [
+      "https://musl.libc.org/releases/musl-1.2.6.tar.gz"
+    ],
+    "sha256": "d585fd3b613c66151fc3249e8ed44f77020cb5e6c1e635a616d3f9f82460512a",
+    "strip_components": 1,
+    "kernel": "6.16.12"
+  },
+  "extras": {
+    "version": "20260429",
+    "hosts": {
+      "darwin-amd64": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-darwin-amd64.tar.zst",
+        "sha256": "7f982146b033650295a568e2db2795753d6610919c4d0e90bc4baf53dfb88d04"
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-darwin-arm64.tar.zst",
+        "sha256": "4244309df7e1cb3c602597dc30b2cf25064960b877e8087dfaaa2c3f57580588"
+      },
+      "linux-amd64-musl": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-linux-amd64-musl.tar.zst",
+        "sha256": "418a27a0ab8ecf46e2e00bd4381efc0bcb54c28312261c4f36114842e5ecb20e"
+      },
+      "linux-arm64-musl": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-linux-arm64-musl.tar.zst",
+        "sha256": "5f6bcc5a806902de3e6564675bb9a75cdcbc6167af05e0c888b9930b8890b2e1"
+      },
+      "windows-amd64-gnu": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-windows-amd64-gnu.tar.zst",
+        "sha256": "a4d8f7893d3d373a928fe4d7be3fb113d3c73101f967718973518acb2a43544e"
+      },
+      "windows-arm64-gnu": {
+        "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/prebuilts-extras-20260429/toolchain-extra-prebuilts-20260429-windows-arm64-gnu.tar.zst",
+        "sha256": "4a3835588fe46a5d48424d57e8a1c2743215143100bb4fe10b918374787b3505"
+      }
+    }
+  }
+}

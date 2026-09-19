@@ -1,0 +1,33 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -P tests/select_test.cmake
+      - run: cmake -P scripts/help.cmake
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/hermetic-llvm
+          key: hermetic-llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'runtimes/**', 'tests/hello/CMakePresets.json') }}
+      - name: Install Ninja
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ninja-build; else brew install ninja; fi
+      - name: Native build
+        run: tests/run_tests.sh host
+      - name: Cross builds (glibc 2.28 and musl runtime sets, built from source)
+        run: tests/run_tests.sh linux-x86_64 linux-x86_64-musl linux-aarch64-musl

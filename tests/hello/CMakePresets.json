@@ -1,0 +1,35 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {"major": 3, "minor": 21, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/../../toolchain.cmake",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "HERMETIC_LLVM_VERSION": "23.1.0"}
+    },
+    {"name": "host", "inherits": "base", "displayName": "Host build with hermetic LLVM"},
+    {"name": "linux-x86_64", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64"}},
+    {"name": "linux-x86_64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64", "HERMETIC_LLVM_LIBC": "musl"}},
+    {"name": "linux-x86_64-gnu.2.34", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64", "HERMETIC_LLVM_LIBC": "gnu.2.34"}},
+    {"name": "linux-aarch64", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-aarch64"}},
+    {"name": "linux-aarch64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-aarch64", "HERMETIC_LLVM_LIBC": "musl"}},
+    {"name": "linux-armv7-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-armv7", "HERMETIC_LLVM_LIBC": "musl"}},
+    {"name": "linux-riscv64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-riscv64", "HERMETIC_LLVM_LIBC": "musl"}}
+  ],
+  "buildPresets": [
+    {"name": "host", "configurePreset": "host"},
+    {"name": "linux-x86_64", "configurePreset": "linux-x86_64"},
+    {"name": "linux-x86_64-musl", "configurePreset": "linux-x86_64-musl"},
+    {"name": "linux-x86_64-gnu.2.34", "configurePreset": "linux-x86_64-gnu.2.34"},
+    {"name": "linux-aarch64", "configurePreset": "linux-aarch64"},
+    {"name": "linux-aarch64-musl", "configurePreset": "linux-aarch64-musl"},
+    {"name": "linux-armv7-musl", "configurePreset": "linux-armv7-musl"},
+    {"name": "linux-riscv64-musl", "configurePreset": "linux-riscv64-musl"}
+  ],
+  "testPresets": [
+    {"name": "host", "configurePreset": "host", "output": {"outputOnFailure": true}}
+  ]
+}

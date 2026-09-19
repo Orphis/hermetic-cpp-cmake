@@ -1,0 +1,67 @@
+# Copyright 2026 The hermetic-llvm-cmake Authors.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Supported target platforms, keyed "<os>-<arch>" like hermetic-llvm's
+# platforms (linux_x86_64, macos_arm64, ...).
+
+include_guard(GLOBAL)
+
+set(HERMETIC_LLVM_SUPPORTED_TARGETS
+  linux-x86_64 linux-aarch64 linux-armv7 linux-riscv64 linux-s390x
+  darwin-x86_64 darwin-aarch64)
+
+# Sets ${OUT}_OS, _ARCH, _TRIPLE (base triple; Linux gets the libc appended
+# by hermetic_llvm_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
+function(hermetic_llvm_target_info KEY OUT)
+  if(KEY STREQUAL "linux-x86_64")
+    set(os linux)
+    set(arch x86_64)
+    set(triple x86_64-unknown-linux-gnu)
+    set(system_name Linux)
+    set(processor x86_64)
+  elseif(KEY STREQUAL "linux-aarch64")
+    set(os linux)
+    set(arch aarch64)
+    set(triple aarch64-unknown-linux-gnu)
+    set(system_name Linux)
+    set(processor aarch64)
+  elseif(KEY STREQUAL "linux-armv7")
+    set(os linux)
+    set(arch armv7)
+    set(triple armv7-unknown-linux-gnueabihf)
+    set(system_name Linux)
+    set(processor armv7l)
+  elseif(KEY STREQUAL "linux-riscv64")
+    set(os linux)
+    set(arch riscv64)
+    set(triple riscv64-unknown-linux-gnu)
+    set(system_name Linux)
+    set(processor riscv64)
+  elseif(KEY STREQUAL "linux-s390x")
+    set(os linux)
+    set(arch s390x)
+    set(triple s390x-unknown-linux-gnu)
+    set(system_name Linux)
+    set(processor s390x)
+  elseif(KEY STREQUAL "darwin-x86_64")
+    set(os darwin)
+    set(arch x86_64)
+    set(triple x86_64-apple-macosx)
+    set(system_name Darwin)
+    set(processor x86_64)
+  elseif(KEY STREQUAL "darwin-aarch64")
+    set(os darwin)
+    set(arch aarch64)
+    set(triple arm64-apple-macosx)
+    set(system_name Darwin)
+    set(processor arm64)
+  else()
+    string(REPLACE ";" ", " supported "${HERMETIC_LLVM_SUPPORTED_TARGETS}")
+    hermetic_llvm_fatal("Unsupported HERMETIC_LLVM_TARGET '${KEY}'; valid targets: ${supported}")
+  endif()
+  set(${OUT}_OS "${os}" PARENT_SCOPE)
+  set(${OUT}_ARCH "${arch}" PARENT_SCOPE)
+  set(${OUT}_TRIPLE "${triple}" PARENT_SCOPE)
+  set(${OUT}_SYSTEM_NAME "${system_name}" PARENT_SCOPE)
+  set(${OUT}_SYSTEM_PROCESSOR "${processor}" PARENT_SCOPE)
+endfunction()
