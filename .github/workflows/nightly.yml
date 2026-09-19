@@ -14,6 +14,7 @@ on:
 
 env:
   HERMETIC_LLVM_KEEP_ARCHIVES: "1"
+  HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA: "1"
 
 jobs:
   build:
@@ -57,7 +58,11 @@ jobs:
           - name: windows-x86_64
             host: windows-x86_64
             os: windows-latest
-            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44
+            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 windows-x86_64 windows-aarch64
+          - name: windows targets from linux
+            host: linux-x86_64-windows
+            os: ubuntu-latest
+            presets: windows-x86_64 windows-aarch64 windows-x86_64-vs2022
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest
@@ -127,6 +132,10 @@ jobs:
             os: macos-latest
           - environment: darwin-x86_64
             os: macos-15-intel
+          - environment: windows-x86_64
+            os: windows-latest
+          - environment: windows-aarch64
+            os: windows-11-arm
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:

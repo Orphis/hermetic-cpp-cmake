@@ -61,6 +61,23 @@ Or with a preset:
      as the compiler. Links use `-rtlib=compiler-rt --unwindlib=libunwind`.
 3. **macOS targets** use the SDK from Xcode or the Command Line Tools (or
    the directory in `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++.
+   **Windows targets** (MSVC ABI, `windows-x86_64` and `windows-aarch64`)
+   use `clang-cl` and `lld-link` with the MSVC C runtime and STL headers and
+   libraries from the Visual Studio installer manifest and the Windows SDK
+   from its public NuGet packages, pinned in
+   [`cmake/distributions/windows.json`](cmake/distributions/windows.json)
+   (the same sources as hermetic-llvm's `windows_support`; every toolset in
+   the pinned manifest and the newest NuGet package of each SDK build are
+   listed, selectable with `HERMETIC_LLVM_MSVC_VERSION` and
+   `HERMETIC_LLVM_WINDOWS_SDK_VERSION`). These carry
+   Microsoft licenses, so `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA=1` must be set
+   to confirm entitlement before they are downloaded. A case-insensitive
+   Clang VFS overlay lets the SDK's mixed-case names resolve on
+   case-sensitive filesystems. Static libraries are created with `llvm-ar`
+   (the prebuilt has no `llvm-lib`) and executables get no manifest
+   (`/MANIFEST:NO`, since `llvm-mt` is built without libxml2); the C++
+   library is the MSVC STL, linked against the dynamic CRT by default
+   (`CMAKE_MSVC_RUNTIME_LIBRARY` selects otherwise).
 4. **CMake configuration**: compilers, binutils, `CMAKE_SYSTEM_NAME`,
    `CMAKE_<LANG>_COMPILER_TARGET`, `CMAKE_SYSROOT` (the runtime set), LLD,
    `-resource-dir`, `-rtlib=compiler-rt`, static libc++ and the link mode.
@@ -105,7 +122,10 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`. |
+| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`. |
+| `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
+| `HERMETIC_LLVM_MSVC_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
+| `HERMETIC_LLVM_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
 | `HERMETIC_LLVM_LIBC` | `gnu.2.28` | Linux libc: `gnu.<version>` (2.28 to 2.44) or `musl`. The runtime set id is `<target>-<libc>`. |
 | `HERMETIC_LLVM_RUNTIMES` | `auto` | `auto`: use a prebuilt runtime set when the index lists one, else build it; `download`: fail if none is listed; `build`: always build locally. |
 | `HERMETIC_LLVM_RUNTIME_SET_DIR` | | Use an existing runtime set directory (one produced by `runtimes/build_runtimes.cmake`). |
@@ -249,7 +269,9 @@ come; the same hashing will be applied to the set archives themselves first.
 - hermetic-llvm builds the runtimes as Bazel targets inside the consuming
   build; here they are built once per (LLVM version, target, libc) into a
   cache directory by a `cmake -P` driver, or downloaded prebuilt.
-- Not ported yet: Windows targets (MinGW and MSVC), wasm and BPF targets,
+- Windows targets cover the MSVC ABI with the MSVC STL only; not ported yet:
+  MinGW targets, libc++ for the Microsoft ABI, compiler-rt for Windows
+  (no sanitizers there), wasm and BPF targets,
   libstdc++ as an alternative C++ library, the hermetic macOS SDK download
   from Apple's CDN (its `pkgutil` is in the extras prebuilt, so it is
   feasible), and the compiler bootstrap stages.

@@ -10,6 +10,8 @@ on:
 
 env:
   HERMETIC_LLVM_KEEP_ARCHIVES: "1"
+  # Windows targets download the MSVC runtime and Windows SDK from Microsoft.
+  HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA: "1"
 
 jobs:
   tables:
@@ -29,13 +31,13 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64
           - host: linux-aarch64
             os: ubuntu-24.04-arm
             presets: host linux-x86_64-musl linux-x86_64
           - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64 linux-x86_64-musl
+            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64
           - host: windows-x86_64
             os: windows-latest
             presets: linux-x86_64-musl linux-x86_64
@@ -99,6 +101,8 @@ jobs:
             os: ubuntu-24.04-arm
           - environment: darwin-aarch64
             os: macos-latest
+          - environment: windows-x86_64
+            os: windows-latest
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

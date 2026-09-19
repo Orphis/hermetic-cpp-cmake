@@ -26,6 +26,7 @@ set_tests_properties(hello_c hello_cxx PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 # musl targets are fully static (like hermetic-llvm), so no shared libraries.
 if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
   add_library(greeter SHARED greeter.cpp)
+  set_target_properties(greeter PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   target_include_directories(greeter PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   add_executable(hello_shared hello.cpp)
   target_link_libraries(hello_shared PRIVATE greeter Threads::Threads)

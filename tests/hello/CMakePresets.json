@@ -177,6 +177,29 @@
       "cacheVariables": {
         "HERMETIC_LLVM_TARGET": "darwin-aarch64"
       }
+    },
+    {
+      "name": "windows-x86_64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64"
+      }
+    },
+    {
+      "name": "windows-aarch64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-aarch64"
+      }
+    },
+    {
+      "name": "windows-x86_64-vs2022",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_MSVC_VERSION": "14.44",
+        "HERMETIC_LLVM_WINDOWS_SDK_VERSION": "10.0.22621"
+      }
     }
   ],
   "buildPresets": [
@@ -263,6 +286,18 @@
     {
       "name": "darwin-aarch64",
       "configurePreset": "darwin-aarch64"
+    },
+    {
+      "name": "windows-x86_64",
+      "configurePreset": "windows-x86_64"
+    },
+    {
+      "name": "windows-aarch64",
+      "configurePreset": "windows-aarch64"
+    },
+    {
+      "name": "windows-x86_64-vs2022",
+      "configurePreset": "windows-x86_64-vs2022"
     }
   ],
   "testPresets": [

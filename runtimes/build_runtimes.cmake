@@ -25,6 +25,7 @@ include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDistributions.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMTargets.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMConfigure.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMRuntimes.cmake")
+include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindows.cmake")
 
 hermetic_llvm_detect_host(HERMETIC_LLVM_HOST_OS HERMETIC_LLVM_HOST_ARCH)
 hermetic_llvm_resolve_cache_dir()

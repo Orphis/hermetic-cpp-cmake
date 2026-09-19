@@ -8,7 +8,8 @@ include_guard(GLOBAL)
 
 set(HERMETIC_LLVM_SUPPORTED_TARGETS
   linux-x86_64 linux-aarch64 linux-armv7 linux-riscv64 linux-s390x
-  darwin-x86_64 darwin-aarch64)
+  darwin-x86_64 darwin-aarch64
+  windows-x86_64 windows-aarch64)
 
 # Sets ${OUT}_OS, _ARCH, _TRIPLE (base triple; Linux gets the libc appended
 # by hermetic_llvm_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
@@ -55,6 +56,18 @@ function(hermetic_llvm_target_info KEY OUT)
     set(triple arm64-apple-macosx)
     set(system_name Darwin)
     set(processor arm64)
+  elseif(KEY STREQUAL "windows-x86_64")
+    set(os windows)
+    set(arch x86_64)
+    set(triple x86_64-pc-windows-msvc)
+    set(system_name Windows)
+    set(processor AMD64)
+  elseif(KEY STREQUAL "windows-aarch64")
+    set(os windows)
+    set(arch aarch64)
+    set(triple aarch64-pc-windows-msvc)
+    set(system_name Windows)
+    set(processor ARM64)
   else()
     string(REPLACE ";" ", " supported "${HERMETIC_LLVM_SUPPORTED_TARGETS}")
     hermetic_llvm_fatal("Unsupported HERMETIC_LLVM_TARGET '${KEY}'; valid targets: ${supported}")

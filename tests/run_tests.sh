@@ -77,7 +77,7 @@ for preset in "${presets[@]}"; do
   cmake --build --preset "${preset}"
   dir="$(cd "build/${preset}" && pwd)"
   case "${preset}" in
-    host*|darwin-*)
+    host*|darwin-*|windows-*)
       if [[ "${preset}" == host* ]]; then ctest --preset "${preset}"; fi
       ;;
     linux-*)

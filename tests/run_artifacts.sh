@@ -10,6 +10,7 @@
 #   linux-qemu                    Linux binaries for every other architecture, run
 #                                 in Debian containers through QEMU
 #   darwin-aarch64, darwin-x86_64 macOS binaries run directly
+#   windows-x86_64, windows-aarch64  Windows binaries run directly (Git Bash)
 #
 # glibc binaries additionally get a negative check: one built against
 # glibc 2.4x must be refused by Debian bullseye.
@@ -20,6 +21,10 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 env_name="$1"
 artifacts="${2:-${here}/../artifacts}"
+
+sha256() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1"; else sha256sum "$1"; fi
+}
 
 image_for_libc() {
   case "$1" in
@@ -51,7 +56,7 @@ runs_here() {
   case "${env_name}" in
     linux-x86_64|linux-aarch64) [[ "${target}" == "${env_name}" ]] ;;
     linux-qemu) [[ "${target}" == linux-* && "${target}" != linux-x86_64 && "${target}" != linux-aarch64 ]] ;;
-    darwin-*) [[ "${target}" == "${env_name}" ]] ;;
+    darwin-*|windows-*) [[ "${target}" == "${env_name}" ]] ;;
     *) echo "unknown environment ${env_name}"; exit 2 ;;
   esac
 }
@@ -79,6 +84,8 @@ for dir in "${artifacts}"/*/*/; do
           echo "binary unexpectedly ran on bullseye"; exit 1
         fi ;;
     esac
+  elif [[ "${target}" == windows-* ]]; then
+    (cd "${dir}" && ./hello_c.exe && ./hello_cxx.exe && { [[ ! -e hello_shared.exe ]] || ./hello_shared.exe; })
   else
     (cd "${dir}" && ./hello_c && ./hello_cxx && { [[ ! -e hello_shared ]] || DYLD_LIBRARY_PATH=. ./hello_shared; })
   fi
@@ -96,10 +103,11 @@ table="$(for dir in "${artifacts}"/*/*/; do
   IFS=';' read -r target libc < "${dir}/target.txt"
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so; do
-    [[ -f "$f" ]] && printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(shasum -a 256 "$f" | cut -c1-16)" "${host}"
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll; do
+    [[ -f "$f" ]] || continue
+    printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(sha256 "$f" | cut -c1-16)" "${host}"
   done
-done | sort)"
+done | sort; true)"
 echo "${table}" | awk '{printf "%-28s %-14s %s  %s\n", $1, $2, $3, $4}'
 differing="$(echo "${table}" | awk '{k=$1" "$2; if (k in h && h[k]!=$3) d[k]=1; h[k]=$3} END {for (k in d) print k}')"
 if [[ -n "${differing}" ]]; then

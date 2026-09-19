@@ -58,7 +58,15 @@ macro(hermetic_llvm_resolve)
     set(HERMETIC_LLVM_RESOLVED_RUNTIME_SET "")
     set(HERMETIC_LLVM_RESOLVED_SYSROOT "")
     set(HERMETIC_LLVM_RESOLVED_LIBC "")
-    if(_hl_target_OS STREQUAL "linux")
+    set(HERMETIC_LLVM_RESOLVED_WINSDK "")
+    if(_hl_target_OS STREQUAL "windows")
+      hermetic_llvm_provide_windows_sdk("${_hl_target_ARCH}" _hl_win)
+      # One list, forwarded to try_compile projects as a single variable.
+      set(HERMETIC_LLVM_RESOLVED_WINSDK
+        "${_hl_win_MSVC_VERSION}" "${_hl_win_MSVC_COMPAT_VERSION}" "${_hl_win_MSVC_INCLUDE}" "${_hl_win_MSVC_LIB}"
+        "${_hl_win_SDK_VERSION}" "${_hl_win_SDK_INCLUDE_VERSION}" "${_hl_win_SDK_INCLUDE}"
+        "${_hl_win_SDK_UCRT_LIB}" "${_hl_win_SDK_UM_LIB}" "${_hl_win_OVERLAY}")
+    elseif(_hl_target_OS STREQUAL "linux")
       if(HERMETIC_LLVM_SYSROOT AND NOT HERMETIC_LLVM_SYSROOT STREQUAL "default")
         # Bring-your-own sysroot: no runtime set, the sysroot must provide crt,
         # libc, C++ library and compiler runtime.
@@ -130,6 +138,11 @@ macro(hermetic_llvm_resolve)
     endif()
     if(HERMETIC_LLVM_RESOLVED_SYSROOT)
       hermetic_llvm_log("Sysroot ${HERMETIC_LLVM_RESOLVED_SYSROOT}")
+    endif()
+    if(HERMETIC_LLVM_RESOLVED_WINSDK)
+      list(GET HERMETIC_LLVM_RESOLVED_WINSDK 0 _hl_msvc_v)
+      list(GET HERMETIC_LLVM_RESOLVED_WINSDK 5 _hl_sdk_v)
+      hermetic_llvm_log("MSVC ${_hl_msvc_v} runtime and Windows SDK ${_hl_sdk_v}")
     endif()
   else()
     if(NOT DEFINED HERMETIC_LLVM_TARGET OR HERMETIC_LLVM_TARGET STREQUAL "" OR HERMETIC_LLVM_TARGET STREQUAL "host")

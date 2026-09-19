@@ -40,13 +40,37 @@ macro(hermetic_llvm_configure)
     hermetic_llvm_libc_triple("${_hl_tgt_ARCH}" "${_hl_libc_family}" _hl_triple)
   endif()
 
+  set(_hl_windows FALSE)
+  if(_hl_tgt_OS STREQUAL "windows")
+    set(_hl_windows TRUE)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 0 _hl_msvc_version)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 1 _hl_msvc_compat)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 2 _hl_msvc_include)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 3 _hl_msvc_lib)
+    string(REPLACE "|" ";" _hl_msvc_lib "${_hl_msvc_lib}")
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 6 _hl_sdk_include)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 7 _hl_sdk_ucrt_lib)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 8 _hl_sdk_um_lib)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 9 _hl_overlay)
+  endif()
+
   # ---- Tools -------------------------------------------------------------
-  set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
-  set(CMAKE_CXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
+  if(_hl_windows)
+    # MSVC ABI: clang-cl and lld-link, driven by CMake's MSVC-style rules.
+    set(CMAKE_C_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
+    set(CMAKE_CXX_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
+    set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-rc${_hl_exe}" CACHE FILEPATH "Resource compiler")
+    set(CMAKE_MT "${_hl_bin}/llvm-mt${_hl_exe}" CACHE FILEPATH "Manifest tool")
+    set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindowsRules.cmake")
+  else()
+    set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
+    set(CMAKE_CXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
+    set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
+  endif()
   set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
   set(CMAKE_OBJC_COMPILER "${_hl_bin}/clang${_hl_exe}")
   set(CMAKE_OBJCXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
-  set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
   set(CMAKE_RANLIB "${_hl_bin}/llvm-ranlib${_hl_exe}" CACHE FILEPATH "Ranlib")
   set(CMAKE_NM "${_hl_bin}/llvm-nm${_hl_exe}" CACHE FILEPATH "nm")
   set(CMAKE_OBJCOPY "${_hl_bin}/llvm-objcopy${_hl_exe}" CACHE FILEPATH "objcopy")
@@ -58,6 +82,8 @@ macro(hermetic_llvm_configure)
   if(_hl_tgt_OS STREQUAL "darwin")
     set(CMAKE_LINKER "${_hl_bin}/ld64.lld${_hl_exe}" CACHE FILEPATH "Linker")
     set(CMAKE_INSTALL_NAME_TOOL "${_hl_bin}/llvm-install-name-tool${_hl_exe}" CACHE FILEPATH "install_name_tool")
+  elseif(_hl_windows)
+    set(CMAKE_LINKER "${_hl_bin}/lld-link${_hl_exe}" CACHE FILEPATH "Linker")
   else()
     set(CMAKE_LINKER "${_hl_bin}/ld.lld${_hl_exe}" CACHE FILEPATH "Linker")
   endif()
@@ -88,9 +114,13 @@ macro(hermetic_llvm_configure)
     set(CMAKE_SYSROOT "${_hl_sysroot}")
   endif()
 
-  # With a runtime set the sysroot is the whole target world, even for a
-  # native build: never let find_* pick up host headers or libraries.
-  if(NOT _hl_native OR _hl_set)
+  if(_hl_windows)
+    # find_* may look inside the MSVC and SDK trees only.
+    set(CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
+  endif()
+  # With a runtime set or the Windows SDK the target world is fully known,
+  # even for a native build: never let find_* pick up host headers or libraries.
+  if(NOT _hl_native OR _hl_set OR _hl_windows)
     if(NOT DEFINED CMAKE_FIND_ROOT_PATH_MODE_PROGRAM)
       set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
     endif()
@@ -115,11 +145,35 @@ macro(hermetic_llvm_configure)
     # hermetic-llvm's deterministic_compile_flags.
     hermetic_llvm_append_flags(_hl_c_flags -Wno-builtin-macro-redefined "-D__DATE__=\\\"redacted\\\"" "-D__TIMESTAMP__=\\\"redacted\\\"" "-D__TIME__=\\\"redacted\\\"")
   endif()
-  if(HERMETIC_LLVM_USE_LLD)
+  if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows)
     hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)
   endif()
 
-  if(_hl_set)
+  if(_hl_windows)
+    # MSVC ABI, following hermetic-llvm's windows/msvc argument groups:
+    # explicit MSVC and SDK include and library paths, a case-insensitive VFS
+    # overlay for the SDK's mixed-case names, deterministic objects and links.
+    hermetic_llvm_append_flags(_hl_c_flags
+      "-fms-compatibility-version=${_hl_msvc_compat}"
+      "/imsvc${_hl_msvc_include}" "/imsvc${_hl_sdk_include}/ucrt" "/imsvc${_hl_sdk_include}/shared"
+      "/imsvc${_hl_sdk_include}/um" "/imsvc${_hl_sdk_include}/winrt"
+      -Xclang -ivfsoverlay -Xclang "${_hl_overlay}"
+      /Brepro /clang:-gno-codeview-command-line)
+    foreach(_hl_dir IN LISTS _hl_msvc_lib)
+      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_dir}")
+    endforeach()
+    hermetic_llvm_append_flags(_hl_link_flags
+      "/LIBPATH:${_hl_sdk_ucrt_lib}" "/LIBPATH:${_hl_sdk_um_lib}"
+      "/vfsoverlay:${_hl_overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
+      # No manifest embedding: it would need llvm-mt, which the prebuilt
+      # lacks libxml2 for; lld-link can embed one on request.
+      /MANIFEST:NO)
+    if(_hl_tgt_ARCH STREQUAL "aarch64")
+      hermetic_llvm_append_flags(_hl_link_flags /MACHINE:ARM64)
+    else()
+      hermetic_llvm_append_flags(_hl_link_flags /MACHINE:X64)
+    endif()
+  elseif(_hl_set)
     # Linux with a runtime set: resource directory with compiler-rt, static
     # libc++ / libc++abi / libunwind, default libs, link mode.
     hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
@@ -159,6 +213,10 @@ macro(hermetic_llvm_configure)
   foreach(_hl_lang C CXX ASM OBJC OBJCXX)
     hermetic_llvm_append_flags(CMAKE_${_hl_lang}_FLAGS_INIT ${_hl_c_flags})
   endforeach()
+  if(_hl_windows)
+    # The overlay and MSVC paths are compile-only; keep them off the RC flags.
+    set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared")
+  endif()
   hermetic_llvm_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_flags})
   hermetic_llvm_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_flags})
   foreach(_hl_kind EXE SHARED MODULE)

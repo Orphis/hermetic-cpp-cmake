@@ -42,6 +42,18 @@ if(NOT t1 STREQUAL "x86_64-unknown-linux-gnu" OR NOT t2 STREQUAL "armv7-unknown-
   math(EXPR failures "${failures} + 1")
 endif()
 
+# Windows toolset / SDK selection.
+include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindows.cmake")
+hermetic_llvm_windows_versions(msvc msvc_default sdk sdk_default)
+hermetic_llvm_select_version(sdk "10.0.22621" "${sdk_default}" "${sdk}" w1)
+hermetic_llvm_select_version(sdk "" "${sdk_default}" "${sdk}" w2)
+hermetic_llvm_select_version(msvc "latest" "${msvc_default}" "${msvc}" w3)
+hermetic_llvm_select_version(msvc "14.44" "${msvc_default}" "${msvc}" w4)
+if(NOT w1 STREQUAL "10.0.22621.3233" OR NOT w2 STREQUAL "10.0.26100.7705" OR NOT w3 STREQUAL "14.51.36014" OR NOT w4 MATCHES "^14\\.44\\.")
+  message(SEND_ERROR "windows version selection broken: ${w1} ${w2} ${w3} ${w4}")
+  math(EXPR failures "${failures} + 1")
+endif()
+
 if(failures)
   message(FATAL_ERROR "${failures} selection test(s) failed")
 endif()

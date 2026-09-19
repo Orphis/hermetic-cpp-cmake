@@ -20,6 +20,7 @@ include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDistributions.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMTargets.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMConfigure.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMRuntimes.cmake")
+include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindows.cmake")
 include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMResolve.cmake")
 
 if(HERMETIC_LLVM_DRY_RUN)
