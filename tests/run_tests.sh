@@ -28,7 +28,7 @@ image_for() {
     *gnu.2.4[2-9]*) echo debian:sid-slim ;;
     *gnu.2.3[7-9]*|*gnu.2.4[01]*) echo debian:trixie-slim ;;
     *gnu.2.3[2-6]*) echo debian:bookworm-slim ;;
-    *riscv64*) echo debian:trixie-slim ;;
+    *riscv64*|*s390x*) echo debian:trixie-slim ;;  # only trixie ships these architectures
     *) echo debian:bullseye-slim ;;
   esac
 }
