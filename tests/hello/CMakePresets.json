@@ -1,6 +1,10 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": {"major": 3, "minor": 21, "patch": 0},
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "base",
@@ -8,28 +12,287 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "toolchainFile": "${sourceDir}/../../toolchain.cmake",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "HERMETIC_LLVM_VERSION": "23.1.0"}
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HERMETIC_LLVM_VERSION": "23.1.0"
+      }
     },
-    {"name": "host", "inherits": "base", "displayName": "Host build with hermetic LLVM"},
-    {"name": "linux-x86_64", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64"}},
-    {"name": "linux-x86_64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64", "HERMETIC_LLVM_LIBC": "musl"}},
-    {"name": "linux-x86_64-gnu.2.34", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-x86_64", "HERMETIC_LLVM_LIBC": "gnu.2.34"}},
-    {"name": "linux-aarch64", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-aarch64"}},
-    {"name": "linux-aarch64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-aarch64", "HERMETIC_LLVM_LIBC": "musl"}},
-    {"name": "linux-armv7-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-armv7", "HERMETIC_LLVM_LIBC": "musl"}},
-    {"name": "linux-riscv64-musl", "inherits": "base", "cacheVariables": {"HERMETIC_LLVM_TARGET": "linux-riscv64", "HERMETIC_LLVM_LIBC": "musl"}}
+    {
+      "name": "host",
+      "inherits": "base",
+      "displayName": "Host build with hermetic LLVM"
+    },
+    {
+      "name": "linux-x86_64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64"
+      }
+    },
+    {
+      "name": "linux-x86_64-musl",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_LIBC": "musl"
+      }
+    },
+    {
+      "name": "linux-x86_64-gnu.2.34",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_LIBC": "gnu.2.34"
+      }
+    },
+    {
+      "name": "linux-aarch64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-aarch64"
+      }
+    },
+    {
+      "name": "linux-aarch64-musl",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_LIBC": "musl"
+      }
+    },
+    {
+      "name": "linux-armv7-musl",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-armv7",
+        "HERMETIC_LLVM_LIBC": "musl"
+      }
+    },
+    {
+      "name": "linux-riscv64-musl",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-riscv64",
+        "HERMETIC_LLVM_LIBC": "musl"
+      }
+    },
+    {
+      "name": "host-latest",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_VERSION": "latest"
+      }
+    },
+    {
+      "name": "host-21.1.8",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_VERSION": "21.1.8"
+      }
+    },
+    {
+      "name": "host-first-22",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_VERSION": "first:>=22"
+      }
+    },
+    {
+      "name": "linux-x86_64-gnu.2.44",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_LIBC": "gnu.2.44"
+      }
+    },
+    {
+      "name": "linux-x86_64-asan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=address"
+      }
+    },
+    {
+      "name": "linux-x86_64-ubsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined",
+        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
+      "name": "linux-aarch64-asan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=address"
+      }
+    },
+    {
+      "name": "linux-armv7",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-armv7"
+      }
+    },
+    {
+      "name": "linux-riscv64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-riscv64"
+      }
+    },
+    {
+      "name": "linux-s390x",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-s390x"
+      }
+    },
+    {
+      "name": "linux-s390x-musl",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-s390x",
+        "HERMETIC_LLVM_LIBC": "musl"
+      }
+    },
+    {
+      "name": "darwin-x86_64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "darwin-x86_64"
+      }
+    },
+    {
+      "name": "darwin-aarch64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "darwin-aarch64"
+      }
+    }
   ],
   "buildPresets": [
-    {"name": "host", "configurePreset": "host"},
-    {"name": "linux-x86_64", "configurePreset": "linux-x86_64"},
-    {"name": "linux-x86_64-musl", "configurePreset": "linux-x86_64-musl"},
-    {"name": "linux-x86_64-gnu.2.34", "configurePreset": "linux-x86_64-gnu.2.34"},
-    {"name": "linux-aarch64", "configurePreset": "linux-aarch64"},
-    {"name": "linux-aarch64-musl", "configurePreset": "linux-aarch64-musl"},
-    {"name": "linux-armv7-musl", "configurePreset": "linux-armv7-musl"},
-    {"name": "linux-riscv64-musl", "configurePreset": "linux-riscv64-musl"}
+    {
+      "name": "host",
+      "configurePreset": "host"
+    },
+    {
+      "name": "linux-x86_64",
+      "configurePreset": "linux-x86_64"
+    },
+    {
+      "name": "linux-x86_64-musl",
+      "configurePreset": "linux-x86_64-musl"
+    },
+    {
+      "name": "linux-x86_64-gnu.2.34",
+      "configurePreset": "linux-x86_64-gnu.2.34"
+    },
+    {
+      "name": "linux-aarch64",
+      "configurePreset": "linux-aarch64"
+    },
+    {
+      "name": "linux-aarch64-musl",
+      "configurePreset": "linux-aarch64-musl"
+    },
+    {
+      "name": "linux-armv7-musl",
+      "configurePreset": "linux-armv7-musl"
+    },
+    {
+      "name": "linux-riscv64-musl",
+      "configurePreset": "linux-riscv64-musl"
+    },
+    {
+      "name": "host-latest",
+      "configurePreset": "host-latest"
+    },
+    {
+      "name": "host-21.1.8",
+      "configurePreset": "host-21.1.8"
+    },
+    {
+      "name": "host-first-22",
+      "configurePreset": "host-first-22"
+    },
+    {
+      "name": "linux-x86_64-gnu.2.44",
+      "configurePreset": "linux-x86_64-gnu.2.44"
+    },
+    {
+      "name": "linux-x86_64-asan",
+      "configurePreset": "linux-x86_64-asan"
+    },
+    {
+      "name": "linux-x86_64-ubsan",
+      "configurePreset": "linux-x86_64-ubsan"
+    },
+    {
+      "name": "linux-aarch64-asan",
+      "configurePreset": "linux-aarch64-asan"
+    },
+    {
+      "name": "linux-armv7",
+      "configurePreset": "linux-armv7"
+    },
+    {
+      "name": "linux-riscv64",
+      "configurePreset": "linux-riscv64"
+    },
+    {
+      "name": "linux-s390x",
+      "configurePreset": "linux-s390x"
+    },
+    {
+      "name": "linux-s390x-musl",
+      "configurePreset": "linux-s390x-musl"
+    },
+    {
+      "name": "darwin-x86_64",
+      "configurePreset": "darwin-x86_64"
+    },
+    {
+      "name": "darwin-aarch64",
+      "configurePreset": "darwin-aarch64"
+    }
   ],
   "testPresets": [
-    {"name": "host", "configurePreset": "host", "output": {"outputOnFailure": true}}
+    {
+      "name": "host",
+      "configurePreset": "host",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-latest",
+      "configurePreset": "host-latest",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-21.1.8",
+      "configurePreset": "host-21.1.8",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-first-22",
+      "configurePreset": "host-first-22",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
   ]
 }

@@ -1,33 +1,65 @@
 name: Tests
+# Tier 1: runs on every push and pull request; each job builds at most two
+# runtime sets and stays well under 15 minutes.
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
+env:
+  HERMETIC_LLVM_KEEP_ARCHIVES: "1"
+  HERMETIC_TESTS_REQUIRE_DOCKER: "1"
+
 jobs:
-  select:
+  tables:
+    name: Tables and selection
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: cmake -P tests/select_test.cmake
       - run: cmake -P scripts/help.cmake
+      - run: cmake -DHERMETIC_LLVM_DRY_RUN=ON -DHERMETIC_LLVM_TARGET=linux-aarch64 -DHERMETIC_LLVM_LIBC=musl -P scripts/prefetch.cmake
 
   build:
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - name: linux-x86_64 host
+            os: ubuntu-latest
+            presets: host linux-x86_64-musl linux-aarch64-musl
+          - name: linux-aarch64 host
+            os: ubuntu-24.04-arm
+            presets: host linux-x86_64-musl
+          - name: macos-aarch64 host
+            os: macos-latest
+            presets: host linux-aarch64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - name: Cache downloaded archives
+        uses: actions/cache@v4
         with:
-          path: ~/.cache/hermetic-llvm
-          key: hermetic-llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'runtimes/**', 'tests/hello/CMakePresets.json') }}
+          path: ~/.cache/hermetic-llvm/downloads
+          key: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'cmake/HermeticLLVMRuntimes.cmake') }}
+          restore-keys: hermetic-llvm-downloads-${{ runner.os }}-${{ runner.arch }}-
       - name: Install Ninja
         run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ninja-build; else brew install ninja; fi
-      - name: Native build
-        run: tests/run_tests.sh host
-      - name: Cross builds (glibc 2.28 and musl runtime sets, built from source)
-        run: tests/run_tests.sh linux-x86_64 linux-x86_64-musl linux-aarch64-musl
+          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ninja-build file; else brew install ninja; fi
+      - name: Register QEMU for foreign Linux architectures
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+      - name: Docker is optional on macOS runners
+        if: runner.os == 'macOS'
+        run: echo "HERMETIC_TESTS_REQUIRE_DOCKER=0" >> "$GITHUB_ENV"
+      - name: Build and run presets
+        run: tests/run_tests.sh ${{ matrix.presets }}
+      - name: Upload runtime set build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.os }}
+          path: ~/.cache/hermetic-llvm/logs
+          if-no-files-found: ignore

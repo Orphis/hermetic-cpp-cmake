@@ -6,6 +6,13 @@
 
 include_guard(GLOBAL)
 
+# Environment fallbacks for options that CI systems set globally.
+foreach(_hl_env HERMETIC_LLVM_KEEP_ARCHIVES HERMETIC_LLVM_KEEP_BUILD_DIRS HERMETIC_LLVM_SHOW_PROGRESS HERMETIC_LLVM_VERBOSE)
+  if(NOT DEFINED ${_hl_env} AND DEFINED ENV{${_hl_env}})
+    set(${_hl_env} "$ENV{${_hl_env}}")
+  endif()
+endforeach()
+
 function(hermetic_llvm_log)
   message(STATUS "[hermetic-llvm] ${ARGN}")
 endfunction()
