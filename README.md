@@ -252,8 +252,10 @@ a PDB. Two things are not: sanitized program binaries, because ASan records
 each module's source path and UBSan its check locations (including SDK
 header paths in the cache) and clang's prefix-map options cover neither; and
 the static sanitizer archives inside a set built on a Windows host, whose
-CodeView records join mapped paths with backslashes. The CI identity check
-reports the former and does not compare the latter.
+CodeView line tables join mapped paths with backslashes (the CodeView
+object-name record, which would otherwise hold each object's absolute path
+on every host, is left blank). The CI identity check reports the former and
+does not compare the latter.
 
 Not ported from hermetic-llvm: MinGW targets and the static-CRT variants
 of its Windows sanitizer route beyond what is described above.

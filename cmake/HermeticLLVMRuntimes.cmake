@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 12)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 13)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -532,9 +532,12 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   file(MAKE_DIRECTORY "${tmp}/include" "${tmp}/lib" "${tmp}/resource")
 
   # Same path neutralisation as the Linux sets (see hermetic_llvm_build_runtime_set),
-  # spelled for clang-cl.
+  # spelled for clang-cl. CodeView additionally records the absolute path of
+  # each object file (S_OBJNAME), which no prefix map covers; an empty name
+  # leaves that record blank.
   set(prefix_map
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
+    -Xclang -object-file-name=-
     "/clang:-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
     "/clang:-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
     "/clang:-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
