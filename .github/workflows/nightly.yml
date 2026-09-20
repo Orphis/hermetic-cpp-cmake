@@ -58,11 +58,11 @@ jobs:
           - name: windows-x86_64
             host: windows-x86_64
             os: windows-latest
-            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 windows-x86_64 windows-aarch64
+            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 windows-x86_64 windows-aarch64 windows-x86_64-libcxx windows-aarch64-libcxx
           - name: windows targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest
-            presets: windows-x86_64 windows-aarch64 windows-x86_64-vs2022
+            presets: windows-x86_64 windows-aarch64 windows-x86_64-vs2022 windows-x86_64-libcxx windows-aarch64-libcxx windows-x86_64-libcxx-mt
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest

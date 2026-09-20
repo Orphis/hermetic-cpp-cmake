@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 7)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 8)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -428,6 +428,173 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   \"triple\": \"${triple}\",
   \"kernel_headers\": \"${kernel_version}\",
   \"components\": [\"builtins\", \"libcxx\"${sanitizer_json}],
+  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"built\": \"${now}\"
+}
+")
+  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(RENAME "${tmp}" "${set_dir}")
+  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+    file(REMOVE_RECURSE "${build_root}")
+  endif()
+  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+endfunction()
+
+# Builds (or reuses) the runtime set for a Windows (MSVC ABI) TARGET: libc++
+# as a static library on the Microsoft ABI (vcruntime as the C++ ABI library,
+# no libc++abi or libunwind, like hermetic-llvm's windows_msvc route), once
+# per C runtime flavour (/MD /MDd /MT /MTd, the values of CMake's
+# MSVC_RUNTIME_LIBRARY), and compiler-rt builtins, all built with clang-cl
+# against the toolset and SDK in HERMETIC_LLVM_RESOLVED_WINSDK. Sets ${OUT_DIR}.
+function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
+  hermetic_llvm_target_info("${TARGET}" tgt)
+  if(NOT tgt_OS STREQUAL "windows")
+    hermetic_llvm_fatal("hermetic_llvm_build_windows_runtime_set: ${TARGET} is not a Windows target")
+  endif()
+  set(winsdk "${HERMETIC_LLVM_RESOLVED_WINSDK}")
+  list(GET winsdk 0 msvc_version)
+  list(GET winsdk 4 sdk_version)
+  set(triple "${tgt_TRIPLE}")
+  set(id "${TARGET}-msvc.${msvc_version}")
+  set(components builtins libcxx)
+  string(REPLACE ";" "," components_str "${components}")
+  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+
+  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  if(EXISTS "${stamp}")
+    file(READ "${stamp}" existing)
+    string(STRIP "${existing}" existing)
+    if(existing STREQUAL stamp_content)
+      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  if(EXISTS "${stamp}")
+    file(READ "${stamp}" existing)
+    string(STRIP "${existing}" existing)
+    if(existing STREQUAL stamp_content)
+      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+
+  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, libc++ on the Microsoft ABI); this takes a few minutes")
+  hermetic_llvm_load_runtime_sources()
+  hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
+  set(tmp "${set_dir}.tmp")
+  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
+  file(MAKE_DIRECTORY "${tmp}/include" "${tmp}/lib" "${tmp}/resource")
+
+  # Same path neutralisation as the Linux sets (see hermetic_llvm_build_runtime_set),
+  # spelled for clang-cl.
+  set(prefix_map
+    -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
+    "/clang:-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
+    "/clang:-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
+    "/clang:-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
+    "/clang:-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+    "/clang:-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+  string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
+  hermetic_llvm_windows_flags("${winsdk}" "${tgt_ARCH}" win_compile win_link)
+  string(REPLACE ";" " " win_compile_flags "${win_compile}")
+  string(REPLACE ";" " " win_link_flags "${win_link}")
+  set(bootstrap
+    "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
+    "HERMETIC_LLVM_BOOTSTRAP_TRIPLE=${triple}"
+    "HERMETIC_LLVM_BOOTSTRAP_SYSTEM_NAME=Windows"
+    "HERMETIC_LLVM_BOOTSTRAP_PROCESSOR=${tgt_SYSTEM_PROCESSOR}"
+    "HERMETIC_LLVM_BOOTSTRAP_PREFIX_MAP=${prefix_map_flags}"
+    "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=${win_compile_flags}"
+    "HERMETIC_LLVM_BOOTSTRAP_LINK_FLAGS=${win_link_flags}")
+
+  # 1. compiler-rt builtins into the resource directory (lib/windows/
+  #    clang_rt.builtins-<arch>.lib), with the compiler's own builtin headers.
+  hermetic_llvm_resource_dir("${LLVM_ROOT}" compiler_resource_dir)
+  file(COPY "${compiler_resource_dir}/include" DESTINATION "${tmp}/resource")
+  if(IS_DIRECTORY "${compiler_resource_dir}/share")
+    file(COPY "${compiler_resource_dir}/share" DESTINATION "${tmp}/resource")
+  endif()
+  hermetic_llvm_build_stage(NAME compiler-rt SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/compiler-rt"
+    INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
+    ARGS -DLLVM_ENABLE_RUNTIMES=compiler-rt "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+      -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
+      -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_CRT=OFF
+      -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF
+      -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF
+      -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
+      -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF)
+
+  # 2. libc++ (static, Microsoft ABI, vcruntime as the ABI library, win32
+  #    threads), once per C runtime flavour: objects record the flavour they
+  #    were compiled with and lld-link refuses to mix them, so a consumer's
+  #    MSVC_RUNTIME_LIBRARY must find a matching archive. Headers (identical
+  #    across flavours) go to <set>/include/c++/v1, archives to
+  #    <set>/lib/libc++-<md|mdd|mt|mtd>.lib.
+  set(crt_flavours "md=MultiThreadedDLL" "mdd=MultiThreadedDebugDLL" "mt=MultiThreaded" "mtd=MultiThreadedDebug")
+  foreach(flavour IN LISTS crt_flavours)
+    string(REGEX MATCH "^([a-z]+)=(.*)$" _ "${flavour}")
+    set(short "${CMAKE_MATCH_1}")
+    set(crt "${CMAKE_MATCH_2}")
+    set(install "${build_root}/libcxx-${short}-install")
+    hermetic_llvm_build_stage(NAME "libcxx-${short}" SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx-${short}"
+      INSTALL_PREFIX "${install}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
+      ARGS -DLLVM_ENABLE_RUNTIMES=libcxx "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+        -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
+        "-DCMAKE_MSVC_RUNTIME_LIBRARY=${crt}"
+        -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC=ON
+        -DLIBCXX_ABI_FORCE_MICROSOFT=ON -DLIBCXX_CXX_ABI=vcruntime -DLIBCXX_HAS_WIN32_THREAD_API=ON
+        -DLIBCXX_ENABLE_TIME_ZONE_DATABASE=OFF -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF
+        -DLIBCXX_INSTALL_MODULES=OFF -DLIBCXX_USE_COMPILER_RT=ON
+        -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)
+    if(NOT EXISTS "${install}/lib/libc++.lib")
+      hermetic_llvm_fatal("libc++ (${crt}) build did not produce ${install}/lib/libc++.lib")
+    endif()
+    file(RENAME "${install}/lib/libc++.lib" "${tmp}/lib/libc++-${short}.lib")
+    if(short STREQUAL "md")
+      file(COPY "${install}/include/c++" DESTINATION "${tmp}/include")
+    endif()
+    file(REMOVE_RECURSE "${install}")
+  endforeach()
+  # Force-included into every C++ compile by the toolchain (with
+  # _LIBCPP_NO_AUTO_LINK): names the archive for this translation unit's
+  # flavour through a default-library directive, as the MSVC STL's
+  # yvals_core.h does, so CMake's MSVC_RUNTIME_LIBRARY is honoured per target.
+  file(WRITE "${tmp}/include/__hermetic_llvm_libcxx_link.h" [=[
+// Generated by hermetic-llvm-cmake: selects the libc++ archive matching the
+// C runtime flavour of this translation unit (/MD /MDd /MT /MTd).
+#pragma once
+#if defined(_DLL)
+#  if defined(_DEBUG)
+#    pragma comment(lib, "libc++-mdd.lib")
+#  else
+#    pragma comment(lib, "libc++-md.lib")
+#  endif
+#else
+#  if defined(_DEBUG)
+#    pragma comment(lib, "libc++-mtd.lib")
+#  else
+#    pragma comment(lib, "libc++-mt.lib")
+#  endif
+#endif
+]=])
+
+  # 3. Manifest and stamp.
+  string(TIMESTAMP now UTC)
+  file(WRITE "${tmp}/runtime-set.json" "{
+  \"id\": \"${id}\",
+  \"llvm_version\": \"${LLVM_VERSION}\",
+  \"target\": \"${TARGET}\",
+  \"cxx_stdlib\": \"libc++\",
+  \"msvc_version\": \"${msvc_version}\",
+  \"windows_sdk_version\": \"${sdk_version}\",
+  \"triple\": \"${triple}\",
+  \"components\": [\"builtins\", \"libcxx\"],
   \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
   \"built\": \"${now}\"
 }

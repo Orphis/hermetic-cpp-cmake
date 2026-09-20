@@ -242,3 +242,43 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
   set(${OUT}_SDK_UM_LIB "${sdk_um_lib}" PARENT_SCOPE)
   set(${OUT}_OVERLAY "${overlay}" PARENT_SCOPE)
 endfunction()
+
+# Compile and link flags for the MSVC ABI environment described by a
+# HERMETIC_LLVM_RESOLVED_WINSDK list (see hermetic_llvm_resolve), following
+# hermetic-llvm's windows/msvc argument groups: explicit MSVC and SDK include
+# and library paths, a case-insensitive VFS overlay for the SDK's mixed-case
+# names, deterministic objects and links. Used by the consumer toolchain and
+# by the runtime set build alike.
+function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
+  list(GET WINSDK 1 compat)
+  list(GET WINSDK 2 msvc_include)
+  list(GET WINSDK 3 msvc_lib)
+  string(REPLACE "|" ";" msvc_lib "${msvc_lib}")
+  list(GET WINSDK 6 sdk_include)
+  list(GET WINSDK 7 sdk_ucrt_lib)
+  list(GET WINSDK 8 sdk_um_lib)
+  list(GET WINSDK 9 overlay)
+  set(compile
+    "-fms-compatibility-version=${compat}"
+    "/imsvc${msvc_include}" "/imsvc${sdk_include}/ucrt" "/imsvc${sdk_include}/shared"
+    "/imsvc${sdk_include}/um" "/imsvc${sdk_include}/winrt"
+    -Xclang -ivfsoverlay -Xclang "${overlay}"
+    /Brepro /clang:-gno-codeview-command-line)
+  set(link "")
+  foreach(dir IN LISTS msvc_lib)
+    list(APPEND link "/LIBPATH:${dir}")
+  endforeach()
+  list(APPEND link
+    "/LIBPATH:${sdk_ucrt_lib}" "/LIBPATH:${sdk_um_lib}"
+    "/vfsoverlay:${overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
+    # No manifest embedding: it would need llvm-mt, which the prebuilt
+    # lacks libxml2 for; lld-link can embed one on request.
+    /MANIFEST:NO)
+  if(ARCH STREQUAL "aarch64")
+    list(APPEND link /MACHINE:ARM64)
+  else()
+    list(APPEND link /MACHINE:X64)
+  endif()
+  set(${OUT_COMPILE} "${compile}" PARENT_SCOPE)
+  set(${OUT_LINK} "${link}" PARENT_SCOPE)
+endfunction()

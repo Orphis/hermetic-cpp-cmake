@@ -43,15 +43,12 @@ macro(hermetic_llvm_configure)
   set(_hl_windows FALSE)
   if(_hl_tgt_OS STREQUAL "windows")
     set(_hl_windows TRUE)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 0 _hl_msvc_version)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 1 _hl_msvc_compat)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 2 _hl_msvc_include)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 3 _hl_msvc_lib)
     string(REPLACE "|" ";" _hl_msvc_lib "${_hl_msvc_lib}")
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 6 _hl_sdk_include)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 7 _hl_sdk_ucrt_lib)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 8 _hl_sdk_um_lib)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 9 _hl_overlay)
   endif()
 
   # ---- Tools -------------------------------------------------------------
@@ -62,13 +59,16 @@ macro(hermetic_llvm_configure)
     set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-rc${_hl_exe}" CACHE FILEPATH "Resource compiler")
     set(CMAKE_MT "${_hl_bin}/llvm-mt${_hl_exe}" CACHE FILEPATH "Manifest tool")
     set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
+    # clang-cl assembles .S files too; CMake applies MSVC-style flags to ASM
+    # whenever the C compiler is MSVC-like, which plain clang would reject.
+    set(CMAKE_ASM_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
     set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindowsRules.cmake")
   else()
     set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
     set(CMAKE_CXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
     set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
+    set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
   endif()
-  set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
   set(CMAKE_OBJC_COMPILER "${_hl_bin}/clang${_hl_exe}")
   set(CMAKE_OBJCXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
   set(CMAKE_RANLIB "${_hl_bin}/llvm-ranlib${_hl_exe}" CACHE FILEPATH "Ranlib")
@@ -108,7 +108,7 @@ macro(hermetic_llvm_configure)
     if(NOT _hl_native)
       set(CMAKE_OSX_ARCHITECTURES "${_hl_tgt_SYSTEM_PROCESSOR}")
     endif()
-  elseif(_hl_set)
+  elseif(_hl_set AND NOT _hl_windows)
     set(CMAKE_SYSROOT "${_hl_set}")
   elseif(_hl_sysroot)
     set(CMAKE_SYSROOT "${_hl_sysroot}")
@@ -117,6 +117,9 @@ macro(hermetic_llvm_configure)
   if(_hl_windows)
     # find_* may look inside the MSVC and SDK trees only.
     set(CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
+    if(_hl_set)
+      list(APPEND CMAKE_FIND_ROOT_PATH "${_hl_set}")
+    endif()
   endif()
   # With a runtime set or the Windows SDK the target world is fully known,
   # even for a native build: never let find_* pick up host headers or libraries.
@@ -136,6 +139,7 @@ macro(hermetic_llvm_configure)
 
   # ---- Flags -------------------------------------------------------------
   set(_hl_c_flags "")
+  set(_hl_cxx_first_flags "")  # C++ only, ahead of the common flags (include order)
   set(_hl_cxx_flags "")
   set(_hl_link_flags "")
   set(_hl_exe_link_flags "")
@@ -150,28 +154,37 @@ macro(hermetic_llvm_configure)
   endif()
 
   if(_hl_windows)
-    # MSVC ABI, following hermetic-llvm's windows/msvc argument groups:
-    # explicit MSVC and SDK include and library paths, a case-insensitive VFS
-    # overlay for the SDK's mixed-case names, deterministic objects and links.
-    hermetic_llvm_append_flags(_hl_c_flags
-      "-fms-compatibility-version=${_hl_msvc_compat}"
-      "/imsvc${_hl_msvc_include}" "/imsvc${_hl_sdk_include}/ucrt" "/imsvc${_hl_sdk_include}/shared"
-      "/imsvc${_hl_sdk_include}/um" "/imsvc${_hl_sdk_include}/winrt"
-      -Xclang -ivfsoverlay -Xclang "${_hl_overlay}"
-      /Brepro /clang:-gno-codeview-command-line)
-    foreach(_hl_dir IN LISTS _hl_msvc_lib)
-      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_dir}")
-    endforeach()
-    hermetic_llvm_append_flags(_hl_link_flags
-      "/LIBPATH:${_hl_sdk_ucrt_lib}" "/LIBPATH:${_hl_sdk_um_lib}"
-      "/vfsoverlay:${_hl_overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
-      # No manifest embedding: it would need llvm-mt, which the prebuilt
-      # lacks libxml2 for; lld-link can embed one on request.
-      /MANIFEST:NO)
-    if(_hl_tgt_ARCH STREQUAL "aarch64")
-      hermetic_llvm_append_flags(_hl_link_flags /MACHINE:ARM64)
-    else()
-      hermetic_llvm_append_flags(_hl_link_flags /MACHINE:X64)
+    # MSVC ABI: the toolset and SDK environment (see hermetic_llvm_windows_flags).
+    hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link)
+    if(_hl_set)
+      # libc++ runtime set instead of the MSVC STL. clang-cl searches its
+      # builtin headers before any /imsvc directory, which would shadow
+      # libc++'s <stddef.h> and friends; so the builtin directory is dropped
+      # and the whole order is spelled out as on Linux: libc++, compiler
+      # builtins, then the toolset and SDK. The set holds one libc++ archive
+      # per C runtime flavour; a force-included header names the one matching
+      # each translation unit's flavour (CMake's MSVC_RUNTIME_LIBRARY, per
+      # target and per config) through a default-library directive, and the
+      # compiler-rt builtins are linked into everything (lld-link only pulls
+      # referenced members).
+      hermetic_llvm_append_flags(_hl_cxx_first_flags "/imsvc${_hl_set}/include/c++/v1"
+        "/FI${_hl_set}/include/__hermetic_llvm_libcxx_link.h" /D_LIBCPP_NO_AUTO_LINK)
+      hermetic_llvm_append_flags(_hl_c_flags -nobuiltininc "/imsvc${_hl_set}/resource/include"
+        # libc++ is built with the ISO wide printf/scanf conversions, and the
+        # UCRT headers make the linker reject objects that disagree; hermetic-llvm
+        # defines this for every MSVC consumer too.
+        /D_CRT_STDIO_ISO_WIDE_SPECIFIERS)
+    endif()
+    hermetic_llvm_append_flags(_hl_c_flags ${_hl_win_compile})
+    hermetic_llvm_append_flags(_hl_link_flags ${_hl_win_link})
+    if(_hl_set)
+      if(_hl_tgt_ARCH STREQUAL "aarch64")
+        set(_hl_builtins "clang_rt.builtins-aarch64.lib")
+      else()
+        set(_hl_builtins "clang_rt.builtins-x86_64.lib")
+      endif()
+      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_set}/lib" "/LIBPATH:${_hl_set}/resource/lib/windows"
+        "${_hl_builtins}")
     endif()
   elseif(_hl_set)
     # Linux with a runtime set: resource directory with compiler-rt, static
@@ -217,6 +230,12 @@ macro(hermetic_llvm_configure)
     # The overlay and MSVC paths are compile-only; keep them off the RC flags.
     set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared")
   endif()
+  if(_hl_cxx_first_flags)
+    set(CMAKE_CXX_FLAGS_INIT "")
+    set(CMAKE_OBJCXX_FLAGS_INIT "")
+    hermetic_llvm_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
+    hermetic_llvm_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
+  endif()
   hermetic_llvm_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_flags})
   hermetic_llvm_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_flags})
   foreach(_hl_kind EXE SHARED MODULE)
@@ -233,6 +252,7 @@ macro(hermetic_llvm_configure)
   set(HERMETIC_LLVM_SYSROOT_PATH "${_hl_sysroot}")
   set(HERMETIC_LLVM_TARGET_TRIPLE "${_hl_triple}")
   set(HERMETIC_LLVM_EFFECTIVE_LIBC "${HERMETIC_LLVM_RESOLVED_LIBC}")
+  set(HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB "${HERMETIC_LLVM_RESOLVED_CXX_STDLIB}")
   if(_hl_native)
     set(HERMETIC_LLVM_CROSSCOMPILING FALSE)
   else()

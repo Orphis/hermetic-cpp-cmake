@@ -193,6 +193,31 @@
       }
     },
     {
+      "name": "windows-x86_64-libcxx",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++"
+      }
+    },
+    {
+      "name": "windows-aarch64-libcxx",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-aarch64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++"
+      }
+    },
+    {
+      "name": "windows-x86_64-libcxx-mt",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
@@ -294,6 +319,18 @@
     {
       "name": "windows-aarch64",
       "configurePreset": "windows-aarch64"
+    },
+    {
+      "name": "windows-x86_64-libcxx",
+      "configurePreset": "windows-x86_64-libcxx"
+    },
+    {
+      "name": "windows-aarch64-libcxx",
+      "configurePreset": "windows-aarch64-libcxx"
+    },
+    {
+      "name": "windows-x86_64-libcxx-mt",
+      "configurePreset": "windows-x86_64-libcxx-mt"
     },
     {
       "name": "windows-x86_64-vs2022",
