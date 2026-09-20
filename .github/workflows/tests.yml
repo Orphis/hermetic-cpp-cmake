@@ -31,7 +31,7 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
           - host: linux-aarch64
             os: ubuntu-24.04-arm
             presets: host linux-x86_64-musl linux-x86_64

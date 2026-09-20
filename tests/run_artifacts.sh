@@ -105,17 +105,27 @@ table="$(for dir in "${artifacts}"/*/*/; do
   target="${target%$'\r'}"; libc="${libc%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll; do
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/clang_rt.asan_dynamic-*.dll; do
     [[ -f "$f" ]] || continue
     [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
     printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(sha256 "$f" | cut -c1-16)" "${host}"
   done
 done | sort; true)"
 echo "${table}" | awk '{printf "%-28s %-14s %s  %s\n", $1, $2, $3, $4}'
-differing="$(echo "${table}" | awk '{k=$1" "$2; if (k in h && h[k]!=$3) d[k]=1; h[k]=$3} END {for (k in d) print k}')"
-if [[ -n "${differing}" ]]; then
-  echo "--- NOT reproducible across hosts:"; echo "${differing}" | sed 's/^/    /'
+differing="$(echo "${table}" | awk '{k=$1" "$2; if (k in h && h[k]!=$3) d[k]=1; h[k]=$3} END {for (k in d) print k}' | sort)"
+# Sanitized program binaries embed the build's source and header paths (ASan
+# module names, UBSan check locations), which no prefix map covers; they are
+# reported but not enforced. The runtimes themselves (clang_rt.*) are.
+expected="$(echo "${differing}" | awk '$1 ~ /-(asan|ubsan|msan|tsan)($|-)/ && $2 !~ /^clang_rt\./' || true)"
+unexpected="$(echo "${differing}" | awk '!($1 ~ /-(asan|ubsan|msan|tsan)($|-)/ && $2 !~ /^clang_rt\./)' || true)"
+if [[ -n "${expected}" ]]; then
+  echo "--- differ across hosts as expected (sanitized, path-dependent):"; echo "${expected}" | sed 's/^/    /'
+fi
+if [[ -n "${unexpected}" ]]; then
+  echo "--- NOT reproducible across hosts:"; echo "${unexpected}" | sed 's/^/    /'
   if [[ "${HERMETIC_TESTS_ENFORCE_REPRODUCIBLE:-0}" == 1 ]]; then exit 1; fi
-else
+elif [[ -z "${expected}" ]]; then
   echo "--- all binaries identical across hosts"
+else
+  echo "--- all other binaries identical across hosts"
 fi

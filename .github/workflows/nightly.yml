@@ -55,14 +55,29 @@ jobs:
             host: macos-x86_64
             os: macos-15-intel
             presets: host linux-x86_64-musl
-          - name: windows-x86_64
+          # Windows host: one job per runtime set, since each job starts
+          # with an empty cache and a Windows set (libc++ x4 CRT flavours,
+          # sanitizers) takes about ten minutes to build.
+          - name: windows-x86_64 (linux targets)
+            host: windows-x86_64-linux
+            os: windows-latest
+            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44
+          - name: windows-x86_64 (windows-x86_64 targets)
             host: windows-x86_64
             os: windows-latest
-            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 windows-x86_64 windows-aarch64 windows-x86_64-libcxx windows-aarch64-libcxx
-          - name: windows targets from linux
+            presets: windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
+          - name: windows-x86_64 (windows-aarch64 targets)
+            host: windows-x86_64-arm64
+            os: windows-latest
+            presets: windows-aarch64 windows-aarch64-libcxx
+          - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest
-            presets: windows-x86_64 windows-aarch64 windows-x86_64-vs2022 windows-x86_64-libcxx windows-aarch64-libcxx windows-x86_64-libcxx-mt
+            presets: windows-x86_64 windows-x86_64-vs2022 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
+          - name: windows-aarch64 targets from linux
+            host: linux-x86_64-windows-arm64
+            os: ubuntu-latest
+            presets: windows-aarch64 windows-aarch64-libcxx
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest

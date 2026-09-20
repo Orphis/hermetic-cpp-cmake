@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 8)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 12)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -108,7 +108,30 @@ function(hermetic_llvm_fetch_llvm_source VERSION OUT_DIR)
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
   hermetic_llvm_fetch_archive(NAME "llvm-project-${VERSION}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
+  hermetic_llvm_patch_llvm_source("${dir}")
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
+endfunction()
+
+# Source fixes hermetic-llvm applies to the LLVM tree (3rd_party/llvm-project/
+# x.x/patches), done here as exact text replacements so no patch tool is
+# needed; each is idempotent and fails loudly on an unexpected source.
+function(hermetic_llvm_patch_llvm_source DIR)
+  # libcxx-vcruntime-nothrow.patch: on the Microsoft ABI std::nothrow comes
+  # from the C runtime (msvcrt.lib); libc++ defining it too makes lld-link
+  # report a duplicate as soon as both archives are pulled in.
+  set(file "${DIR}/libcxx/src/new_helpers.cpp")
+  file(READ "${file}" content)
+  set(before "#ifndef __GLIBCXX__\nconst nothrow_t nothrow{};\n#endif\n")
+  set(after "#if !defined(__GLIBCXX__) && !defined(_LIBCPP_ABI_VCRUNTIME) // hermetic-llvm: libcxx-vcruntime-nothrow.patch\nconst nothrow_t nothrow{};\n#endif\n")
+  string(FIND "${content}" "${after}" pos)
+  if(pos EQUAL -1)
+    string(FIND "${content}" "${before}" pos)
+    if(pos EQUAL -1)
+      hermetic_llvm_fatal("${file} does not contain the expected std::nothrow definition; update hermetic_llvm_patch_llvm_source")
+    endif()
+    string(REPLACE "${before}" "${after}" content "${content}")
+    file(WRITE "${file}" "${content}")
+  endif()
 endfunction()
 
 # The hermetic-llvm "extras" tool prebuilts (glibc-stubs-generator, pkgutil, ...).
@@ -250,6 +273,32 @@ function(hermetic_llvm_build_stage)
   endif()
 endfunction()
 
+
+# True when the stamp of an existing runtime set covers a request: same
+# recipe and LLVM version, and every requested component present (a set built
+# with sanitizers also serves requests without them).
+function(hermetic_llvm_runtime_set_satisfies STAMP_FILE RECIPE LLVM COMPONENTS OUT)
+  set(${OUT} FALSE PARENT_SCOPE)
+  if(NOT EXISTS "${STAMP_FILE}")
+    return()
+  endif()
+  file(READ "${STAMP_FILE}" existing)
+  string(STRIP "${existing}" existing)
+  if(NOT existing MATCHES "^recipe=([0-9]+);llvm=([^;]+);components=(.*)$")
+    return()
+  endif()
+  if(NOT CMAKE_MATCH_1 STREQUAL RECIPE OR NOT CMAKE_MATCH_2 STREQUAL LLVM)
+    return()
+  endif()
+  string(REPLACE "," ";" have "${CMAKE_MATCH_3}")
+  foreach(c IN LISTS COMPONENTS)
+    if(NOT c IN_LIST have)
+      return()
+    endif()
+  endforeach()
+  set(${OUT} TRUE PARENT_SCOPE)
+endfunction()
+
 # Builds (or reuses) the runtime set for TARGET (e.g. linux-x86_64) and LIBC
 # (gnu.2.28 / musl) with the compiler at LLVM_ROOT. Sets ${OUT_DIR}.
 function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_DIR)
@@ -269,23 +318,17 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
 
   set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-llvm.stamp")
-  if(EXISTS "${stamp}")
-    file(READ "${stamp}" existing)
-    string(STRIP "${existing}" existing)
-    if(existing STREQUAL stamp_content)
-      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
-      return()
-    endif()
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  if(EXISTS "${stamp}")
-    file(READ "${stamp}" existing)
-    string(STRIP "${existing}" existing)
-    if(existing STREQUAL stamp_content)
-      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
-      return()
-    endif()
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
   endif()
 
   hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}); this takes a few minutes")
@@ -458,28 +501,25 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   set(triple "${tgt_TRIPLE}")
   set(id "${TARGET}-msvc.${msvc_version}")
   set(components builtins libcxx)
+  if(HERMETIC_LLVM_RUNTIME_SANITIZERS)
+    list(APPEND components sanitizers)
+  endif()
   string(REPLACE ";" "," components_str "${components}")
   set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
 
   set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-llvm.stamp")
-  if(EXISTS "${stamp}")
-    file(READ "${stamp}" existing)
-    string(STRIP "${existing}" existing)
-    if(existing STREQUAL stamp_content)
-      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
-      return()
-    endif()
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  if(EXISTS "${stamp}")
-    file(READ "${stamp}" existing)
-    string(STRIP "${existing}" existing)
-    if(existing STREQUAL stamp_content)
-      set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
-      return()
-    endif()
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
   endif()
 
   hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, libc++ on the Microsoft ABI); this takes a few minutes")
@@ -584,7 +624,41 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
 #endif
 ]=])
 
-  # 3. Manifest and stamp.
+  # 3. Sanitizer (asan, ubsan), fuzzer and profile runtimes: what compiler-rt
+  #    supports on Windows. A second compiler-rt pass, compiled against the
+  #    set's libc++ headers (libFuzzer needs a C++ library; its libc++
+  #    references are resolved by the consumer's own libc++ archive) and
+  #    linked through the driver with the builtins above. compiler-rt
+  #    compiles its static runtimes with the static CRT, whose default-library
+  #    directive would drag libcmt into every /MD consumer; /Zl keeps all
+  #    objects CRT-neutral (as compiler-rt already does for ASan), so the
+  #    consumer's MSVC_RUNTIME_LIBRARY decides, and the ASan DLL is linked
+  #    against the dynamic CRT explicitly.
+  set(sanitizer_json "")
+  if("sanitizers" IN_LIST components)
+    hermetic_llvm_build_stage(NAME sanitizers SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/sanitizers"
+      INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}"
+      BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_LINK_TESTS=ON"
+        "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-resource-dir=${tmp}/resource -nobuiltininc /imsvc${tmp}/resource/include /D_CRT_STDIO_ISO_WIDE_SPECIFIERS /Zl ${win_compile_flags}"
+        "HERMETIC_LLVM_BOOTSTRAP_CXX_FIRST_FLAGS=/imsvc${tmp}/include/c++/v1 /D_LIBCPP_NO_AUTO_LINK"
+        "HERMETIC_LLVM_BOOTSTRAP_LINK_FLAGS=${win_link_flags} /LIBPATH:${tmp}/lib msvcrt.lib"
+        # No PDB for the ASan DLL: compiler-rt links it with /DEBUG, and the
+        # PDB's GUID (recorded in the DLL) would depend on the build host's
+        # paths; placed last so it overrides compiler-rt's own flag.
+        "HERMETIC_LLVM_BOOTSTRAP_LINK_TAIL=/DEBUG:NONE"
+      ARGS -DLLVM_ENABLE_RUNTIMES=compiler-rt "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+        -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
+        -DCOMPILER_RT_BUILD_BUILTINS=OFF -DCOMPILER_RT_BUILD_CRT=OFF -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON
+        # ubsan is always built with the sanitizer common parts; asan is the
+        # only other one compiler-rt supports on Windows.
+        -DCOMPILER_RT_BUILD_SANITIZERS=ON -DCOMPILER_RT_SANITIZERS_TO_BUILD=asan
+        -DCOMPILER_RT_BUILD_LIBFUZZER=ON -DCOMPILER_RT_BUILD_PROFILE=ON
+        -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF
+        -DCOMPILER_RT_BUILD_GWP_ASAN=OFF -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF -DCOMPILER_RT_USE_LIBCXX=OFF)
+    set(sanitizer_json ", \"sanitizers\"")
+  endif()
+
+  # 4. Manifest and stamp.
   string(TIMESTAMP now UTC)
   file(WRITE "${tmp}/runtime-set.json" "{
   \"id\": \"${id}\",
@@ -594,7 +668,7 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   \"msvc_version\": \"${msvc_version}\",
   \"windows_sdk_version\": \"${sdk_version}\",
   \"triple\": \"${triple}\",
-  \"components\": [\"builtins\", \"libcxx\"],
+  \"components\": [\"builtins\", \"libcxx\"${sanitizer_json}],
   \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
   \"built\": \"${now}\"
 }

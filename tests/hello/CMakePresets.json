@@ -218,6 +218,35 @@
       }
     },
     {
+      "name": "windows-x86_64-libcxx-asan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
+      }
+    },
+    {
+      "name": "windows-x86_64-libcxx-ubsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
+      "name": "windows-x86_64-asan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
+      }
+    },
+    {
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
@@ -331,6 +360,18 @@
     {
       "name": "windows-x86_64-libcxx-mt",
       "configurePreset": "windows-x86_64-libcxx-mt"
+    },
+    {
+      "name": "windows-x86_64-libcxx-asan",
+      "configurePreset": "windows-x86_64-libcxx-asan"
+    },
+    {
+      "name": "windows-x86_64-libcxx-ubsan",
+      "configurePreset": "windows-x86_64-libcxx-ubsan"
+    },
+    {
+      "name": "windows-x86_64-asan",
+      "configurePreset": "windows-x86_64-asan"
     },
     {
       "name": "windows-x86_64-vs2022",

@@ -254,14 +254,21 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
   list(GET WINSDK 2 msvc_include)
   list(GET WINSDK 3 msvc_lib)
   string(REPLACE "|" ";" msvc_lib "${msvc_lib}")
+  list(GET WINSDK 5 sdk_include_version)
   list(GET WINSDK 6 sdk_include)
   list(GET WINSDK 7 sdk_ucrt_lib)
   list(GET WINSDK 8 sdk_um_lib)
   list(GET WINSDK 9 overlay)
+  get_filename_component(toolset_dir "${msvc_include}" DIRECTORY)
+  get_filename_component(sdk_root "${sdk_include}/../.." ABSOLUTE)
+  # The toolset and SDK are named through clang's own options rather than
+  # /imsvc: the driver then adds the include directories itself (in the
+  # same order) and stops looking for a Visual Studio installation or the
+  # INCLUDE/LIB environment on Windows hosts. The SDK libraries are not laid
+  # out as the driver expects, so those stay explicit /LIBPATH entries.
   set(compile
     "-fms-compatibility-version=${compat}"
-    "/imsvc${msvc_include}" "/imsvc${sdk_include}/ucrt" "/imsvc${sdk_include}/shared"
-    "/imsvc${sdk_include}/um" "/imsvc${sdk_include}/winrt"
+    "/vctoolsdir${toolset_dir}" "/winsdkdir${sdk_root}" "/winsdkversion${sdk_include_version}"
     -Xclang -ivfsoverlay -Xclang "${overlay}"
     /Brepro /clang:-gno-codeview-command-line)
   set(link "")
@@ -271,6 +278,9 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
   list(APPEND link
     "/LIBPATH:${sdk_ucrt_lib}" "/LIBPATH:${sdk_um_lib}"
     "/vfsoverlay:${overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
+    # Sanitized links get /DEBUG from the driver; keep the PDB path out of
+    # the executable so it stays identical across hosts.
+    "/pdbaltpath:%_PDB%"
     # No manifest embedding: it would need llvm-mt, which the prebuilt
     # lacks libxml2 for; lld-link can embed one on request.
     /MANIFEST:NO)

@@ -40,6 +40,12 @@ if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
     ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR};DYLD_LIBRARY_PATH=${CMAKE_BINARY_DIR}")
 endif()
 
+# Windows ASan is a DLL runtime that must sit next to the executables.
+if(WIN32 AND HERMETIC_LLVM_RUNTIME_SET AND CMAKE_CXX_FLAGS MATCHES "fsanitize=address")
+  file(GLOB _asan_dll "${HERMETIC_LLVM_RUNTIME_SET}/resource/lib/windows/clang_rt.asan_dynamic-*.dll")
+  file(COPY ${_asan_dll} DESTINATION "${CMAKE_BINARY_DIR}")
+endif()
+
 # Consumed by tests/run_artifacts.sh to pick where a build's binaries can run.
 file(WRITE "${CMAKE_BINARY_DIR}/target.txt" "${HERMETIC_LLVM_TARGET};${HERMETIC_LLVM_EFFECTIVE_LIBC}\n")
 

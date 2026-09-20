@@ -115,6 +115,12 @@ macro(hermetic_llvm_configure)
   endif()
 
   if(_hl_windows)
+    # try_compile projects build the Debug configuration by default, i.e.
+    # with the debug CRT, which clang-cl refuses to combine with
+    # -fsanitize=address; check with the release CRT instead.
+    if(NOT DEFINED CMAKE_TRY_COMPILE_CONFIGURATION)
+      set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
+    endif()
     # find_* may look inside the MSVC and SDK trees only.
     set(CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
     if(_hl_set)
@@ -157,23 +163,34 @@ macro(hermetic_llvm_configure)
     # MSVC ABI: the toolset and SDK environment (see hermetic_llvm_windows_flags).
     hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link)
     if(_hl_set)
-      # libc++ runtime set instead of the MSVC STL. clang-cl searches its
-      # builtin headers before any /imsvc directory, which would shadow
-      # libc++'s <stddef.h> and friends; so the builtin directory is dropped
-      # and the whole order is spelled out as on Linux: libc++, compiler
-      # builtins, then the toolset and SDK. The set holds one libc++ archive
-      # per C runtime flavour; a force-included header names the one matching
-      # each translation unit's flavour (CMake's MSVC_RUNTIME_LIBRARY, per
-      # target and per config) through a default-library directive, and the
-      # compiler-rt builtins are linked into everything (lld-link only pulls
-      # referenced members).
-      hermetic_llvm_append_flags(_hl_cxx_first_flags "/imsvc${_hl_set}/include/c++/v1"
+      # Runtime set (libc++ and/or sanitizers). Its resource directory gives
+      # the driver the compiler-rt runtimes (builtins, sanitizers, profile)
+      # for the link step. The set holds one libc++ archive per C runtime
+      # flavour; a force-included header names the one matching each
+      # translation unit's flavour (CMake's MSVC_RUNTIME_LIBRARY, per target
+      # and per config) through a default-library directive. It is used with
+      # the MSVC STL too, since libFuzzer is built against libc++.
+      # The set's runtimes are built with the ISO wide printf/scanf
+      # conversions, and the UCRT headers make the linker reject objects that
+      # disagree; hermetic-llvm defines this for every MSVC consumer too.
+      hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource" /D_CRT_STDIO_ISO_WIDE_SPECIFIERS)
+      hermetic_llvm_append_flags(_hl_cxx_first_flags
         "/FI${_hl_set}/include/__hermetic_llvm_libcxx_link.h" /D_LIBCPP_NO_AUTO_LINK)
-      hermetic_llvm_append_flags(_hl_c_flags -nobuiltininc "/imsvc${_hl_set}/resource/include"
-        # libc++ is built with the ISO wide printf/scanf conversions, and the
-        # UCRT headers make the linker reject objects that disagree; hermetic-llvm
-        # defines this for every MSVC consumer too.
-        /D_CRT_STDIO_ISO_WIDE_SPECIFIERS)
+      if(HERMETIC_LLVM_RESOLVED_CXX_STDLIB STREQUAL "libc++")
+        # libc++ instead of the MSVC STL. clang-cl searches its builtin
+        # headers before any /imsvc directory, which would shadow libc++'s
+        # <stddef.h> and friends; so the builtin directory is dropped and the
+        # order is spelled out as on Linux: libc++, compiler builtins, then
+        # the toolset and SDK (added by the driver).
+        hermetic_llvm_append_flags(_hl_cxx_first_flags "/imsvc${_hl_set}/include/c++/v1")
+        hermetic_llvm_append_flags(_hl_c_flags -nobuiltininc "/imsvc${_hl_set}/resource/include")
+      else()
+        # Under ASan the MSVC STL annotates std::string and std::vector and
+        # links stl_asan.lib, which only ships in Visual Studio's own ASan
+        # package; opt out as Microsoft documents (container overflow checks
+        # inside those two types are lost, everything else is checked).
+        hermetic_llvm_append_flags(_hl_cxx_first_flags /D_DISABLE_STL_ANNOTATION)
+      endif()
     endif()
     hermetic_llvm_append_flags(_hl_c_flags ${_hl_win_compile})
     hermetic_llvm_append_flags(_hl_link_flags ${_hl_win_link})
