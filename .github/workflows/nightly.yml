@@ -54,7 +54,7 @@ jobs:
           - name: macos-x86_64
             host: macos-x86_64
             os: macos-15-intel
-            presets: host linux-x86_64-musl
+            presets: host linux-x86_64-musl windows-x86_64
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
           # sanitizers) takes about ten minutes to build.
@@ -70,6 +70,10 @@ jobs:
             host: windows-x86_64-arm64
             os: windows-latest
             presets: windows-aarch64 windows-aarch64-libcxx
+          - name: windows-aarch64 host
+            host: windows-aarch64
+            os: windows-11-arm
+            presets: host linux-aarch64-musl windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest

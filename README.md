@@ -2,12 +2,14 @@
 
 A CMake toolchain file that follows the model of
 [hermeticbuild/hermetic-llvm](https://github.com/hermeticbuild/hermetic-llvm):
-a small prebuilt Clang/LLD, and for every Linux target a **runtime set**
-built from source with that compiler (libc, compiler-rt, libc++), so that
-cross-compiling needs no distribution sysroot at all. Targets can pick the
-glibc version to link against (2.28 to 2.44, via headers plus symbol stubs,
-the same technique as Zig and hermetic-llvm) or musl (fully static
-binaries).
+a small prebuilt Clang/LLD, and a **runtime set** built from source with
+that compiler (libc, compiler-rt, libc++) for every Linux target, so that
+cross-compiling needs no distribution sysroot at all. Linux targets pick
+the glibc version to link against (2.28 to 2.44, via headers plus symbol
+stubs, the same technique as Zig and hermetic-llvm) or musl (fully static
+binaries). macOS targets use an SDK, Windows targets (MSVC ABI) use the
+MSVC toolset and Windows SDK downloaded from Microsoft, with the MSVC STL or
+a libc++ built from source. Any host builds for any target.
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -30,6 +32,44 @@ Or with a preset:
   }
 }
 ```
+
+## Hosts and targets
+
+The compiler prebuilt exists for six hosts; every host can build for every
+target. Runtime sets and Windows toolsets are downloaded or built the same
+way everywhere, only macOS targets need an SDK, which comes from Xcode on a
+macOS host and has to be supplied by hand elsewhere.
+
+| Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC STL or libc++) |
+| --- | :---: | :---: | :---: |
+| Linux x86_64 | ✓ | ✓ with a supplied SDK | ✓ |
+| Linux arm64 | ✓ | ✓ with a supplied SDK | ✓ |
+| macOS x86_64 | ✓ | ✓ | ✓ |
+| macOS arm64 | ✓ | ✓ | ✓ |
+| Windows x86_64 | ✓ | ✓ with a supplied SDK | ✓ |
+| Windows arm64 | ✓ | ✓ with a supplied SDK | ✓ |
+
+"With a supplied SDK" means `HERMETIC_LLVM_SYSROOT` must point at a macOS SDK
+directory; nothing else differs. `HERMETIC_LLVM_TARGET` defaults to the
+host's own platform. Which combinations CI exercises is listed under
+[Testing and CI](#testing-and-ci).
+
+Host notes:
+
+- **Linux**: the compiler prebuilt is statically linked against musl and
+  runs on any distribution; no distribution packages are needed beyond
+  CMake and Ninja. Docker with QEMU registered is only used by the test
+  suite to run cross-compiled binaries.
+- **macOS**: Xcode or the Command Line Tools provide the SDK for macOS
+  targets (`xcrun --show-sdk-path`); nothing from them is used for other
+  targets.
+- **Windows**: no Visual Studio, MSYS or WSL. The compiler prebuilt is
+  hermetic-llvm's MinGW-built one, the MSVC toolset and Windows SDK are
+  downloaded like on the other hosts, and the test scripts run under Git
+  Bash. Keep the cache directory short (`HERMETIC_LLVM_CACHE_DIR=C:/hl`) to
+  stay clear of path length limits; a Windows libc++ runtime set builds
+  libc++ four times, one per C runtime flavour, so it takes a few minutes
+  longer than a Linux set.
 
 ## What it does
 
@@ -61,62 +101,11 @@ Or with a preset:
      as the compiler. Links use `-rtlib=compiler-rt --unwindlib=libunwind`.
 3. **macOS targets** use the SDK from Xcode or the Command Line Tools (or
    the directory in `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++.
-   **Windows targets** (MSVC ABI, `windows-x86_64` and `windows-aarch64`)
-   use `clang-cl` and `lld-link` with the MSVC C runtime and STL headers and
-   libraries from the Visual Studio installer manifest and the Windows SDK
-   from its public NuGet packages, pinned in
-   [`cmake/distributions/windows.json`](cmake/distributions/windows.json)
-   (the same sources as hermetic-llvm's `windows_support`; every toolset in
-   the pinned manifest and the newest NuGet package of each SDK build are
-   listed, selectable with `HERMETIC_LLVM_MSVC_VERSION` and
-   `HERMETIC_LLVM_WINDOWS_SDK_VERSION`). These carry
-   Microsoft licenses, so `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA=1` must be set
-   to confirm entitlement before they are downloaded. A case-insensitive
-   Clang VFS overlay lets the SDK's mixed-case names resolve on
-   case-sensitive filesystems. Static libraries are created with `llvm-ar`
-   (the prebuilt has no `llvm-lib`) and executables get no manifest
-   (`/MANIFEST:NO`, since `llvm-mt` is built without libxml2). The C++
-   library is the MSVC STL by default, linked against the dynamic CRT
-   (`CMAKE_MSVC_RUNTIME_LIBRARY` selects otherwise). With
-   `HERMETIC_LLVM_CXX_STDLIB=libc++` a runtime set is built instead, as in
-   hermetic-llvm's `windows_msvc` route: libc++ as a static library on the
-   Microsoft ABI (vcruntime as the ABI library, win32 threads, no libc++abi
-   or libunwind) plus compiler-rt builtins, compiled with `clang-cl` against
-   the selected toolset and SDK. libc++ is built once per C runtime flavour
-   (`/MD`, `/MDd`, `/MT`, `/MTd`); a force-included header names the archive
-   matching each translation unit's flavour through a default-library
-   directive, the way the MSVC STL picks msvcprt or libcpmt, so CMake's
-   `CMAKE_MSVC_RUNTIME_LIBRARY` and the per-target `MSVC_RUNTIME_LIBRARY`
-   property work unchanged, per configuration. libc++'s headers are searched
-   before the toolset's, the builtins are linked into every target, and
-   `_CRT_STDIO_ISO_WIDE_SPECIFIERS` is defined for consumers because libc++
-   is built with it and the UCRT rejects mismatching objects. Executables
-   and DLLs are linked through the `clang-cl` driver (running `lld-link`)
-   rather than `lld-link` directly, so that sanitized links get what the
-   driver adds (the ASan runtime and thunk, libFuzzer, the compiler-rt
-   library path): put `-fsanitize=...` in the compile flags
-   (`HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` or `CMAKE_<LANG>_FLAGS`), which the
-   link step also receives; `CMAKE_EXE_LINKER_FLAGS` and friends keep
-   CMake's MSVC-style linker spelling. Windows ASan is a DLL runtime
-   (`clang_rt.asan_dynamic-<arch>.dll` in the set's resource directory) that
-   must sit next to the executable or on `PATH`; clang-cl refuses it with the
-   debug CRT, so Debug configurations need `CMAKE_MSVC_RUNTIME_LIBRARY` set
-   to a release flavour (try_compile checks use Release for this reason).
-   With the MSVC STL, its ASan container annotations are disabled
-   (`_DISABLE_STL_ANNOTATION`) because the `stl_asan.lib` they need only
-   ships in Visual Studio's own ASan package; overflow checks inside
-   `std::string` and `std::vector` are lost there, libc++ keeps its own.
-   Sanitized binaries are not byte-identical across build hosts: ASan
-   records each module's source path and UBSan its check locations
-   (including SDK header paths in the cache), and clang's prefix-map
-   options do not cover either, so the CI identity check reports but does
-   not enforce them. The ASan DLL in the runtime set is linked without a
-   PDB and is byte-identical across Linux, macOS and Windows hosts. (Link
-   libraries are passed as driver inputs after the objects rather than as
-   `/link` arguments: on Windows CMake moves objects and libraries into a
-   response file, which otherwise changed lld's input order, hence its
-   symbol resolution order and the layout of import thunks.)
-4. **CMake configuration**: compilers, binutils, `CMAKE_SYSTEM_NAME`,
+4. **Windows targets** (MSVC ABI) use `clang-cl` and `lld-link` with a MSVC
+   toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
+   default or a libc++ runtime set, and optionally the sanitizer runtimes.
+   See [Windows targets](#windows-targets).
+5. **CMake configuration**: compilers, binutils, `CMAKE_SYSTEM_NAME`,
    `CMAKE_<LANG>_COMPILER_TARGET`, `CMAKE_SYSROOT` (the runtime set), LLD,
    `-resource-dir`, `-rtlib=compiler-rt`, static libc++ and the link mode.
    Whenever a runtime set is used, also for a native Linux build, the
@@ -130,15 +119,11 @@ are atomic and lock-protected, and reconfigures only check stamp files.
 
 ## Requirements
 
-- CMake 3.19 or newer and Ninja (for building runtime sets).
-- A Linux, macOS or Windows host. Windows hosts cross-compile to Linux
-  targets only (there are no Windows targets yet), using hermetic-llvm's
-  MinGW-built compiler prebuilt; they need no MSYS, Visual Studio or WSL.
-  Keep the cache directory short there (`HERMETIC_LLVM_CACHE_DIR=C:/hl`) to
-  stay clear of path length limits.
-- Xcode or the Command Line Tools when building for macOS.
-- Building a runtime set locally needs about 3 GB of disk for the extracted
-  LLVM sources plus 100 MB per set, and two to three minutes of CPU.
+- CMake 3.19 or newer, and Ninja to build runtime sets.
+- A Linux, macOS or Windows host, x86_64 or arm64; see the host notes above
+  for what each one needs.
+- Disk: about 3 GB for the extracted LLVM sources plus 100 to 300 MB per
+  runtime set built locally.
 
 ## Options
 
@@ -160,7 +145,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`. |
+| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`; see [Hosts and targets](#hosts-and-targets). |
 | `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
 | `HERMETIC_LLVM_MSVC_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
 | `HERMETIC_LLVM_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
@@ -169,7 +154,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_RUNTIMES` | `auto` | `auto`: use a prebuilt runtime set when the index lists one, else build it; `download`: fail if none is listed; `build`: always build locally. |
 | `HERMETIC_LLVM_RUNTIME_SET_DIR` | | Use an existing runtime set directory (one produced by `runtimes/build_runtimes.cmake`). |
 | `HERMETIC_LLVM_RUNTIME_SETS_FILES` | | Extra JSON indexes of prebuilt runtime sets (`{"<llvm>": {"<id>": {"url": ..., "sha256": ...}}}`). |
-| `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. On Windows targets this builds the runtime set even with the MSVC STL, with what compiler-rt supports there: ASan, UBSan, libFuzzer and the profile runtime. |
+| `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. Windows: ASan, UBSan, libFuzzer and profile, see [Sanitizers](#sanitizers). |
 | `HERMETIC_LLVM_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
 | `HERMETIC_LLVM_SYSROOT` | `sdk` | macOS: the SDK (`sdk` uses `xcrun`, or a directory). Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_LLVM_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
 | `HERMETIC_LLVM_EMULATOR` | | Sets `CMAKE_CROSSCOMPILING_EMULATOR` (a list), so `ctest` and `try_run` work when cross-compiling. |
@@ -190,6 +175,88 @@ After the toolchain file runs, projects can read `HERMETIC_LLVM_ROOT`,
 `HERMETIC_LLVM_RUNTIME_SET`, `HERMETIC_LLVM_SYSROOT_PATH`,
 `HERMETIC_LLVM_TARGET_TRIPLE`, `HERMETIC_LLVM_EFFECTIVE_LIBC` and
 `HERMETIC_LLVM_CROSSCOMPILING`.
+
+## Windows targets
+
+Windows targets follow hermetic-llvm's `windows_msvc` route: the MSVC ABI
+with `clang-cl` and `lld-link`, no MinGW.
+
+**Toolset and SDK.** The MSVC toolset (C runtime and STL headers and
+libraries) comes from the Visual Studio installer manifest and the Windows
+SDK from its public NuGet packages, both pinned by URL and hash in
+[`cmake/distributions/windows.json`](cmake/distributions/windows.json).
+Every toolset of the pinned manifest (14.29 through 14.51, Visual Studio
+2019 to 2026) and the newest NuGet package of each SDK build are listed;
+`HERMETIC_LLVM_MSVC_VERSION` and `HERMETIC_LLVM_WINDOWS_SDK_VERSION` select
+them, and `cmake -DTOPIC=windows -P scripts/help.cmake` prints the tables.
+These packages carry Microsoft licenses, so `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA=1`
+(variable or environment) must confirm entitlement before anything is
+downloaded. The toolset and SDK are handed to the driver as `/vctoolsdir`,
+`/winsdkdir` and `/winsdkversion`, so it never looks for a Visual Studio
+installation or at `INCLUDE`/`LIB` on Windows hosts, and a case-insensitive
+Clang VFS overlay lets the SDK's mixed-case file names resolve on
+case-sensitive filesystems.
+
+**Linking.** Executables and DLLs are linked through the `clang-cl` driver,
+which runs `lld-link`, rather than through `lld-link` directly, so that
+sanitized links get everything the driver adds from the compile flags. The
+consequences for a project: `-fsanitize=...` belongs in the compile flags
+(`HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` or `CMAKE_<LANG>_FLAGS`), which the
+link step receives as well, while `CMAKE_EXE_LINKER_FLAGS`, `LINK_OPTIONS`
+and friends keep CMake's usual MSVC-style linker spelling. Static libraries
+are created with `llvm-ar` (the prebuilt has no `llvm-lib`) and executables
+get no manifest (`/MANIFEST:NO`, since `llvm-mt` is built without libxml2).
+
+**C++ library.** By default the MSVC STL from the toolset. With
+`HERMETIC_LLVM_CXX_STDLIB=libc++` a runtime set `<target>-msvc.<toolset>` is
+built instead: libc++ as a static library on the Microsoft ABI (vcruntime
+is the C++ ABI library, no libc++abi or libunwind, win32 threads) plus
+compiler-rt builtins, compiled with `clang-cl` against the selected toolset
+and SDK. Its headers are searched before the toolset's, and consumers get
+`_CRT_STDIO_ISO_WIDE_SPECIFIERS` defined because libc++ is built with it and
+the UCRT rejects objects that disagree. The libc++ sources get
+hermetic-llvm's `libcxx-vcruntime-nothrow.patch`, since `std::nothrow`
+belongs to the C runtime on this ABI.
+
+**C runtime flavours.** CMake's `CMAKE_MSVC_RUNTIME_LIBRARY` and the
+per-target `MSVC_RUNTIME_LIBRARY` property work unchanged, per
+configuration. libc++ is built once per flavour (`/MD`, `/MDd`, `/MT`,
+`/MTd`, as `lib/libc++-{md,mdd,mt,mtd}.lib`) and a force-included header
+names the matching archive for each translation unit through a
+default-library directive, the way the MSVC STL selects msvcprt or libcpmt.
+
+**Sanitizers.** `HERMETIC_LLVM_RUNTIME_SANITIZERS=ON` adds what compiler-rt
+supports on Windows to the runtime set (which is then built even with the
+MSVC STL): AddressSanitizer, UndefinedBehaviorSanitizer, libFuzzer and the
+profile runtime; no TSan, MSan or LSan. Things to know:
+
+- Windows ASan is a DLL runtime, `clang_rt.asan_dynamic-<arch>.dll` in the
+  set's resource directory; it must sit next to the executable or on `PATH`.
+- clang-cl refuses ASan together with the debug CRT, so Debug configurations
+  need `CMAKE_MSVC_RUNTIME_LIBRARY` set to a release flavour (try_compile
+  checks already use Release for this reason).
+- With the MSVC STL its ASan container annotations are disabled
+  (`_DISABLE_STL_ANNOTATION`), because the `stl_asan.lib` they need only
+  ships in Visual Studio's own ASan package; overflow checks inside
+  `std::string` and `std::vector` are lost there, libc++ keeps its own.
+- Per-target sanitizer flags do not reach the link step (only the global
+  compile flags do), so a fuzz target is built with
+  `target_compile_options(t PRIVATE -fsanitize=fuzzer)` plus
+  `target_link_options(t PRIVATE /wholearchive:clang_rt.fuzzer-<arch>.lib)`.
+- Sanitizer objects are compiled CRT-neutral (`/Zl`), so the consumer's
+  runtime flavour decides which CRT is linked.
+
+**Reproducibility.** Windows binaries built on Linux, macOS and Windows
+hosts are byte-identical, including the ASan DLL, which is linked without
+a PDB. Two things are not: sanitized program binaries, because ASan records
+each module's source path and UBSan its check locations (including SDK
+header paths in the cache) and clang's prefix-map options cover neither; and
+the static sanitizer archives inside a set built on a Windows host, whose
+CodeView records join mapped paths with backslashes. The CI identity check
+reports the former and does not compare the latter.
+
+Not ported from hermetic-llvm: MinGW targets and the static-CRT variants
+of its Windows sanitizer route beyond what is described above.
 
 ## Runtime sets
 
@@ -263,7 +330,7 @@ The inputs and recipes come from hermetic-llvm:
 `tests/run_tests.sh` drives the sample project in [`tests/hello`](tests/hello)
 through the presets in
 [`tests/hello/CMakePresets.json`](tests/hello/CMakePresets.json): it
-configures and builds each preset, checks the ELF architecture of the
+configures and builds each preset, checks the architecture of the
 result, and when Docker is available runs the binaries in a Debian container
 for the target platform (foreign architectures need QEMU registered with
 Docker; `HERMETIC_TESTS_REQUIRE_DOCKER=1` fails instead of skipping,
@@ -273,23 +340,37 @@ additionally checked to be refused by an older release, proving the version
 pinning. `cmake -P tests/select_test.cmake` unit-tests version selection and
 libc parsing.
 
-Two GitHub Actions workflows run this:
+Two GitHub Actions workflows run this, each in two stages: every host
+builds its presets and uploads the binaries, then one job per execution
+environment (Linux x86_64 and arm64 runners, QEMU for the other Linux
+architectures, macOS x86_64 and arm64, Windows x86_64 and arm64 runners)
+downloads every binary for its platform, whatever host built it, and runs
+them:
 
 - [`tests.yml`](.github/workflows/tests.yml), on every push and pull request
-  (about 4 minutes): tables and selection checks, then native builds and
-  cross builds on Ubuntu x86_64, Ubuntu arm64 and macOS arm64, and cross
-  builds from Windows x86_64. Each job builds at most two runtime sets from
-  source; cross binaries are executed through Docker and QEMU on the Linux
-  runners.
+  (about 15 minutes end to end): tables and selection checks, then native
+  and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
+  x86_64, covering glibc, musl and the MSVC STL and libc++ Windows targets
+  with ASan. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
-  on x86_64 and aarch64 with the negative check, ASan and UBSan executed
-  natively on both architectures, armv7, riscv64 and s390x (glibc and musl)
-  under QEMU, compiler version selection (`latest`, `21.1.8`,
-  `first:>=22`), macOS x86_64 native and `darwin-x86_64` cross, and a
-  cold-start job provisioning a target with sanitizers from an empty cache
-  in one invocation.
+  on x86_64 and aarch64 with the negative check, ASan and UBSan on Linux
+  and Windows, armv7, riscv64 and s390x (glibc and musl) under QEMU,
+  compiler version selection (`latest`, `21.1.8`, `first:>=22`), macOS
+  x86_64 native and `darwin-x86_64` cross, every Windows preset from the
+  Windows x86_64 host (one job per runtime set), from a Windows arm64 host
+  and from Linux, and a cold-start job provisioning a target with
+  sanitizers from an empty cache in one invocation.
+
+Coverage of the hosts-and-targets table: every push builds all Linux
+targets from every host, Windows targets from every host, and macOS targets
+on macOS hosts (arm64 native; x86_64 native and the `darwin-x86_64` cross
+build nightly). Only a Windows arm64 host runs nightly rather than per push,
+and two combinations have no runner at all: macOS targets from non-macOS
+hosts (which need a supplied SDK) and `darwin-aarch64` cross-built from a
+macOS x86_64 host. Everything a job builds is executed on a runner, or under
+Docker/QEMU, of the target platform.
 
 Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 250 MB,
 mostly the LLVM source archive) and rebuild runtime sets every time, which
@@ -299,12 +380,15 @@ minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 The run stage also hashes every binary and fails when the same preset built
 on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). Runtime
 sets are built to be host-independent: every stage compiles with
-`-ffile-prefix-map` for the cache, source, build and repository directories
-and defines `__FILE__` as `__FILE_NAME__` (Clang on a Windows host joins
-include paths with backslashes, which `-ffile-reproducible` does not undo),
+`-ffile-prefix-map` for the cache, source, build and repository directories,
+defines `__FILE__` as `__FILE_NAME__` (Clang on a Windows host joins include
+paths with backslashes, which `-ffile-reproducible` does not undo) and
+builds libunwind and libc++abi without assertions (glibc 2.44's `assert`
+reads the file name through `__builtin_FILE()`, which no prefix map covers),
 so the test binaries built on Linux x86_64, Linux arm64, macOS and Windows
-hosts are byte-identical. Publishing prebuilt runtime sets is still to
-come; the same hashing will be applied to the set archives themselves first.
+hosts are byte-identical; sanitized program binaries are the documented
+exception. Publishing prebuilt runtime sets is still to come; the same
+hashing will be applied to the set archives themselves first.
 
 ## Maintenance
 
@@ -324,13 +408,10 @@ come; the same hashing will be applied to the set archives themselves first.
 - hermetic-llvm builds the runtimes as Bazel targets inside the consuming
   build; here they are built once per (LLVM version, target, libc) into a
   cache directory by a `cmake -P` driver, or downloaded prebuilt.
-- Windows targets cover the MSVC ABI with the MSVC STL or a static libc++
-  (`HERMETIC_LLVM_CXX_STDLIB=libc++`, with compiler-rt builtins and the
-  sanitizers compiler-rt has for Windows); not ported yet: MinGW targets,
-  wasm and BPF targets,
-  libstdc++ as an alternative C++ library, the hermetic macOS SDK download
-  from Apple's CDN (its `pkgutil` is in the extras prebuilt, so it is
-  feasible), and the compiler bootstrap stages.
+- Not ported yet: MinGW targets, wasm and BPF targets, libstdc++ as an
+  alternative C++ library, the hermetic macOS SDK download from Apple's CDN
+  (its `pkgutil` is in the extras prebuilt, so it is feasible), and the
+  compiler bootstrap stages.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
   (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is
