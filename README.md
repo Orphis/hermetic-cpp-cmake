@@ -319,8 +319,10 @@ consequences for a project: `-fsanitize=...` belongs in the compile flags
 (`HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` or `CMAKE_<LANG>_FLAGS`), which the
 link step receives as well, while `CMAKE_EXE_LINKER_FLAGS`, `LINK_OPTIONS`
 and friends keep CMake's usual MSVC-style linker spelling. Static libraries
-are created with `llvm-ar` (the prebuilt has no `llvm-lib`) and executables
-get no manifest (`/MANIFEST:NO`, since `llvm-mt` is built without libxml2).
+use `lib.exe` syntax through `llvm-lib` when the prebuilt ships it, else
+the `lib` subcommand of the multicall `llvm` driver, else `llvm-ar`; and
+executables get no manifest (`/MANIFEST:NO`, since `llvm-mt` is built
+without libxml2).
 
 **C++ library.** By default the MSVC STL from the toolset. With
 `HERMETIC_LLVM_CXX_STDLIB=libc++` a runtime set `<target>-msvc.<toolset>` is
