@@ -306,6 +306,28 @@
       }
     },
     {
+      "name": "wasm32",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "wasm32"
+      }
+    },
+    {
+      "name": "wasm64",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "wasm64"
+      }
+    },
+    {
+      "name": "wasm32-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "wasm32",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
@@ -459,6 +481,18 @@
     {
       "name": "darwin-aarch64-hostsdk",
       "configurePreset": "darwin-aarch64-hostsdk"
+    },
+    {
+      "name": "wasm32",
+      "configurePreset": "wasm32"
+    },
+    {
+      "name": "wasm64",
+      "configurePreset": "wasm64"
+    },
+    {
+      "name": "wasm32-dbg",
+      "configurePreset": "wasm32-dbg"
     },
     {
       "name": "windows-x86_64-vs2022",

@@ -9,7 +9,8 @@ include_guard(GLOBAL)
 set(HERMETIC_LLVM_SUPPORTED_TARGETS
   linux-x86_64 linux-aarch64 linux-armv7 linux-riscv64 linux-s390x
   darwin-x86_64 darwin-aarch64
-  windows-x86_64 windows-aarch64)
+  windows-x86_64 windows-aarch64
+  wasm32 wasm64)
 
 # Sets ${OUT}_OS, _ARCH, _TRIPLE (base triple; Linux gets the libc appended
 # by hermetic_llvm_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
@@ -68,6 +69,21 @@ function(hermetic_llvm_target_info KEY OUT)
     set(triple aarch64-pc-windows-msvc)
     set(system_name Windows)
     set(processor ARM64)
+  # WebAssembly, freestanding (no libc, no operating system): a module
+  # exporting functions for a host runtime, like hermetic-llvm's none_wasm32
+  # and none_wasm64 platforms. CMake's Generic platform: no shared libraries.
+  elseif(KEY STREQUAL "wasm32")
+    set(os wasm)
+    set(arch wasm32)
+    set(triple wasm32-unknown-unknown)
+    set(system_name Generic)
+    set(processor wasm32)
+  elseif(KEY STREQUAL "wasm64")
+    set(os wasm)
+    set(arch wasm64)
+    set(triple wasm64-unknown-unknown)
+    set(system_name Generic)
+    set(processor wasm64)
   else()
     string(REPLACE ";" ", " supported "${HERMETIC_LLVM_SUPPORTED_TARGETS}")
     hermetic_llvm_fatal("Unsupported HERMETIC_LLVM_TARGET '${KEY}'; valid targets: ${supported}")

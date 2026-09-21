@@ -85,6 +85,10 @@ macro(hermetic_llvm_configure)
     set(CMAKE_INSTALL_NAME_TOOL "${_hl_bin}/llvm-install-name-tool${_hl_exe}" CACHE FILEPATH "install_name_tool")
   elseif(_hl_windows)
     set(CMAKE_LINKER "${_hl_bin}/lld-link${_hl_exe}" CACHE FILEPATH "Linker")
+  elseif(_hl_tgt_OS STREQUAL "wasm")
+    set(CMAKE_LINKER "${_hl_bin}/wasm-ld${_hl_exe}" CACHE FILEPATH "Linker")
+    # Modules are named *.wasm (see the file).
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWasmRules.cmake")
   else()
     set(CMAKE_LINKER "${_hl_bin}/ld.lld${_hl_exe}" CACHE FILEPATH "Linker")
   endif()
@@ -111,7 +115,7 @@ macro(hermetic_llvm_configure)
     endif()
     # Makes every host behave alike for shared libraries (see the file).
     set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDarwinRules.cmake")
-  elseif(_hl_set AND NOT _hl_windows)
+  elseif(_hl_set AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
     set(CMAKE_SYSROOT "${_hl_set}")
   elseif(_hl_sysroot)
     set(CMAKE_SYSROOT "${_hl_sysroot}")
@@ -176,7 +180,7 @@ macro(hermetic_llvm_configure)
       hermetic_llvm_append_flags(_hl_c_flags ${_hl_prefix_maps})
     endif()
   endif()
-  if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows)
+  if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
     hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)
   endif()
 
@@ -260,6 +264,16 @@ macro(hermetic_llvm_configure)
       hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_link_set}/lib" "/LIBPATH:${_hl_link_set}/resource/lib/windows"
         "${_hl_builtins}")
     endif()
+  elseif(_hl_tgt_OS STREQUAL "wasm")
+    # Freestanding WebAssembly: the driver would otherwise ask for a libc
+    # and an entry point (_start), which a module exporting functions has
+    # neither of; the builtins come from the set. Exported functions are
+    # marked with __attribute__((export_name("..."))) or named with
+    # -Wl,--export=...; imports need -Wl,--allow-undefined.
+    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
+    hermetic_llvm_append_flags(_hl_link_flags -nostdlib -Wl,--no-entry)
+    hermetic_llvm_append_flags(_hl_cxx_libs "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
+    hermetic_llvm_append_flags(CMAKE_C_STANDARD_LIBRARIES_INIT "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
   elseif(_hl_set)
     # Linux with a runtime set: resource directory with compiler-rt, static
     # libc++ / libc++abi / libunwind, default libs, link mode.

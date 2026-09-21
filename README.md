@@ -9,8 +9,9 @@ the glibc version to link against (2.28 to 2.44, via headers plus symbol
 stubs, the same technique as Zig and hermetic-llvm) or musl (fully static
 binaries). macOS targets use the macOS SDK downloaded from Apple, Windows
 targets (MSVC ABI) use the MSVC toolset and Windows SDK downloaded from
-Microsoft, with the MSVC STL or a libc++ built from source. Any host builds
-for any target.
+Microsoft, with the MSVC STL or a libc++ built from source, and freestanding
+WebAssembly targets get the compiler-rt builtins. Any host builds for any
+target.
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -40,14 +41,14 @@ The compiler prebuilt exists for six hosts; every host can build for every
 target. Runtime sets, Windows toolsets and the macOS SDK are downloaded or
 built the same way everywhere.
 
-| Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC STL or libc++) |
-| --- | :---: | :---: | :---: |
-| Linux x86_64 | ✓ | ✓ | ✓ |
-| Linux arm64 | ✓ | ✓ | ✓ |
-| macOS x86_64 | ✓ | ✓ | ✓ |
-| macOS arm64 | ✓ | ✓ | ✓ |
-| Windows x86_64 | ✓ | ✓ ¹ | ✓ |
-| Windows arm64 | ✓ | ✓ ¹ | ✓ |
+| Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC STL or libc++) | WebAssembly (`wasm32`, `wasm64`; freestanding) |
+| --- | :---: | :---: | :---: | :---: |
+| Linux x86_64 | ✓ | ✓ | ✓ | ✓ |
+| Linux arm64 | ✓ | ✓ | ✓ | ✓ |
+| macOS x86_64 | ✓ | ✓ | ✓ | ✓ |
+| macOS arm64 | ✓ | ✓ | ✓ | ✓ |
+| Windows x86_64 | ✓ | ✓ ¹ | ✓ | ✓ |
+| Windows arm64 | ✓ | ✓ ¹ | ✓ | ✓ |
 
 ¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
 administrators or users with Developer Mode create; see
@@ -108,7 +109,11 @@ Host notes:
    toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
    default or a libc++ runtime set, and optionally the sanitizer runtimes.
    See [Windows targets](#windows-targets).
-5. **CMake configuration**: compilers, binutils, `CMAKE_SYSTEM_NAME`,
+5. **WebAssembly targets** are freestanding, like hermetic-llvm's: no libc
+   and no operating system, a module that exports functions to a host
+   runtime. The runtime set `<target>-none` holds the compiler-rt builtins.
+   See [WebAssembly targets](#webassembly-targets).
+6. **CMake configuration**: compilers, binutils, `CMAKE_SYSTEM_NAME`,
    `CMAKE_<LANG>_COMPILER_TARGET`, `CMAKE_SYSROOT` (the runtime set), LLD,
    `-resource-dir`, `-rtlib=compiler-rt`, static libc++ and the link mode.
    Whenever a runtime set is used, also for a native Linux build, the
@@ -148,7 +153,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`; see [Hosts and targets](#hosts-and-targets). |
+| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`, `wasm32`, `wasm64`; see [Hosts and targets](#hosts-and-targets). |
 | `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
 | `HERMETIC_LLVM_MSVC_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
 | `HERMETIC_LLVM_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
@@ -226,6 +231,27 @@ Notes:
   Dev Drives (ReFS) mishandle directory symlinks created without the
   directory flag, which `pkgutil` does not set yet
   ([#580](https://github.com/hermeticbuild/hermetic-llvm/issues/580)).
+
+## WebAssembly targets
+
+`wasm32` and `wasm64` (`wasm32-unknown-unknown`, `wasm64-unknown-unknown`)
+are freestanding, as in hermetic-llvm: no libc, no C++ standard library, no
+operating system interface. A build produces WebAssembly modules (`*.wasm`,
+CMake's `Generic` platform, so no shared libraries) whose exported
+functions a host runtime calls. The toolchain links with `-nostdlib` and
+`--no-entry`, and adds the compiler-rt builtins from the runtime set
+`<target>-none` (the only thing it holds besides the compiler's builtin
+headers; it builds in a minute), which cover what the code generator calls
+out to, such as 128-bit multiplication. Functions are exported with
+`__attribute__((export_name("name")))` or `-Wl,--export=name`; imports
+from the host need `-Wl,--allow-undefined` (or `__attribute__((import_name))`).
+C++ works without the standard library: templates, classes and constexpr,
+but no exceptions, RTTI-based features or containers. The sample
+(`tests/hello/wasm_add.c`, `wasm_mul.cpp`) is run under Node.js by the
+tests; `wasm64` needs Node.js 24 or newer (memory64).
+
+A WASI target (wasi-libc plus libc++, `main` and files) would be the next
+step and is not there yet, nor are wasm shared libraries.
 
 ## Windows targets
 
@@ -432,8 +458,8 @@ them:
   (about 15 minutes end to end): tables and selection checks, then native
   and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
   x86_64, covering glibc, musl, the MSVC STL and libc++ Windows targets
-  with ASan, and macOS targets from Linux. Each job builds at most a few
-  runtime sets from source.
+  with ASan, macOS targets from Linux and the WebAssembly targets. Each job
+  builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
@@ -446,11 +472,13 @@ them:
   sanitizers from an empty cache in one invocation.
 
 Coverage of the hosts-and-targets table: every push builds all Linux
-targets from every host, Windows targets from every host, and macOS targets
+targets from every host, Windows targets from every host, macOS targets
 from Linux x86_64 and macOS arm64 hosts (with the downloaded SDK, and once
-with the host's Xcode SDK); nightly adds macOS targets from Linux arm64 and
-both Windows hosts, macOS x86_64 native and the `darwin-x86_64` cross
-build. Only a Windows arm64 host runs nightly rather than per push, and one
+with the host's Xcode SDK), and WebAssembly modules from Linux x86_64,
+macOS arm64 and Windows hosts (run under Node.js on the Linux x86_64
+runner); nightly adds macOS targets from Linux arm64 and both Windows
+hosts, macOS x86_64 native, the `darwin-x86_64` cross build and WebAssembly
+from Linux arm64 and Windows arm64. Only a Windows arm64 host runs nightly rather than per push, and one
 combination has no runner at all: `darwin-aarch64` cross-built from a macOS
 x86_64 host. Everything a job builds is executed on a runner, or under
 Docker/QEMU, of the target platform.
@@ -507,8 +535,8 @@ into the binary. Publishing prebuilt runtime sets is still to come.
 - hermetic-llvm builds the runtimes as Bazel targets inside the consuming
   build; here they are built once per (LLVM version, target, libc) into a
   cache directory by a `cmake -P` driver, or downloaded prebuilt.
-- Not ported yet: MinGW targets, wasm and BPF targets, libstdc++ as an
-  alternative C++ library, and the compiler bootstrap stages.
+- Not ported yet: MinGW targets, BPF targets, libstdc++ as an alternative
+  C++ library, and the compiler bootstrap stages.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
   (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is

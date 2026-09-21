@@ -80,6 +80,17 @@ for preset in "${presets[@]}"; do
     host*|darwin-*|windows-*)
       if [[ "${preset}" == host* ]]; then ctest --preset "${preset}"; fi
       ;;
+    wasm*)
+      # Modules run under Node.js; wasm64 needs 24 or newer (memory64), which
+      # the run stage of CI installs, so an older one only skips it here.
+      bits=32; [[ "${preset}" == wasm64* ]] && bits=64
+      node_major="$(command -v node >/dev/null 2>&1 && node --version | sed 's/^v\([0-9]*\).*/\1/' || echo 0)"
+      if [[ "${node_major}" -ge 24 || ( "${bits}" == 32 && "${node_major}" -ge 16 ) ]]; then
+        "${here}/run_wasm.sh" "${dir}/hello_wasm.wasm" "${bits}"
+      else
+        echo "--- node ${node_major:-missing} cannot run wasm${bits} modules, skipping the run"
+      fi
+      ;;
     linux-*)
       if command -v file >/dev/null 2>&1; then
         file "${dir}/hello_cxx" | grep -q "$(elf_pattern_for "${preset}")" || { file "${dir}/hello_cxx"; exit 1; }

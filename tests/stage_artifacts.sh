@@ -17,7 +17,7 @@ for preset in "${presets[@]}"; do
   [[ -f "${src}/target.txt" ]] || { echo "no build for preset ${preset}"; exit 1; }
   mkdir -p "${out}/${preset}"
   cp "${src}/target.txt" "${out}/${preset}/"
-  for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll \
+  for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll hello_wasm.wasm \
       clang_rt.asan_dynamic-x86_64.dll clang_rt.asan_dynamic-aarch64.dll \
       hello_c.pdb hello_cxx.pdb hello_shared.pdb greeter.pdb libgreeter_static.a greeter_static.lib; do
     [[ -e "${src}/${f}" ]] && cp "${src}/${f}" "${out}/${preset}/"

@@ -692,6 +692,107 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
 endfunction()
 
+# Builds (or reuses) the runtime set for a freestanding WebAssembly TARGET
+# (wasm32 or wasm64): the clang resource directory with the compiler-rt
+# builtins for the target (lib/<triple>/libclang_rt.builtins.a) and the
+# compiler's builtin headers. No libc, no C++ library: a freestanding module
+# only has what it brings along, and the toolchain links with -nostdlib.
+# The set is identified by "<target>-none". Sets ${OUT_DIR}.
+function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
+  hermetic_llvm_target_info("${TARGET}" tgt)
+  if(NOT tgt_OS STREQUAL "wasm")
+    hermetic_llvm_fatal("hermetic_llvm_build_wasm_runtime_set: ${TARGET} is not a WebAssembly target")
+  endif()
+  set(triple "${tgt_TRIPLE}")
+  set(id "${TARGET}-none")
+  set(components builtins)
+  string(REPLACE ";" "," components_str "${components}")
+  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+
+  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
+  endif()
+  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
+  endif()
+
+  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, compiler-rt builtins); this takes a minute")
+  hermetic_llvm_load_runtime_sources()
+  hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
+  set(tmp "${set_dir}.tmp")
+  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
+  file(MAKE_DIRECTORY "${tmp}/resource")
+
+  set(prefix_map
+    -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
+    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
+    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+  string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
+  set(bootstrap
+    "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
+    "HERMETIC_LLVM_BOOTSTRAP_TRIPLE=${triple}"
+    "HERMETIC_LLVM_BOOTSTRAP_SYSTEM_NAME=Generic"
+    "HERMETIC_LLVM_BOOTSTRAP_PROCESSOR=${tgt_SYSTEM_PROCESSOR}"
+    "HERMETIC_LLVM_BOOTSTRAP_PREFIX_MAP=${prefix_map_flags}")
+
+  hermetic_llvm_resource_dir("${LLVM_ROOT}" compiler_resource_dir)
+  file(COPY "${compiler_resource_dir}/include" DESTINATION "${tmp}/resource")
+  if(IS_DIRECTORY "${compiler_resource_dir}/share")
+    file(COPY "${compiler_resource_dir}/share" DESTINATION "${tmp}/resource")
+  endif()
+  # Baremetal compiler-rt: builtins only, no crt objects, no sanitizers;
+  # position-independent code is WebAssembly dynamic linking, not wanted in
+  # the builtins of a static module.
+  hermetic_llvm_build_stage(NAME compiler-rt SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/compiler-rt"
+    INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}"
+    BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-nostdlib"
+    ARGS -DLLVM_ENABLE_RUNTIMES=compiler-rt "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+      -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_INCLUDE_TESTS=OFF
+      -DCOMPILER_RT_BAREMETAL_BUILD=ON -DCOMPILER_RT_HAS_FPIC_FLAG=OFF
+      -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_CRT=OFF
+      -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF
+      -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF
+      -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
+      -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF)
+  if(NOT EXISTS "${tmp}/resource/lib/${triple}/libclang_rt.builtins.a")
+    hermetic_llvm_fatal("compiler-rt did not produce lib/${triple}/libclang_rt.builtins.a under ${tmp}/resource")
+  endif()
+
+  string(TIMESTAMP now UTC)
+  file(WRITE "${tmp}/runtime-set.json" "{
+  \"id\": \"${id}\",
+  \"llvm_version\": \"${LLVM_VERSION}\",
+  \"target\": \"${TARGET}\",
+  \"libc\": \"none\",
+  \"libc_description\": \"freestanding\",
+  \"triple\": \"${triple}\",
+  \"components\": [\"builtins\"],
+  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"built\": \"${now}\"
+}
+")
+  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(RENAME "${tmp}" "${set_dir}")
+  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+    file(REMOVE_RECURSE "${build_root}")
+  endif()
+  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+endfunction()
+
 # Packs a runtime set into <cache>/packages/runtimes-<llvm>-<id>.tar.zst and
 # prints the index entry for cmake/distributions/runtime_sets.json.
 function(hermetic_llvm_package_runtime_set SET_DIR OUT_ARCHIVE)

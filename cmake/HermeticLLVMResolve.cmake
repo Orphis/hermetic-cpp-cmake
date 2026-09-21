@@ -99,6 +99,9 @@ macro(hermetic_llvm_resolve)
       if(NOT _hl_stdlib MATCHES "^(msvc|libc\\+\\+)$")
         hermetic_llvm_fatal("HERMETIC_LLVM_CXX_STDLIB must be msvc or libc++ for Windows targets, not '${_hl_stdlib}'")
       endif()
+    elseif(_hl_target_OS STREQUAL "wasm")
+      # Freestanding: no C++ standard library at all.
+      set(_hl_stdlib none)
     elseif(NOT _hl_stdlib STREQUAL "libc++")
       hermetic_llvm_fatal("HERMETIC_LLVM_CXX_STDLIB must be libc++ for ${_hl_target_OS} targets, not '${_hl_stdlib}'")
     endif()
@@ -149,6 +152,12 @@ macro(hermetic_llvm_resolve)
           hermetic_llvm_build_runtime_set "${HERMETIC_LLVM_RESOLVED_ROOT}" "${HERMETIC_LLVM_RESOLVED_VERSION}"
             "${HERMETIC_LLVM_TARGET}" "${HERMETIC_LLVM_LIBC}")
       endif()
+    elseif(_hl_target_OS STREQUAL "wasm")
+      # The compiler-rt builtins for the target, nothing else.
+      hermetic_llvm_obtain_runtime_set("${HERMETIC_LLVM_RESOLVED_VERSION}" "${HERMETIC_LLVM_TARGET}-none"
+        HERMETIC_LLVM_RESOLVED_RUNTIME_SET
+        hermetic_llvm_build_wasm_runtime_set "${HERMETIC_LLVM_RESOLVED_ROOT}" "${HERMETIC_LLVM_RESOLVED_VERSION}"
+          "${HERMETIC_LLVM_TARGET}")
     elseif(_hl_target_OS STREQUAL "darwin")
       if(NOT HERMETIC_LLVM_SYSROOT OR HERMETIC_LLVM_SYSROOT MATCHES "^(default|sdk)$")
         # The SDK from Apple's CDN, the same on every host.

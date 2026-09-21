@@ -33,16 +33,16 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt darwin-aarch64 linux-x86_64-dbg windows-x86_64-dbg darwin-aarch64-dbg
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg darwin-aarch64-dbg wasm32-dbg
           - host: linux-aarch64
             os: ubuntu-24.04-arm
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg
           - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt linux-x86_64-dbg windows-x86_64-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk
+            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt wasm32 linux-x86_64-dbg windows-x86_64-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg
           - host: windows-x86_64
             os: windows-latest
-            presets: host linux-x86_64-musl linux-x86_64 linux-x86_64-dbg windows-x86_64-dbg
+            presets: host linux-x86_64-musl linux-x86_64 wasm64 linux-x86_64-dbg windows-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:
@@ -114,6 +114,11 @@ jobs:
           pattern: bin-*
           path: artifacts
           merge-multiple: true
+      # WebAssembly modules run under Node.js (24 or newer: memory64 for wasm64).
+      - uses: actions/setup-node@v4
+        if: matrix.environment == 'linux-x86_64'
+        with:
+          node-version: 24
       - name: Run every binary for this environment, enforce identical builds across hosts
         shell: bash
         env:

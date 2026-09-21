@@ -32,7 +32,7 @@ jobs:
           - name: glibc sweep (linux-aarch64)
             host: linux-aarch64-glibc
             os: ubuntu-24.04-arm
-            presets: linux-aarch64 linux-x86_64-gnu.2.44 linux-x86_64 darwin-x86_64 darwin-aarch64-dbg
+            presets: linux-aarch64 linux-x86_64-gnu.2.44 linux-x86_64 darwin-x86_64 darwin-aarch64-dbg wasm32 wasm64
           - name: sanitizers (linux-x86_64)
             host: linux-x86_64-san
             os: ubuntu-latest
@@ -75,7 +75,7 @@ jobs:
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64 darwin-aarch64
+            presets: host linux-aarch64-musl windows-x86_64 darwin-aarch64 wasm32
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest
@@ -166,6 +166,11 @@ jobs:
           pattern: bin-*
           path: artifacts
           merge-multiple: true
+      # WebAssembly modules run under Node.js (24 or newer: memory64 for wasm64).
+      - uses: actions/setup-node@v4
+        if: matrix.environment == 'linux-x86_64'
+        with:
+          node-version: 24
       - name: Register QEMU
         if: matrix.environment == 'linux-qemu'
         uses: docker/setup-qemu-action@v3

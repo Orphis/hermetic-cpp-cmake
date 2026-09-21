@@ -6,7 +6,8 @@
 #
 # Environments:
 #   linux-x86_64, linux-aarch64   Linux binaries for that architecture, run in a
-#                                 Debian container matching the libc (native Docker)
+#                                 Debian container matching the libc (native Docker);
+#                                 linux-x86_64 also runs the WebAssembly modules under Node.js
 #   linux-qemu                    Linux binaries for every other architecture, run
 #                                 in Debian containers through QEMU
 #   darwin-aarch64, darwin-x86_64 macOS binaries run directly
@@ -54,7 +55,8 @@ image_for() {
 runs_here() {
   local target="$1"
   case "${env_name}" in
-    linux-x86_64|linux-aarch64) [[ "${target}" == "${env_name}" ]] ;;
+    linux-x86_64) [[ "${target}" == "${env_name}" || "${target}" == wasm* ]] ;;
+    linux-aarch64) [[ "${target}" == "${env_name}" ]] ;;
     linux-qemu) [[ "${target}" == linux-* && "${target}" != linux-x86_64 && "${target}" != linux-aarch64 ]] ;;
     darwin-*|windows-*) [[ "${target}" == "${env_name}" ]] ;;
     *) echo "unknown environment ${env_name}"; exit 2 ;;
@@ -71,7 +73,9 @@ for dir in "${artifacts}"/*/*/; do
   preset="$(basename "${dir}")"
   echo "=== ${target} ${libc:-} (${preset} built on ${host})"
   chmod +x "${dir}"/hello_* 2>/dev/null || true
-  if [[ "${target}" == linux-* ]]; then
+  if [[ "${target}" == wasm* ]]; then
+    "${here}/run_wasm.sh" "${dir}/hello_wasm.wasm" "${target#wasm}"
+  elif [[ "${target}" == linux-* ]]; then
     platform="$(platform_for_target "${target}")"
     image="$(image_for "${target}" "${libc}")"
     abs="$(cd "${dir}" && pwd)"
@@ -105,7 +109,7 @@ table="$(for dir in "${artifacts}"/*/*/; do
   target="${target%$'\r'}"; libc="${libc%$'\r'}"; sdk="${sdk%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/greeter_static.lib "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/*.pdb "${dir}"/set/*; do
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/greeter_static.lib "${dir}"/hello_wasm.wasm "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/*.pdb "${dir}"/set/*; do
     [[ -f "$f" ]] || continue
     [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
     name="$(basename "$f")"; [[ "$f" == */set/* ]] && name="set/${name}"
