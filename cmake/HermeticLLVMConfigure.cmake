@@ -155,6 +155,17 @@ macro(hermetic_llvm_configure)
   if(HERMETIC_LLVM_REPRODUCIBLE)
     # hermetic-llvm's deterministic_compile_flags.
     hermetic_llvm_append_flags(_hl_c_flags -Wno-builtin-macro-redefined "-D__DATE__=\\\"redacted\\\"" "-D__TIMESTAMP__=\\\"redacted\\\"" "-D__TIME__=\\\"redacted\\\"")
+    # Debug info and assertion strings name the runtime set, toolset and SDK
+    # headers, which live in the cache directory: map it to a fixed name as
+    # the runtime set builds do, so debug builds do not depend on the machine.
+    if(_hl_windows)
+      # CodeView also records each object file's absolute path (S_OBJNAME),
+      # which no prefix map covers; an empty name leaves that record blank.
+      hermetic_llvm_append_flags(_hl_c_flags "/clang:-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+        -Xclang -object-file-name=-)
+    else()
+      hermetic_llvm_append_flags(_hl_c_flags "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache")
+    endif()
   endif()
   if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows)
     hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)

@@ -18,8 +18,21 @@ for preset in "${presets[@]}"; do
   mkdir -p "${out}/${preset}"
   cp "${src}/target.txt" "${out}/${preset}/"
   for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll \
-      clang_rt.asan_dynamic-x86_64.dll clang_rt.asan_dynamic-aarch64.dll; do
+      clang_rt.asan_dynamic-x86_64.dll clang_rt.asan_dynamic-aarch64.dll \
+      hello_c.pdb hello_cxx.pdb hello_shared.pdb greeter.pdb libgreeter_static.a greeter_static.lib; do
     [[ -e "${src}/${f}" ]] && cp "${src}/${f}" "${out}/${preset}/"
   done
+  # The runtime set's archives, so the set itself is part of the identity check.
+  set_dir=""; [[ -f "${src}/runtime-set.txt" ]] && set_dir="$(head -1 "${src}/runtime-set.txt" | tr -d '\r')"
+  if [[ -n "${set_dir}" && -d "${set_dir}" ]]; then
+    mkdir -p "${out}/${preset}/set"
+    for f in "${set_dir}"/usr/lib/libc++.a "${set_dir}"/usr/lib/libc++abi.a "${set_dir}"/usr/lib/libunwind.a \
+        "${set_dir}"/usr/lib/libc.a "${set_dir}"/usr/lib/libc_nonshared.a "${set_dir}"/usr/lib/libc.so.6 \
+        "${set_dir}"/resource/lib/*/libclang_rt.builtins*.a "${set_dir}"/resource/lib/*/clang_rt.crt*.o \
+        "${set_dir}"/resource/lib/*/libclang_rt.{asan,ubsan_standalone,fuzzer,profile}*.a \
+        "${set_dir}"/lib/libc++-*.lib "${set_dir}"/resource/lib/windows/clang_rt.*.lib; do
+      [[ -e "${f}" ]] && cp "${f}" "${out}/${preset}/set/"
+    done
+  fi
 done
 find "${out}" -type f | sort

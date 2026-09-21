@@ -393,17 +393,35 @@ keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 
 The run stage also hashes every binary and fails when the same preset built
-on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). Runtime
-sets are built to be host-independent: every stage compiles with
-`-ffile-prefix-map` for the cache, source, build and repository directories,
-defines `__FILE__` as `__FILE_NAME__` (Clang on a Windows host joins include
-paths with backslashes, which `-ffile-reproducible` does not undo) and
-builds libunwind and libc++abi without assertions (glibc 2.44's `assert`
-reads the file name through `__builtin_FILE()`, which no prefix map covers),
-so the test binaries built on Linux x86_64, Linux arm64, macOS and Windows
-hosts are byte-identical; sanitized program binaries are the documented
-exception. Publishing prebuilt runtime sets is still to come; the same
-hashing will be applied to the set archives themselves first.
+on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). It
+hashes the program binaries, the runtime set's archives (libc++, libunwind,
+the builtins, libc pieces and, for sanitized presets, the sanitizer
+runtimes) and, on Windows, the PDBs. Runtime sets are built to be
+host-independent: every stage compiles with `-ffile-prefix-map` for the
+cache, source, build and repository directories, defines `__FILE__` as
+`__FILE_NAME__` (Clang on a Windows host joins include paths with
+backslashes, which `-ffile-reproducible` does not undo), blanks CodeView's
+object-name record and builds libunwind and libc++abi without assertions
+(glibc 2.44's `assert` reads the file name through `__builtin_FILE()`,
+which no prefix map covers). The `-dbg` presets build the sample with debug
+information, mapping its source and build directories to fixed names (the
+toolchain maps the cache directory for every build when
+`HERMETIC_LLVM_REPRODUCIBLE` is on), so debug info is measured too.
+
+Result: release and debug binaries built on Linux x86_64, Linux arm64,
+macOS and Windows hosts are byte-identical. Four kinds of difference are
+reported but not enforced: sanitized program binaries (ASan and UBSan
+embed source paths that no prefix map covers); PDBs (lld records the
+absolute paths of the libraries it resolved and the full command line,
+which no option remaps) together with the Windows debug executables and
+DLLs, which embed the PDB's GUID; macOS binaries built against different
+SDK versions (the SDK is the host's Xcode, not a hermetic input, and the
+sample records the version so the check can tell); and debug info or
+runtime set archives built on a Windows host (the backslash-joined include
+paths), where only the Windows builds may deviate and every other host must
+still agree. The sample pins `CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset
+one follows the SDK version into the binary. Publishing prebuilt runtime
+sets is still to come.
 
 ## Maintenance
 

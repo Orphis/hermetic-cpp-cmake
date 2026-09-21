@@ -14,7 +14,8 @@
       "toolchainFile": "${sourceDir}/../../toolchain.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "HERMETIC_LLVM_VERSION": "23.1.0"
+        "HERMETIC_LLVM_VERSION": "23.1.0",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0"
       }
     },
     {
@@ -247,6 +248,56 @@
       }
     },
     {
+      "name": "linux-x86_64-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "linux-x86_64-musl-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_LIBC": "musl",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-libcxx-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "darwin-aarch64-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "darwin-aarch64",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "darwin-x86_64-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "darwin-x86_64",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
@@ -372,6 +423,30 @@
     {
       "name": "windows-x86_64-asan",
       "configurePreset": "windows-x86_64-asan"
+    },
+    {
+      "name": "linux-x86_64-dbg",
+      "configurePreset": "linux-x86_64-dbg"
+    },
+    {
+      "name": "linux-x86_64-musl-dbg",
+      "configurePreset": "linux-x86_64-musl-dbg"
+    },
+    {
+      "name": "windows-x86_64-dbg",
+      "configurePreset": "windows-x86_64-dbg"
+    },
+    {
+      "name": "windows-x86_64-libcxx-dbg",
+      "configurePreset": "windows-x86_64-libcxx-dbg"
+    },
+    {
+      "name": "darwin-aarch64-dbg",
+      "configurePreset": "darwin-aarch64-dbg"
+    },
+    {
+      "name": "darwin-x86_64-dbg",
+      "configurePreset": "darwin-x86_64-dbg"
     },
     {
       "name": "windows-x86_64-vs2022",

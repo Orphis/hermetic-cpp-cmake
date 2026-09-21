@@ -31,16 +31,16 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt linux-x86_64-dbg windows-x86_64-dbg
           - host: linux-aarch64
             os: ubuntu-24.04-arm
-            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64
+            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg
           - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt
+            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt linux-x86_64-dbg windows-x86_64-dbg darwin-aarch64-dbg
           - host: windows-x86_64
             os: windows-latest
-            presets: host linux-x86_64-musl linux-x86_64
+            presets: host linux-x86_64-musl linux-x86_64 linux-x86_64-dbg windows-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:

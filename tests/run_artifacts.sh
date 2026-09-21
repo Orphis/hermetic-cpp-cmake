@@ -64,8 +64,8 @@ runs_here() {
 ran=0
 for dir in "${artifacts}"/*/*/; do
   [[ -f "${dir}/target.txt" ]] || continue
-  IFS=';' read -r target libc < "${dir}/target.txt"
-  target="${target%$'\r'}"; libc="${libc%$'\r'}"  # CMake writes CRLF on Windows hosts
+  IFS=';' read -r target libc sdk < "${dir}/target.txt"
+  target="${target%$'\r'}"; libc="${libc%$'\r'}"; sdk="${sdk%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"
   preset="$(basename "${dir}")"
@@ -101,25 +101,53 @@ echo "ran ${ran} artifact set(s)"
 echo "=== SHA-256 per target/preset across hosts"
 table="$(for dir in "${artifacts}"/*/*/; do
   [[ -f "${dir}/target.txt" ]] || continue
-  IFS=';' read -r target libc < "${dir}/target.txt"
-  target="${target%$'\r'}"; libc="${libc%$'\r'}"  # CMake writes CRLF on Windows hosts
+  IFS=';' read -r target libc sdk < "${dir}/target.txt"
+  target="${target%$'\r'}"; libc="${libc%$'\r'}"; sdk="${sdk%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/clang_rt.asan_dynamic-*.dll; do
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/greeter_static.lib "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/*.pdb "${dir}"/set/*; do
     [[ -f "$f" ]] || continue
     [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
-    printf '%s %s %s %s\n' "${preset}" "$(basename "$f")" "$(sha256 "$f" | cut -c1-16)" "${host}"
+    name="$(basename "$f")"; [[ "$f" == */set/* ]] && name="set/${name}"
+    printf '%s %s %s %s %s\n' "${preset}" "${name}" "$(sha256 "$f" | cut -c1-16)" "${host}" "${sdk:--}"
   done
 done | sort; true)"
-echo "${table}" | awk '{printf "%-28s %-14s %s  %s\n", $1, $2, $3, $4}'
-differing="$(echo "${table}" | awk '{k=$1" "$2; if (k in h && h[k]!=$3) d[k]=1; h[k]=$3} END {for (k in d) print k}' | sort)"
-# Sanitized program binaries embed the build's source and header paths (ASan
-# module names, UBSan check locations), which no prefix map covers; they are
-# reported but not enforced. The runtimes themselves (clang_rt.*) are.
-expected="$(echo "${differing}" | awk '$1 ~ /-(asan|ubsan|msan|tsan)($|-)/ && $2 !~ /^clang_rt\./' || true)"
-unexpected="$(echo "${differing}" | awk '!($1 ~ /-(asan|ubsan|msan|tsan)($|-)/ && $2 !~ /^clang_rt\./)' || true)"
+echo "${table}" | awk '{printf "%-28s %-34s %s  %-24s %s\n", $1, $2, $3, $4, ($5=="-" ? "" : "sdk " $5)}'
+# Expected differences, reported but not enforced:
+# - sanitized program binaries: ASan records each module's source path and
+#   UBSan its check locations, which no prefix map covers;
+# - PDBs: lld records the absolute paths of the libraries it resolved and
+#   the whole link command line, which no option remaps, so they only match
+#   between machines sharing the cache location; and the Windows debug
+#   executables and DLLs, which embed the PDB's GUID (a hash of the PDB);
+# - macOS binaries built against different SDK versions (the SDK is the
+#   host's, not a hermetic input);
+# - debug info and runtime set archives built on a Windows host, where clang
+#   joins include paths with backslashes after the mapped prefix; only the
+#   Windows-host builds may deviate, every other host must still agree.
+classified="$(echo "${table}" | awk '
+  { k=$1" "$2; hosts[k]=hosts[k]" "$4; hash[k" "$4]=$3; sdk[k" "$4]=$5; if (!(k in seen)) { seen[k]=1; order[++n]=k } }
+  END {
+    for (i=1; i<=n; i++) {
+      k=order[i]; m=split(hosts[k], hs, " "); delete all; delete unix; delete sdks; na=0; nu=0; ns=0
+      for (j=1; j<=m; j++) { if (hs[j]=="") continue; h=hash[k" "hs[j]]; s=sdk[k" "hs[j]]
+        if (!(h in all)) { all[h]=1; na++ }
+        if (hs[j] !~ /^windows-/ && !(h in unix)) { unix[h]=1; nu++ }
+        if (!(s in sdks)) { sdks[s]=1; ns++ } }
+      if (na <= 1) continue
+      split(k, kk, " "); preset=kk[1]; file=kk[2]
+      if (preset ~ /-(asan|ubsan|msan|tsan)($|-)/ && file !~ /^(clang_rt\.|set\/)/) print "expected", k
+      else if (file ~ /\.pdb$/) print "expected", k
+      else if (preset ~ /^windows-.*-dbg($|-)/ && file ~ /\.(exe|dll)$/) print "expected", k
+      else if (preset ~ /^darwin-/ && ns > 1) print "expected", k
+      else if ((file ~ /^set\// || preset ~ /-dbg($|-)/) && nu <= 1) print "expected", k
+      else print "unexpected", k
+    }
+  }' | sort)"
+expected="$(echo "${classified}" | awk '$1=="expected" {print $2, $3}' || true)"
+unexpected="$(echo "${classified}" | awk '$1=="unexpected" {print $2, $3}' || true)"
 if [[ -n "${expected}" ]]; then
-  echo "--- differ across hosts as expected (sanitized, path-dependent):"; echo "${expected}" | sed 's/^/    /'
+  echo "--- differ across hosts as expected (sanitized, PDB-dependent, differing macOS SDKs, or Windows-host debug info):"; echo "${expected}" | sed 's/^/    /'
 fi
 if [[ -n "${unexpected}" ]]; then
   echo "--- NOT reproducible across hosts:"; echo "${unexpected}" | sed 's/^/    /'

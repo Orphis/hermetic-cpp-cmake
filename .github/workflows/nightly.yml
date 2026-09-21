@@ -54,7 +54,7 @@ jobs:
           - name: macos-x86_64
             host: macos-x86_64
             os: macos-15-intel
-            presets: host linux-x86_64-musl windows-x86_64
+            presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
           # sanitizers) takes about ten minutes to build.
@@ -65,7 +65,7 @@ jobs:
           - name: windows-x86_64 (windows-x86_64 targets)
             host: windows-x86_64
             os: windows-latest
-            presets: windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
+            presets: windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-libcxx-dbg
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest
@@ -77,7 +77,7 @@ jobs:
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest
-            presets: windows-x86_64 windows-x86_64-vs2022 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt
+            presets: windows-x86_64 windows-x86_64-vs2022 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-libcxx-dbg
           - name: windows-aarch64 targets from linux
             host: linux-x86_64-windows-arm64
             os: ubuntu-latest
@@ -85,7 +85,7 @@ jobs:
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest
-            presets: darwin-x86_64 darwin-aarch64
+            presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     env:
