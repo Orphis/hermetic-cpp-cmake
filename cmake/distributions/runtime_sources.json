@@ -178,5 +178,13 @@
         "sha256": "4a3835588fe46a5d48424d57e8a1c2743215143100bb4fe10b918374787b3505"
       }
     }
+  },
+  "mingw": {
+    "version": "14.0.0",
+    "urls": [
+      "https://github.com/mingw-w64/mingw-w64/archive/refs/tags/v14.0.0.tar.gz"
+    ],
+    "sha256": "d71cc644cd5a37c337f2719f3e0c79d89e8d8d5fb9e2952a62d3fa23623dc137",
+    "strip_components": 1
   }
 }

@@ -17,7 +17,7 @@ for preset in "${presets[@]}"; do
   [[ -f "${src}/target.txt" ]] || { echo "no build for preset ${preset}"; exit 1; }
   mkdir -p "${out}/${preset}"
   cp "${src}/target.txt" "${out}/${preset}/"
-  for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll hello_wasm.wasm \
+  for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll libgreeter.dll hello_wasm.wasm \
       clang_rt.asan_dynamic-x86_64.dll clang_rt.asan_dynamic-aarch64.dll \
       hello_c.pdb hello_cxx.pdb hello_shared.pdb greeter.pdb libgreeter_static.a greeter_static.lib; do
     [[ -e "${src}/${f}" ]] && cp "${src}/${f}" "${out}/${preset}/"
@@ -30,7 +30,11 @@ for preset in "${presets[@]}"; do
         "${set_dir}"/usr/lib/libc.a "${set_dir}"/usr/lib/libc_nonshared.a "${set_dir}"/usr/lib/libc.so.6 \
         "${set_dir}"/resource/lib/*/libclang_rt.builtins*.a "${set_dir}"/resource/lib/*/clang_rt.crt*.o \
         "${set_dir}"/resource/lib/*/libclang_rt.{asan,ubsan_standalone,fuzzer,profile}*.a \
-        "${set_dir}"/lib/libc++-*.lib "${set_dir}"/resource/lib/windows/clang_rt.*.lib; do
+        "${set_dir}"/lib/libc++-*.lib "${set_dir}"/resource/lib/windows/clang_rt.*.lib \
+        "${set_dir}"/*-w64-mingw32/lib/libc++.a "${set_dir}"/*-w64-mingw32/lib/libunwind.a \
+        "${set_dir}"/*-w64-mingw32/lib/libmingw32.a "${set_dir}"/*-w64-mingw32/lib/libmingwex.a \
+        "${set_dir}"/*-w64-mingw32/lib/libucrt.a "${set_dir}"/*-w64-mingw32/lib/libkernel32.a \
+        "${set_dir}"/*-w64-mingw32/lib/libwinpthread.a "${set_dir}"/*-w64-mingw32/lib/crt2.o; do
       [[ -e "${f}" ]] && cp "${f}" "${out}/${preset}/set/"
     done
   fi

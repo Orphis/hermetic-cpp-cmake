@@ -306,6 +306,31 @@
       }
     },
     {
+      "name": "windows-x86_64-gnu",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_WINDOWS_ABI": "gnu"
+      }
+    },
+    {
+      "name": "windows-aarch64-gnu",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-aarch64",
+        "HERMETIC_LLVM_WINDOWS_ABI": "gnu"
+      }
+    },
+    {
+      "name": "windows-x86_64-gnu-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_WINDOWS_ABI": "gnu",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
       "name": "wasm32",
       "inherits": "base",
       "cacheVariables": {
@@ -481,6 +506,18 @@
     {
       "name": "darwin-aarch64-hostsdk",
       "configurePreset": "darwin-aarch64-hostsdk"
+    },
+    {
+      "name": "windows-x86_64-gnu",
+      "configurePreset": "windows-x86_64-gnu"
+    },
+    {
+      "name": "windows-aarch64-gnu",
+      "configurePreset": "windows-aarch64-gnu"
+    },
+    {
+      "name": "windows-x86_64-gnu-dbg",
+      "configurePreset": "windows-x86_64-gnu-dbg"
     },
     {
       "name": "wasm32",

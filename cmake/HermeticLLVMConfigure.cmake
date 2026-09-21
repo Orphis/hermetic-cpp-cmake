@@ -41,7 +41,12 @@ macro(hermetic_llvm_configure)
   endif()
 
   set(_hl_windows FALSE)
-  if(_hl_tgt_OS STREQUAL "windows")
+  set(_hl_mingw FALSE)
+  if(_hl_tgt_OS STREQUAL "windows" AND HERMETIC_LLVM_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
+    # GNU ABI: the plain clang driver with MinGW-w64 from the runtime set.
+    set(_hl_mingw TRUE)
+    hermetic_llvm_windows_gnu_triple("${_hl_tgt_ARCH}" _hl_triple)
+  elseif(_hl_tgt_OS STREQUAL "windows")
     set(_hl_windows TRUE)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 2 _hl_msvc_include)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 3 _hl_msvc_lib)
@@ -69,6 +74,10 @@ macro(hermetic_llvm_configure)
     set(CMAKE_CXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
     set(CMAKE_AR "${_hl_bin}/llvm-ar${_hl_exe}" CACHE FILEPATH "Archiver")
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
+    if(_hl_mingw)
+      set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-windres${_hl_exe}" CACHE FILEPATH "Resource compiler")
+      set(CMAKE_RC_FLAGS_INIT "--target=${_hl_triple}")
+    endif()
   endif()
   set(CMAKE_OBJC_COMPILER "${_hl_bin}/clang${_hl_exe}")
   set(CMAKE_OBJCXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
@@ -85,6 +94,8 @@ macro(hermetic_llvm_configure)
     set(CMAKE_INSTALL_NAME_TOOL "${_hl_bin}/llvm-install-name-tool${_hl_exe}" CACHE FILEPATH "install_name_tool")
   elseif(_hl_windows)
     set(CMAKE_LINKER "${_hl_bin}/lld-link${_hl_exe}" CACHE FILEPATH "Linker")
+  elseif(_hl_mingw)
+    set(CMAKE_LINKER "${_hl_bin}/ld.lld${_hl_exe}" CACHE FILEPATH "Linker")
   elseif(_hl_tgt_OS STREQUAL "wasm")
     set(CMAKE_LINKER "${_hl_bin}/wasm-ld${_hl_exe}" CACHE FILEPATH "Linker")
     # Modules are named *.wasm (see the file).
@@ -179,9 +190,18 @@ macro(hermetic_llvm_configure)
     else()
       hermetic_llvm_append_flags(_hl_c_flags ${_hl_prefix_maps})
     endif()
+    if(_hl_mingw)
+      # COFF objects for the GNU environment carry the current time as their
+      # timestamp unless told otherwise (clang-cl's /Brepro does the same).
+      hermetic_llvm_append_flags(_hl_c_flags -mno-incremental-linker-compatible)
+    endif()
   endif()
   if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
     hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)
+  endif()
+  if(_hl_mingw AND HERMETIC_LLVM_REPRODUCIBLE)
+    # lld stamps PE headers with the current time unless told otherwise.
+    hermetic_llvm_append_flags(_hl_link_flags -Wl,--no-insert-timestamp)
   endif()
 
   set(HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "")
@@ -264,6 +284,14 @@ macro(hermetic_llvm_configure)
       hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_link_set}/lib" "/LIBPATH:${_hl_link_set}/resource/lib/windows"
         "${_hl_builtins}")
     endif()
+  elseif(_hl_mingw)
+    # MinGW-w64 from the set (the sysroot: clang finds <set>/<arch>-w64-mingw32),
+    # compiler-rt builtins and libunwind from its resource directory, static
+    # libc++; CMake's GNU-style Windows rules do the rest (lld's MinGW
+    # driver, .dll.a import libraries, llvm-windres).
+    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
+    hermetic_llvm_append_flags(_hl_link_flags "-resource-dir=${_hl_set}/resource" -rtlib=compiler-rt --unwindlib=libunwind)
+    hermetic_llvm_append_flags(_hl_cxx_flags -stdlib=libc++)
   elseif(_hl_tgt_OS STREQUAL "wasm")
     # Freestanding WebAssembly: the driver would otherwise ask for a libc
     # and an entry point (_start), which a module exporting functions has
@@ -340,6 +368,10 @@ macro(hermetic_llvm_configure)
   set(HERMETIC_LLVM_SYSROOT_PATH "${_hl_sysroot}")
   set(HERMETIC_LLVM_TARGET_TRIPLE "${_hl_triple}")
   set(HERMETIC_LLVM_EFFECTIVE_LIBC "${HERMETIC_LLVM_RESOLVED_LIBC}")
+  if(_hl_mingw)
+    set(HERMETIC_LLVM_EFFECTIVE_LIBC "ucrt")
+  endif()
+  set(HERMETIC_LLVM_EFFECTIVE_WINDOWS_ABI "${HERMETIC_LLVM_RESOLVED_WINDOWS_ABI}")
   set(HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB "${HERMETIC_LLVM_RESOLVED_CXX_STDLIB}")
   # Windows hosts building Windows targets: the SDK's own tools (midl, mc,
   # signtool, makeappx, dxc, ...) for custom commands; empty elsewhere.

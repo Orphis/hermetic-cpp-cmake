@@ -41,7 +41,9 @@ endif()
 hermetic_llvm_provide_compiler("${HERMETIC_LLVM_VERSION}" "${HERMETIC_LLVM_HOST_OS}" "${HERMETIC_LLVM_HOST_ARCH}" dist)
 hermetic_llvm_log("Compiler: LLVM ${dist_VERSION} at ${dist_ROOT}")
 hermetic_llvm_target_info("${HERMETIC_LLVM_TARGET}" tgt)
-if(tgt_OS STREQUAL "windows")
+if(tgt_OS STREQUAL "windows" AND HERMETIC_LLVM_WINDOWS_ABI STREQUAL "gnu")
+  hermetic_llvm_build_mingw_runtime_set("${dist_ROOT}" "${dist_VERSION}" "${HERMETIC_LLVM_TARGET}" set_dir)
+elseif(tgt_OS STREQUAL "windows")
   hermetic_llvm_provide_windows_sdk("${tgt_ARCH}" win)
   set(HERMETIC_LLVM_RESOLVED_WINSDK
     "${win_MSVC_VERSION}" "${win_MSVC_COMPAT_VERSION}" "${win_MSVC_INCLUDE}" "${win_MSVC_LIB}"

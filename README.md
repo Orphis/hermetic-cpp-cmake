@@ -41,7 +41,7 @@ The compiler prebuilt exists for six hosts; every host can build for every
 target. Runtime sets, Windows toolsets and the macOS SDK are downloaded or
 built the same way everywhere.
 
-| Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC STL or libc++) | WebAssembly (`wasm32`, `wasm64`; freestanding) |
+| Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC ABI with the MSVC STL or libc++, or GNU ABI with MinGW-w64) | WebAssembly (`wasm32`, `wasm64`; freestanding) |
 | --- | :---: | :---: | :---: | :---: |
 | Linux x86_64 | ✓ | ✓ | ✓ | ✓ |
 | Linux arm64 | ✓ | ✓ | ✓ | ✓ |
@@ -105,9 +105,12 @@ Host notes:
    Line Tools package (or the host's Xcode SDK, or any SDK directory, via
    `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++. See
    [macOS targets](#macos-targets).
-4. **Windows targets** (MSVC ABI) use `clang-cl` and `lld-link` with a MSVC
+4. **Windows targets** on the MSVC ABI use `clang-cl` and `lld-link` with a MSVC
    toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
    default or a libc++ runtime set, and optionally the sanitizer runtimes.
+   On the GNU ABI (`HERMETIC_LLVM_WINDOWS_ABI=gnu`) they use the plain
+   `clang` driver with MinGW-w64 built from source into a runtime set, like
+   hermetic-llvm's default Windows platforms, and nothing from Microsoft.
    See [Windows targets](#windows-targets).
 5. **WebAssembly targets** are freestanding, like hermetic-llvm's: no libc
    and no operating system, a module that exports functions to a host
@@ -154,7 +157,8 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`, `wasm32`, `wasm64`; see [Hosts and targets](#hosts-and-targets). |
-| `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
+| `HERMETIC_LLVM_WINDOWS_ABI` | `msvc` | Windows targets: `msvc` (clang-cl, the Microsoft runtime and SDK) or `gnu` (MinGW-w64 with UCRT, built from source into the runtime set `<target>-mingw`; no Microsoft download, libc++ only, no sanitizers). |
+| `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets on the MSVC ABI: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
 | `HERMETIC_LLVM_MSVC_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
 | `HERMETIC_LLVM_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
 | `HERMETIC_LLVM_LIBC` | `gnu.2.28` | Linux libc: `gnu.<version>` (2.28 to 2.44) or `musl`. The runtime set id is `<target>-<libc>`. |
@@ -255,8 +259,30 @@ step and is not there yet, nor are wasm shared libraries.
 
 ## Windows targets
 
-Windows targets follow hermetic-llvm's `windows_msvc` route: the MSVC ABI
-with `clang-cl` and `lld-link`, no MinGW.
+Windows targets come in two ABIs. The GNU ABI (`HERMETIC_LLVM_WINDOWS_ABI=gnu`,
+hermetic-llvm's default Windows platforms) builds
+[mingw-w64](https://www.mingw-w64.org/) 14.0.0 from source into the runtime
+set `<target>-mingw`: its headers, CRT libraries and start files, the
+import libraries of the system DLLs generated from mingw-w64's definition
+files with `llvm-dlltool`, and winpthreads, all under
+`<set>/<arch>-w64-mingw32` where clang's MinGW driver looks for them, plus
+the compiler-rt builtins and a static libc++ (win32 threads, libc++abi and
+libunwind merged in). The C runtime is the UCRT, as in mingw-w64's own
+`--with-default-msvcrt=ucrt` layout (`libmsvcrt.a` is the UCRT), Windows 10
+is the default `_WIN32_WINNT`, and the plain `clang` driver links with
+`-rtlib=compiler-rt --unwindlib=libunwind -stdlib=libc++` through lld's
+MinGW driver, with CMake's GNU-style Windows rules (`libfoo.dll` with a
+`libfoo.dll.a` import library, `llvm-windres` for resources). mingw-w64's
+autotools build needs a shell, which Windows hosts do not have, so the CRT
+is compiled by `runtimes/mingw/CMakeLists.txt` from the source lists in
+`runtimes/mingw/sources.cmake`, after hermetic-llvm's translation of
+`mingw-w64-crt/Makefile.am`. `libmoldname.a` and `libm.a` are empty, as
+there. Nothing is downloaded from Microsoft, so no license confirmation is
+needed. Not available on this ABI: the MSVC STL, the sanitizers, `msvcrt.dll`
+as the C runtime, and 32-bit x86.
+
+The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
+`clang-cl` and `lld-link` with Microsoft's runtime and SDK.
 
 **Toolset and SDK.** The MSVC toolset (C runtime and STL headers and
 libraries) comes from the Visual Studio installer manifest and the Windows
@@ -458,8 +484,9 @@ them:
   (about 15 minutes end to end): tables and selection checks, then native
   and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
   x86_64, covering glibc, musl, the MSVC STL and libc++ Windows targets
-  with ASan, macOS targets from Linux and the WebAssembly targets. Each job
-  builds at most a few runtime sets from source.
+  with ASan, MinGW-w64 Windows targets, macOS targets from Linux and the
+  WebAssembly targets. Each job builds at most a few runtime sets from
+  source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
@@ -535,8 +562,9 @@ into the binary. Publishing prebuilt runtime sets is still to come.
 - hermetic-llvm builds the runtimes as Bazel targets inside the consuming
   build; here they are built once per (LLVM version, target, libc) into a
   cache directory by a `cmake -P` driver, or downloaded prebuilt.
-- Not ported yet: MinGW targets, BPF targets, libstdc++ as an alternative
-  C++ library, and the compiler bootstrap stages.
+- Not ported yet: BPF targets, libstdc++ as an alternative C++ library,
+  the msvcrt.dll flavour and 32-bit x86 of the MinGW route, and the
+  compiler bootstrap stages.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
   (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is

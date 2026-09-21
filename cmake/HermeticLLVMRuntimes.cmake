@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 15)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 16)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -160,6 +160,20 @@ function(hermetic_llvm_fetch_extras OUT_DIR)
   string(JSON sha GET "${entry}" "sha256")
   hermetic_llvm_fetch_archive(NAME "extras-${version}-${key}" KIND tools SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 0 OUT_DIR dir)
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
+endfunction()
+
+# The mingw-w64 source tree (headers, CRT, winpthreads). Sets ${OUT_DIR}, ${OUT_VERSION}.
+function(hermetic_llvm_fetch_mingw_source OUT_DIR OUT_VERSION)
+  string(JSON entry GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "mingw")
+  string(JSON version GET "${entry}" "version")
+  string(JSON sha GET "${entry}" "sha256")
+  string(JSON strip GET "${entry}" "strip_components")
+  string(JSON urls GET "${entry}" "urls")
+  string(JSON url GET "${urls}" 0)
+  hermetic_llvm_fetch_archive(NAME "mingw-w64-${version}" KIND src SHA256 "${sha}" URLS "${url}"
+    STRIP_COMPONENTS "${strip}" OUT_DIR dir)
+  set(${OUT_DIR} "${dir}" PARENT_SCOPE)
+  set(${OUT_VERSION} "${version}" PARENT_SCOPE)
 endfunction()
 
 function(hermetic_llvm_fetch_kernel_headers VERSION ARCH OUT_DIR)
@@ -679,6 +693,133 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   \"windows_sdk_version\": \"${sdk_version}\",
   \"triple\": \"${triple}\",
   \"components\": [\"builtins\", \"libcxx\"${sanitizer_json}],
+  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"built\": \"${now}\"
+}
+")
+  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(RENAME "${tmp}" "${set_dir}")
+  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+    file(REMOVE_RECURSE "${build_root}")
+  endif()
+  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+endfunction()
+
+# Builds (or reuses) the runtime set for a Windows TARGET on the GNU ABI
+# (MinGW-w64, like hermetic-llvm's default Windows platforms): mingw-w64's
+# headers, CRT (UCRT) and import libraries under <set>/<arch>-w64-mingw32
+# (the directory clang's MinGW driver looks for under a sysroot), the
+# compiler-rt builtins in <set>/resource, and static libunwind, libc++abi
+# and libc++ (win32 threads). The set is identified by "<target>-mingw".
+# Sets ${OUT_DIR}.
+function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
+  hermetic_llvm_target_info("${TARGET}" tgt)
+  if(NOT tgt_OS STREQUAL "windows")
+    hermetic_llvm_fatal("hermetic_llvm_build_mingw_runtime_set: ${TARGET} is not a Windows target")
+  endif()
+  hermetic_llvm_windows_gnu_triple("${tgt_ARCH}" triple)
+  set(subdir "${tgt_ARCH}-w64-mingw32")
+  set(id "${TARGET}-mingw")
+  set(components builtins libcxx)
+  string(REPLACE ";" "," components_str "${components}")
+  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+
+  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
+  endif()
+  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  if(ok)
+    set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
+    return()
+  endif()
+
+  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, mingw-w64 with UCRT, libc++); this takes a few minutes")
+  hermetic_llvm_load_runtime_sources()
+  hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
+  hermetic_llvm_fetch_mingw_source(mingw_src mingw_version)
+  set(tmp "${set_dir}.tmp")
+  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
+  file(MAKE_DIRECTORY "${tmp}/${subdir}" "${tmp}/resource")
+
+  # COFF objects for the GNU environment get the current time as their
+  # timestamp unless told otherwise (the MSVC route gets that from /Brepro).
+  set(prefix_map
+    -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__" -mno-incremental-linker-compatible
+    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
+    "-ffile-prefix-map=${mingw_src}=/hermetic-llvm/mingw-w64"
+    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+  string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
+  set(bootstrap
+    "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
+    "HERMETIC_LLVM_BOOTSTRAP_TRIPLE=${triple}"
+    "HERMETIC_LLVM_BOOTSTRAP_SYSTEM_NAME=Windows"
+    "HERMETIC_LLVM_BOOTSTRAP_WINDOWS_ABI=gnu"
+    "HERMETIC_LLVM_BOOTSTRAP_PROCESSOR=${tgt_SYSTEM_PROCESSOR}"
+    "HERMETIC_LLVM_BOOTSTRAP_PREFIX_MAP=${prefix_map_flags}")
+
+  # 1. mingw-w64: headers, CRT, start files, import libraries, winpthreads.
+  hermetic_llvm_build_stage(NAME mingw-w64 SOURCE "${HERMETIC_LLVM_DIR}/runtimes/mingw" BUILD "${build_root}/mingw-w64"
+    INSTALL_PREFIX "${tmp}/${subdir}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
+    ARGS "-DMINGW_SOURCE_DIR=${mingw_src}" "-DMINGW_ARCH=${tgt_ARCH}" "-DMINGW_TRIPLE=${triple}"
+      "-DMINGW_LLVM_BIN=${LLVM_ROOT}/bin")
+
+  # 2. compiler-rt builtins into the resource directory, with the compiler's
+  #    builtin headers.
+  hermetic_llvm_resource_dir("${LLVM_ROOT}" compiler_resource_dir)
+  file(COPY "${compiler_resource_dir}/include" DESTINATION "${tmp}/resource")
+  if(IS_DIRECTORY "${compiler_resource_dir}/share")
+    file(COPY "${compiler_resource_dir}/share" DESTINATION "${tmp}/resource")
+  endif()
+  hermetic_llvm_build_stage(NAME compiler-rt SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/compiler-rt"
+    INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}"
+    BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}"
+    ARGS -DLLVM_ENABLE_RUNTIMES=compiler-rt "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+      -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_INCLUDE_TESTS=OFF
+      -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_CRT=OFF -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=OFF
+      -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF
+      -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF
+      -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
+      -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF)
+
+  # 3. libunwind, libc++abi and libc++, static, after llvm-mingw's recipe
+  #    (win32 threads, so nothing depends on winpthreads).
+  hermetic_llvm_build_stage(NAME libcxx SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx"
+    INSTALL_PREFIX "${tmp}/${subdir}" LOG_DIR "${log_dir}"
+    BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}" "HERMETIC_LLVM_BOOTSTRAP_RESOURCE_DIR=${tmp}/resource"
+      "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-rtlib=compiler-rt --unwindlib=none"
+    CACHE "LLVM_ENABLE_RUNTIMES=libunwind|libcxxabi|libcxx"
+    ARGS "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+      -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
+      -DLIBUNWIND_ENABLE_ASSERTIONS=OFF -DLIBCXXABI_ENABLE_ASSERTIONS=OFF
+      -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBUNWIND_ENABLE_STATIC=ON -DLIBUNWIND_USE_COMPILER_RT=ON
+      -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON
+      -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON -DLIBCXXABI_LIBDIR_SUFFIX=
+      -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC=ON -DLIBCXX_USE_COMPILER_RT=ON
+      -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=OFF
+      -DLIBCXX_HAS_WIN32_THREAD_API=ON -DLIBCXX_LIBDIR_SUFFIX=
+      -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)
+
+  string(TIMESTAMP now UTC)
+  file(WRITE "${tmp}/runtime-set.json" "{
+  \"id\": \"${id}\",
+  \"llvm_version\": \"${LLVM_VERSION}\",
+  \"target\": \"${TARGET}\",
+  \"libc\": \"ucrt\",
+  \"libc_description\": \"mingw-w64 ${mingw_version} (UCRT)\",
+  \"triple\": \"${triple}\",
+  \"components\": [\"builtins\", \"libcxx\"],
   \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
   \"built\": \"${now}\"
 }

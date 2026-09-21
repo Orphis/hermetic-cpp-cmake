@@ -109,7 +109,7 @@ table="$(for dir in "${artifacts}"/*/*/; do
   target="${target%$'\r'}"; libc="${libc%$'\r'}"; sdk="${sdk%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/greeter_static.lib "${dir}"/hello_wasm.wasm "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/*.pdb "${dir}"/set/*; do
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/libgreeter.dll "${dir}"/greeter_static.lib "${dir}"/hello_wasm.wasm "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/*.pdb "${dir}"/set/*; do
     [[ -f "$f" ]] || continue
     [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
     name="$(basename "$f")"; [[ "$f" == */set/* ]] && name="set/${name}"

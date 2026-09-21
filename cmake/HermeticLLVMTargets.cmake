@@ -12,6 +12,11 @@ set(HERMETIC_LLVM_SUPPORTED_TARGETS
   windows-x86_64 windows-aarch64
   wasm32 wasm64)
 
+# Triple of a Windows target on the GNU ABI (MinGW-w64).
+function(hermetic_llvm_windows_gnu_triple ARCH OUT)
+  set(${OUT} "${ARCH}-w64-windows-gnu" PARENT_SCOPE)
+endfunction()
+
 # Sets ${OUT}_OS, _ARCH, _TRIPLE (base triple; Linux gets the libc appended
 # by hermetic_llvm_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
 function(hermetic_llvm_target_info KEY OUT)

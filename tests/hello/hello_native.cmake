@@ -40,7 +40,7 @@ if(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR)
     endif()
   endforeach()
   message(STATUS "hermetic-llvm: Windows SDK tools at ${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}")
-elseif(CMAKE_HOST_WIN32 AND WIN32)
+elseif(CMAKE_HOST_WIN32 AND WIN32 AND HERMETIC_LLVM_EFFECTIVE_WINDOWS_ABI STREQUAL "msvc")
   message(FATAL_ERROR "HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR should be set on a Windows host")
 endif()
 
