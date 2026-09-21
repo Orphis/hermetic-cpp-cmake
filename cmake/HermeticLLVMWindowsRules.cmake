@@ -13,9 +13,11 @@
 # after /link, so -fsanitize=... belongs in the compile flags only.
 #
 # The hermetic-llvm prebuilts ship no llvm-lib, so static libraries are
-# created with llvm-ar (lld-link reads its archives).
+# created with llvm-ar (lld-link reads its archives). Only the ARCHIVE_*
+# rules are set: with CREATE_STATIC_LIBRARY set, the Ninja generator runs
+# it verbatim without deleting the old archive first, and "q" would append
+# a second copy of every rebuilt object to it.
 foreach(lang C CXX ASM_MASM RC)
-  set(CMAKE_${lang}_CREATE_STATIC_LIBRARY "<CMAKE_AR> qcs <TARGET> <OBJECTS>")
   set(CMAKE_${lang}_ARCHIVE_CREATE "<CMAKE_AR> qcs <TARGET> <OBJECTS>")
   set(CMAKE_${lang}_ARCHIVE_APPEND "<CMAKE_AR> q <TARGET> <OBJECTS>")
   set(CMAKE_${lang}_ARCHIVE_FINISH "")
