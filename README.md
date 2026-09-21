@@ -270,6 +270,21 @@ object-name record, which would otherwise hold each object's absolute path
 on every host, is left blank). The CI identity check reports the former and
 does not compare the latter.
 
+PDBs are deterministic too. lld-link records its own path, the path of
+every library it resolved and its whole command line in the PDB, and no
+option remaps them, so with `HERMETIC_LLVM_REPRODUCIBLE` the toolchain
+links through relative paths instead: every build directory (try-compile
+directories included) gets a link named `hermetic-llvm` to the cache
+directory (a symbolic link, or a directory junction on Windows hosts),
+the cache gets a host-neutral `llvm/<version>` link to the compiler, and
+the link command names the toolset, SDK, runtime set and `lld-link` itself
+through them. With a project-chosen `/pdbsourcepath:` (the sample uses
+`/build`) the PDB then records `/build/hermetic-llvm/...` everywhere, and
+the executable, which embeds the PDB's GUID, matches too. Compilation keeps
+absolute paths; the prefix map covers those. The link is only created
+for Windows targets and only supports the Ninja generators, whose commands
+run from the build directory.
+
 Not ported from hermetic-llvm: MinGW targets and the static-CRT variants
 of its Windows sanitizer route beyond what is described above.
 
@@ -396,7 +411,7 @@ The run stage also hashes every binary and fails when the same preset built
 on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). It
 hashes the program binaries, the runtime set's archives (libc++, libunwind,
 the builtins, libc pieces and, for sanitized presets, the sanitizer
-runtimes) and, on Windows, the PDBs. Runtime sets are built to be
+runtimes) and the PDBs of the Windows debug presets. Runtime sets are built to be
 host-independent: every stage compiles with `-ffile-prefix-map` for the
 cache, source, build and repository directories, defines `__FILE__` as
 `__FILE_NAME__` (Clang on a Windows host joins include paths with
@@ -409,19 +424,17 @@ toolchain maps the cache directory for every build when
 `HERMETIC_LLVM_REPRODUCIBLE` is on), so debug info is measured too.
 
 Result: release and debug binaries built on Linux x86_64, Linux arm64,
-macOS and Windows hosts are byte-identical. Four kinds of difference are
+macOS and Windows hosts are byte-identical, PDBs included (see
+Reproducibility under Windows targets). Three kinds of difference are
 reported but not enforced: sanitized program binaries (ASan and UBSan
-embed source paths that no prefix map covers); PDBs (lld records the
-absolute paths of the libraries it resolved and the full command line,
-which no option remaps) together with the Windows debug executables and
-DLLs, which embed the PDB's GUID; macOS binaries built against different
-SDK versions (the SDK is the host's Xcode, not a hermetic input, and the
-sample records the version so the check can tell); and debug info or
-runtime set archives built on a Windows host (the backslash-joined include
-paths), where only the Windows builds may deviate and every other host must
-still agree. The sample pins `CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset
-one follows the SDK version into the binary. Publishing prebuilt runtime
-sets is still to come.
+embed source paths that no prefix map covers); macOS binaries built
+against different SDK versions (the SDK is the host's Xcode, not a
+hermetic input, and the sample records the version so the check can
+tell); and debug info, PDBs or runtime set archives built on a Windows
+host (the backslash-joined include paths), where only the Windows builds
+may deviate and every other host must still agree. The sample pins
+`CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset one follows the SDK version
+into the binary. Publishing prebuilt runtime sets is still to come.
 
 ## Maintenance
 

@@ -111,10 +111,18 @@ function(_hermetic_llvm_single_subdir DIR OUT)
 endfunction()
 
 # Writes a case-insensitive VFS overlay covering every directory in DIRS
-# (used with clang's -ivfsoverlay and lld-link's /vfsoverlay:).
+# (used with clang's -ivfsoverlay and lld-link's /vfsoverlay:). With
+# PREFIX_FROM and PREFIX_TO, that prefix of every path (the roots and the
+# files they redirect to) is replaced: a relative PREFIX_TO gives an overlay
+# whose paths are resolved against the working directory of the process
+# using it, as any relative path would be.
 function(hermetic_llvm_write_case_overlay OUT_FILE)
-  set(dirs ${ARGN})
+  cmake_parse_arguments(arg "" "PREFIX_FROM;PREFIX_TO" "" ${ARGN})
+  set(dirs ${arg_UNPARSED_ARGUMENTS})
   set(marker "# roots: ${dirs}")
+  if(arg_PREFIX_FROM)
+    string(APPEND marker " (${arg_PREFIX_FROM} as ${arg_PREFIX_TO})")
+  endif()
   if(EXISTS "${OUT_FILE}")
     file(STRINGS "${OUT_FILE}" first LIMIT_COUNT 1)
     if(first STREQUAL marker)
@@ -135,10 +143,14 @@ function(hermetic_llvm_write_case_overlay OUT_FILE)
       if(NOT files)
         continue()
       endif()
-      string(APPEND yaml "    { 'name': '${d}', 'type': 'directory', 'contents': [\n")
+      set(root "${d}")
+      if(arg_PREFIX_FROM)
+        string(REPLACE "${arg_PREFIX_FROM}" "${arg_PREFIX_TO}" root "${root}")
+      endif()
+      string(APPEND yaml "    { 'name': '${root}', 'type': 'directory', 'contents': [\n")
       foreach(f IN LISTS files)
         get_filename_component(name "${f}" NAME)
-        string(APPEND yaml "      { 'name': '${name}', 'type': 'file', 'external-contents': '${f}' },\n")
+        string(APPEND yaml "      { 'name': '${name}', 'type': 'file', 'external-contents': '${root}/${name}' },\n")
       endforeach()
       string(APPEND yaml "    ] },\n")
     endforeach()
@@ -253,6 +265,12 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
 
   set(overlay "${HERMETIC_LLVM_CACHE_DIR}/winsdk/overlays/msvc-${msvc_version}-sdk-${sdk_version}-${ms_arch}.yaml")
   hermetic_llvm_write_case_overlay("${overlay}" "${msvc_include}" ${msvc_lib} "${sdk_include}" "${sdk_ucrt_lib}" "${sdk_um_lib}")
+  # The link overlay names the library directories relative to a build
+  # directory's link to the cache (hermetic_llvm_windows_flags RELATIVE_ROOT),
+  # so the library paths lld-link resolves through it are relative too.
+  hermetic_llvm_write_case_overlay("${overlay}.link.yaml"
+    PREFIX_FROM "${HERMETIC_LLVM_CACHE_DIR}" PREFIX_TO "${HERMETIC_LLVM_CACHE_LINK_NAME}"
+    ${msvc_lib} "${sdk_ucrt_lib}" "${sdk_um_lib}")
 
   set(${OUT}_MSVC_VERSION "${msvc_version}" PARENT_SCOPE)
   set(${OUT}_MSVC_COMPAT_VERSION "${compat}" PARENT_SCOPE)
@@ -274,7 +292,16 @@ endfunction()
 # and library paths, a case-insensitive VFS overlay for the SDK's mixed-case
 # names, deterministic objects and links. Used by the consumer toolchain and
 # by the runtime set build alike.
+#
+# With RELATIVE_ROOT <name>, the link step addresses the toolset and SDK
+# through <name> in place of the cache directory (a link to it in the build
+# directory, see hermetic_llvm_configure): the library paths, the overlay
+# and the paths clang-cl derives for lld-link (OUT_LINK_DRIVER, driver
+# options for the link command, which override the compile-time ones) are
+# then relative, and lld-link records them under /pdbsourcepath rather than
+# under the cache directory, whose location differs from machine to machine.
 function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
+  cmake_parse_arguments(arg "" "RELATIVE_ROOT;OUT_LINK_DRIVER" "" ${ARGN})
   list(GET WINSDK 1 compat)
   list(GET WINSDK 2 msvc_include)
   list(GET WINSDK 3 msvc_lib)
@@ -296,13 +323,22 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
     "/vctoolsdir${toolset_dir}" "/winsdkdir${sdk_root}" "/winsdkversion${sdk_include_version}"
     -Xclang -ivfsoverlay -Xclang "${overlay}"
     /Brepro /clang:-gno-codeview-command-line)
+  set(link_driver "")
+  set(link_overlay "${overlay}")
+  if(arg_RELATIVE_ROOT)
+    set(link_overlay "${overlay}.link.yaml")
+    foreach(var toolset_dir sdk_root msvc_lib sdk_ucrt_lib sdk_um_lib link_overlay)
+      string(REPLACE "${HERMETIC_LLVM_CACHE_DIR}" "${arg_RELATIVE_ROOT}" ${var} "${${var}}")
+    endforeach()
+    set(link_driver "/vctoolsdir${toolset_dir}" "/winsdkdir${sdk_root}")
+  endif()
   set(link "")
   foreach(dir IN LISTS msvc_lib)
     list(APPEND link "/LIBPATH:${dir}")
   endforeach()
   list(APPEND link
     "/LIBPATH:${sdk_ucrt_lib}" "/LIBPATH:${sdk_um_lib}"
-    "/vfsoverlay:${overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
+    "/vfsoverlay:${link_overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
     # Sanitized links get /DEBUG from the driver; keep the PDB path out of
     # the executable so it stays identical across hosts.
     "/pdbaltpath:%_PDB%"
@@ -316,4 +352,7 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
   endif()
   set(${OUT_COMPILE} "${compile}" PARENT_SCOPE)
   set(${OUT_LINK} "${link}" PARENT_SCOPE)
+  if(arg_OUT_LINK_DRIVER)
+    set(${arg_OUT_LINK_DRIVER} "${link_driver}" PARENT_SCOPE)
+  endif()
 endfunction()

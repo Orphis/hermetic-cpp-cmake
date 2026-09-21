@@ -171,9 +171,45 @@ macro(hermetic_llvm_configure)
     hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)
   endif()
 
+  set(HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "")
   if(_hl_windows)
     # MSVC ABI: the toolset and SDK environment (see hermetic_llvm_windows_flags).
-    hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link)
+    #
+    # Reproducible links address everything in the cache through a link to
+    # it in the build directory (and the compiler through a host-neutral
+    # name), so that what lld-link records in the PDB (its own path, the
+    # libraries it resolved, its command line) is relative to the build
+    # directory: with /pdbsourcepath the PDB, and the executable holding its
+    # GUID, then come out the same on every machine. Compilation keeps the
+    # absolute paths (prefix maps cover them, and the compiler identification
+    # step runs where no link exists).
+    set(_hl_link_root "")
+    if(HERMETIC_LLVM_REPRODUCIBLE)
+      hermetic_llvm_link_directory("${HERMETIC_LLVM_CACHE_DIR}"
+        "${CMAKE_BINARY_DIR}/${HERMETIC_LLVM_CACHE_LINK_NAME}" _hl_link_ok)
+      hermetic_llvm_link_directory("${_hl_root}"
+        "${HERMETIC_LLVM_CACHE_DIR}/llvm/${HERMETIC_LLVM_RESOLVED_VERSION}" _hl_llvm_link_ok)
+      if(_hl_link_ok AND _hl_llvm_link_ok)
+        set(_hl_link_root "${HERMETIC_LLVM_CACHE_LINK_NAME}")
+      else()
+        message(WARNING "[hermetic-llvm] Linking without the build directory link: PDBs will depend on the cache directory")
+      endif()
+    endif()
+    set(_hl_link_set "${_hl_set}")
+    if(_hl_link_root)
+      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link
+        RELATIVE_ROOT "${_hl_link_root}" OUT_LINK_DRIVER HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS)
+      # lld-link found through a prefix directory keeps the relative path it
+      # was found by as its own name (--ld-path is not a clang-cl option).
+      list(APPEND HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "/clang:-B${_hl_link_root}/llvm/${HERMETIC_LLVM_RESOLVED_VERSION}/bin/")
+      string(REPLACE "${HERMETIC_LLVM_CACHE_DIR}" "${_hl_link_root}" _hl_link_set "${_hl_link_set}")
+      if(_hl_set AND NOT _hl_link_set STREQUAL _hl_set)
+        list(APPEND HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "-resource-dir=${_hl_link_set}/resource")
+      endif()
+      string(REPLACE ";" " " HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "${HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS}")
+    else()
+      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link)
+    endif()
     if(_hl_set)
       # Runtime set (libc++ and/or sanitizers). Its resource directory gives
       # the driver the compiler-rt runtimes (builtins, sanitizers, profile)
@@ -212,7 +248,7 @@ macro(hermetic_llvm_configure)
       else()
         set(_hl_builtins "clang_rt.builtins-x86_64.lib")
       endif()
-      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_set}/lib" "/LIBPATH:${_hl_set}/resource/lib/windows"
+      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_link_set}/lib" "/LIBPATH:${_hl_link_set}/resource/lib/windows"
         "${_hl_builtins}")
     endif()
   elseif(_hl_set)

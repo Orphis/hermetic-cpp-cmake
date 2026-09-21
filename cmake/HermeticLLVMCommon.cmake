@@ -36,6 +36,58 @@ function(hermetic_llvm_host_executable PATH OUT)
   set(${OUT} "${PATH}" PARENT_SCOPE)
 endfunction()
 
+# The name of the link every build directory gets to the cache directory
+# when building Windows targets reproducibly (see hermetic_llvm_configure).
+set(HERMETIC_LLVM_CACHE_LINK_NAME "hermetic-llvm")
+
+# Makes LINK a link to the directory TARGET: a symbolic link on Unix hosts,
+# a directory junction on Windows hosts (no privilege or developer mode
+# needed, unlike a symbolic link there). An existing link to somewhere else
+# is replaced; only the link itself is ever removed, never its contents.
+# Sets ${OUT_OK} to TRUE when LINK resolves to TARGET afterwards, FALSE with
+# a warning otherwise.
+function(hermetic_llvm_link_directory TARGET LINK OUT_OK)
+  set(${OUT_OK} FALSE PARENT_SCOPE)
+  file(REAL_PATH "${TARGET}" target_real)
+  if(EXISTS "${LINK}")
+    file(REAL_PATH "${LINK}" link_real)
+    if(link_real STREQUAL target_real)
+      set(${OUT_OK} TRUE PARENT_SCOPE)
+      return()
+    endif()
+    if(CMAKE_HOST_WIN32 AND IS_DIRECTORY "${LINK}")
+      # rmdir removes a junction (or an empty directory), nothing inside it.
+      file(TO_NATIVE_PATH "${LINK}" link_native)
+      execute_process(COMMAND cmd /c rmdir "${link_native}" OUTPUT_QUIET ERROR_QUIET)
+    elseif(IS_SYMLINK "${LINK}")
+      file(REMOVE "${LINK}")
+    endif()
+    if(EXISTS "${LINK}")
+      message(WARNING "[hermetic-llvm] ${LINK} exists and is not a link to ${TARGET}; remove it")
+      return()
+    endif()
+  endif()
+  get_filename_component(parent "${LINK}" DIRECTORY)
+  file(MAKE_DIRECTORY "${parent}")
+  if(CMAKE_HOST_WIN32)
+    file(TO_NATIVE_PATH "${LINK}" link_native)
+    file(TO_NATIVE_PATH "${target_real}" target_native)
+    execute_process(COMMAND cmd /c mklink /J "${link_native}" "${target_native}"
+      RESULT_VARIABLE rc OUTPUT_QUIET ERROR_VARIABLE err)
+  else()
+    file(CREATE_LINK "${target_real}" "${LINK}" SYMBOLIC RESULT rc)
+    set(err "${rc}")
+  endif()
+  if(EXISTS "${LINK}")
+    file(REAL_PATH "${LINK}" link_real)
+    if(link_real STREQUAL target_real)
+      set(${OUT_OK} TRUE PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+  message(WARNING "[hermetic-llvm] Could not link ${LINK} to ${TARGET}: ${err}")
+endfunction()
+
 function(hermetic_llvm_log)
   message(STATUS "[hermetic-llvm] ${ARGN}")
 endfunction()

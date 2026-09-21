@@ -116,10 +116,6 @@ echo "${table}" | awk '{printf "%-28s %-34s %s  %-24s %s\n", $1, $2, $3, $4, ($5
 # Expected differences, reported but not enforced:
 # - sanitized program binaries: ASan records each module's source path and
 #   UBSan its check locations, which no prefix map covers;
-# - PDBs: lld records the absolute paths of the libraries it resolved and
-#   the whole link command line, which no option remaps, so they only match
-#   between machines sharing the cache location; and the Windows debug
-#   executables and DLLs, which embed the PDB's GUID (a hash of the PDB);
 # - macOS binaries built against different SDK versions (the SDK is the
 #   host's, not a hermetic input);
 # - debug info and runtime set archives built on a Windows host, where clang
@@ -137,8 +133,6 @@ classified="$(echo "${table}" | awk '
       if (na <= 1) continue
       split(k, kk, " "); preset=kk[1]; file=kk[2]
       if (preset ~ /-(asan|ubsan|msan|tsan)($|-)/ && file !~ /^(clang_rt\.|set\/)/) print "expected", k
-      else if (file ~ /\.pdb$/) print "expected", k
-      else if (preset ~ /^windows-.*-dbg($|-)/ && file ~ /\.(exe|dll)$/) print "expected", k
       else if (preset ~ /^darwin-/ && ns > 1) print "expected", k
       else if ((file ~ /^set\// || preset ~ /-dbg($|-)/) && nu <= 1) print "expected", k
       else print "unexpected", k
@@ -147,7 +141,7 @@ classified="$(echo "${table}" | awk '
 expected="$(echo "${classified}" | awk '$1=="expected" {print $2, $3}' || true)"
 unexpected="$(echo "${classified}" | awk '$1=="unexpected" {print $2, $3}' || true)"
 if [[ -n "${expected}" ]]; then
-  echo "--- differ across hosts as expected (sanitized, PDB-dependent, differing macOS SDKs, or Windows-host debug info):"; echo "${expected}" | sed 's/^/    /'
+  echo "--- differ across hosts as expected (sanitized, differing macOS SDKs, or Windows-host debug info):"; echo "${expected}" | sed 's/^/    /'
 fi
 if [[ -n "${unexpected}" ]]; then
   echo "--- NOT reproducible across hosts:"; echo "${unexpected}" | sed 's/^/    /'

@@ -31,14 +31,18 @@ set(_hl_link_head "/nologo -fuse-ld=lld -Wno-unused-command-line-argument")
 # (Windows, long command lines) they land at <OBJECTS> anyway, and lld resolves
 # symbols in input order, so this keeps the order (and the import thunk
 # layout of the output) identical whether or not a response file is used.
+# HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS: driver options for the link
+# command only, after the compile flags so that they take precedence (the
+# toolchain names the toolset, SDK and runtime set relative to the build
+# directory here, see hermetic_llvm_windows_flags).
 # HERMETIC_LLVM_WINDOWS_LINK_TAIL: linker options placed after everything a
 # project adds (the runtime set build uses it to override /DEBUG).
 set(_hl_link_tail "/link /implib:<TARGET_IMPLIB> /pdb:<TARGET_PDB> /version:<TARGET_VERSION_MAJOR>.<TARGET_VERSION_MINOR> <LINK_FLAGS> ${HERMETIC_LLVM_WINDOWS_LINK_TAIL}")
 foreach(lang C CXX)
   set(CMAKE_${lang}_LINK_EXECUTABLE
-    "<CMAKE_${lang}_COMPILER> ${_hl_link_head} <FLAGS> <OBJECTS> <LINK_LIBRARIES> /Fe<TARGET> ${_hl_link_tail}")
+    "<CMAKE_${lang}_COMPILER> ${_hl_link_head} <FLAGS> ${HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS} <OBJECTS> <LINK_LIBRARIES> /Fe<TARGET> ${_hl_link_tail}")
   set(CMAKE_${lang}_CREATE_SHARED_LIBRARY
-    "<CMAKE_${lang}_COMPILER> ${_hl_link_head} <LANGUAGE_COMPILE_FLAGS> <OBJECTS> <LINK_LIBRARIES> /LD /Fe<TARGET> ${_hl_link_tail}")
+    "<CMAKE_${lang}_COMPILER> ${_hl_link_head} <LANGUAGE_COMPILE_FLAGS> ${HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS} <OBJECTS> <LINK_LIBRARIES> /LD /Fe<TARGET> ${_hl_link_tail}")
   set(CMAKE_${lang}_CREATE_SHARED_MODULE "${CMAKE_${lang}_CREATE_SHARED_LIBRARY}")
 endforeach()
 unset(_hl_link_head)
