@@ -40,6 +40,18 @@ if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
     ENVIRONMENT "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR};DYLD_LIBRARY_PATH=${CMAKE_BINARY_DIR}")
 endif()
 
+# Windows hosts get the SDK tools; make sure the exported directory is real.
+if(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR)
+  foreach(tool mt.exe rc.exe midl.exe mc.exe signtool.exe)
+    if(NOT EXISTS "${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}/${tool}")
+      message(FATAL_ERROR "SDK tool ${tool} missing from ${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}")
+    endif()
+  endforeach()
+  message(STATUS "hermetic-llvm: Windows SDK tools at ${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}")
+elseif(CMAKE_HOST_WIN32 AND WIN32)
+  message(FATAL_ERROR "HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR should be set on a Windows host")
+endif()
+
 # Windows ASan is a DLL runtime that must sit next to the executables.
 if(WIN32 AND HERMETIC_LLVM_RUNTIME_SET AND CMAKE_CXX_FLAGS MATCHES "fsanitize=address")
   file(GLOB _asan_dll "${HERMETIC_LLVM_RUNTIME_SET}/resource/lib/windows/clang_rt.asan_dynamic-*.dll")

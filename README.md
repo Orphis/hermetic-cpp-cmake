@@ -173,8 +173,9 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 After the toolchain file runs, projects can read `HERMETIC_LLVM_ROOT`,
 `HERMETIC_LLVM_BIN_DIR` (for `clang-tidy`, `clang-format`, `llvm-cov`, ...),
 `HERMETIC_LLVM_RUNTIME_SET`, `HERMETIC_LLVM_SYSROOT_PATH`,
-`HERMETIC_LLVM_TARGET_TRIPLE`, `HERMETIC_LLVM_EFFECTIVE_LIBC` and
-`HERMETIC_LLVM_CROSSCOMPILING`.
+`HERMETIC_LLVM_TARGET_TRIPLE`, `HERMETIC_LLVM_EFFECTIVE_LIBC`,
+`HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB`, `HERMETIC_LLVM_CROSSCOMPILING` and, on
+Windows hosts building Windows targets, `HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR`.
 
 ## Windows targets
 
@@ -196,6 +197,18 @@ downloaded. The toolset and SDK are handed to the driver as `/vctoolsdir`,
 installation or at `INCLUDE`/`LIB` on Windows hosts, and a case-insensitive
 Clang VFS overlay lets the SDK's mixed-case file names resolve on
 case-sensitive filesystems.
+
+**SDK tools.** The SDK package also carries Microsoft's tools (`midl`, `mc`,
+`rc`, `mt`, `signtool`, `makecat`, `makeappx`, `makepri`, `dxc`, `fxc`, the
+WPP/ETW tracing tools, ...), Windows executables with no LLVM counterpart
+apart from `rc` and `mt`. On a Windows host the ones for the host
+architecture are extracted and their directory exported as
+`HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR` for custom commands; the toolchain
+itself keeps using `llvm-rc`, and `llvm-mt` once a prebuilt with libxml2 is
+available, so that outputs stay identical to those of Linux and macOS
+hosts. On those hosts the variable is empty; mingw-w64's `widl` and `wmc`
+cover classic COM IDL and message tables there, `dxc` has native builds,
+and signing or packaging belong outside the hermetic build.
 
 **Linking.** Executables and DLLs are linked through the `clang-cl` driver,
 which runs `lld-link`, rather than through `lld-link` directly, so that

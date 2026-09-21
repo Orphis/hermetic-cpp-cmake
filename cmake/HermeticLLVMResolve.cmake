@@ -109,7 +109,7 @@ macro(hermetic_llvm_resolve)
       set(HERMETIC_LLVM_RESOLVED_WINSDK
         "${_hl_win_MSVC_VERSION}" "${_hl_win_MSVC_COMPAT_VERSION}" "${_hl_win_MSVC_INCLUDE}" "${_hl_win_MSVC_LIB}"
         "${_hl_win_SDK_VERSION}" "${_hl_win_SDK_INCLUDE_VERSION}" "${_hl_win_SDK_INCLUDE}"
-        "${_hl_win_SDK_UCRT_LIB}" "${_hl_win_SDK_UM_LIB}" "${_hl_win_OVERLAY}")
+        "${_hl_win_SDK_UCRT_LIB}" "${_hl_win_SDK_UM_LIB}" "${_hl_win_OVERLAY}" "${_hl_win_TOOLS}")
       if(_hl_stdlib STREQUAL "libc++" OR HERMETIC_LLVM_RUNTIME_SANITIZERS)
         # libc++ (static, Microsoft ABI), compiler-rt builtins and optionally
         # the sanitizer, fuzzer and profile runtimes, built against this

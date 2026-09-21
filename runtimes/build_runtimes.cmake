@@ -46,7 +46,7 @@ if(tgt_OS STREQUAL "windows")
   set(HERMETIC_LLVM_RESOLVED_WINSDK
     "${win_MSVC_VERSION}" "${win_MSVC_COMPAT_VERSION}" "${win_MSVC_INCLUDE}" "${win_MSVC_LIB}"
     "${win_SDK_VERSION}" "${win_SDK_INCLUDE_VERSION}" "${win_SDK_INCLUDE}"
-    "${win_SDK_UCRT_LIB}" "${win_SDK_UM_LIB}" "${win_OVERLAY}")
+    "${win_SDK_UCRT_LIB}" "${win_SDK_UM_LIB}" "${win_OVERLAY}" "${win_TOOLS}")
   hermetic_llvm_build_windows_runtime_set("${dist_ROOT}" "${dist_VERSION}" "${HERMETIC_LLVM_TARGET}" set_dir)
 else()
   hermetic_llvm_build_runtime_set("${dist_ROOT}" "${dist_VERSION}" "${HERMETIC_LLVM_TARGET}" "${HERMETIC_LLVM_LIBC}" set_dir)

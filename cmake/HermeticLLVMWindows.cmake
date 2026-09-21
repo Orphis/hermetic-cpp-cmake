@@ -211,10 +211,34 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
   string(JSON sdk GET "${json}" "windows_sdk" "versions" "${sdk_version}")
   string(JSON pkg GET "${sdk}" "packages" "Microsoft.Windows.SDK.CPP")
   _hermetic_llvm_json_payload("${pkg}" url hash)
-  hermetic_llvm_fetch_archive(NAME "winsdk-${sdk_version}-headers" KIND winsdk HASH "${hash}" URLS "${url}"
-    STRIP_COMPONENTS 0 PATTERNS "c/Include" OUT_DIR sdk_dir)
+  # The same package carries the SDK's tools (rc, mt, midl, mc, signtool,
+  # makeappx, dxc, ...), Windows executables: on a Windows host the ones for
+  # its architecture are extracted alongside the headers and their directory
+  # exported as HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR.
+  hermetic_llvm_detect_host(host_os host_arch)
+  set(tools "")
+  if(host_os STREQUAL "windows")
+    if(host_arch STREQUAL "aarch64")
+      set(host_ms_arch arm64)
+    else()
+      set(host_ms_arch x64)
+    endif()
+    # (The glob also matches a few legacy GenXBF.dll directories for older
+    # SDK versions; the tools directory is the one matching the headers.)
+    hermetic_llvm_fetch_archive(NAME "winsdk-${sdk_version}-headers-tools-${host_ms_arch}" KIND winsdk HASH "${hash}" URLS "${url}"
+      STRIP_COMPONENTS 0 PATTERNS "c/Include" "c/bin/*/${host_ms_arch}/*" OUT_DIR sdk_dir)
+  else()
+    hermetic_llvm_fetch_archive(NAME "winsdk-${sdk_version}-headers" KIND winsdk HASH "${hash}" URLS "${url}"
+      STRIP_COMPONENTS 0 PATTERNS "c/Include" OUT_DIR sdk_dir)
+  endif()
   _hermetic_llvm_single_subdir("${sdk_dir}/c/Include" sdk_include)
   get_filename_component(sdk_include_version "${sdk_include}" NAME)
+  if(host_os STREQUAL "windows")
+    set(tools "${sdk_dir}/c/bin/${sdk_include_version}/${host_ms_arch}")
+    if(NOT EXISTS "${tools}/mt.exe")
+      hermetic_llvm_fatal("Windows SDK package did not contain the ${host_ms_arch} tools under ${tools}")
+    endif()
+  endif()
   string(JSON pkg GET "${sdk}" "packages" "Microsoft.Windows.SDK.CPP.${ms_arch}")
   _hermetic_llvm_json_payload("${pkg}" url hash)
   hermetic_llvm_fetch_archive(NAME "winsdk-${sdk_version}-${ms_arch}" KIND winsdk HASH "${hash}" URLS "${url}"
@@ -241,6 +265,7 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
   set(${OUT}_SDK_UCRT_LIB "${sdk_ucrt_lib}" PARENT_SCOPE)
   set(${OUT}_SDK_UM_LIB "${sdk_um_lib}" PARENT_SCOPE)
   set(${OUT}_OVERLAY "${overlay}" PARENT_SCOPE)
+  set(${OUT}_TOOLS "${tools}" PARENT_SCOPE)
 endfunction()
 
 # Compile and link flags for the MSVC ABI environment described by a

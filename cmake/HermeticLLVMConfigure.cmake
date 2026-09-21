@@ -49,6 +49,7 @@ macro(hermetic_llvm_configure)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 6 _hl_sdk_include)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 7 _hl_sdk_ucrt_lib)
     list(GET HERMETIC_LLVM_RESOLVED_WINSDK 8 _hl_sdk_um_lib)
+    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 10 _hl_sdk_tools)
   endif()
 
   # ---- Tools -------------------------------------------------------------
@@ -270,6 +271,12 @@ macro(hermetic_llvm_configure)
   set(HERMETIC_LLVM_TARGET_TRIPLE "${_hl_triple}")
   set(HERMETIC_LLVM_EFFECTIVE_LIBC "${HERMETIC_LLVM_RESOLVED_LIBC}")
   set(HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB "${HERMETIC_LLVM_RESOLVED_CXX_STDLIB}")
+  # Windows hosts building Windows targets: the SDK's own tools (midl, mc,
+  # signtool, makeappx, dxc, ...) for custom commands; empty elsewhere.
+  set(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR "")
+  if(_hl_windows)
+    set(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR "${_hl_sdk_tools}")
+  endif()
   if(_hl_native)
     set(HERMETIC_LLVM_CROSSCOMPILING FALSE)
   else()
