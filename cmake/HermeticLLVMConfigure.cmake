@@ -109,6 +109,8 @@ macro(hermetic_llvm_configure)
     if(NOT _hl_native)
       set(CMAKE_OSX_ARCHITECTURES "${_hl_tgt_SYSTEM_PROCESSOR}")
     endif()
+    # Makes every host behave alike for shared libraries (see the file).
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDarwinRules.cmake")
   elseif(_hl_set AND NOT _hl_windows)
     set(CMAKE_SYSROOT "${_hl_set}")
   elseif(_hl_sysroot)
@@ -158,13 +160,20 @@ macro(hermetic_llvm_configure)
     # Debug info and assertion strings name the runtime set, toolset and SDK
     # headers, which live in the cache directory: map it to a fixed name as
     # the runtime set builds do, so debug builds do not depend on the machine.
+    # The compiler's own directory is named after the host (its builtin
+    # headers appear in the debug info of targets without a runtime set,
+    # such as macOS); its map comes second, since the last matching map wins.
+    set(_hl_prefix_maps "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+      "-ffile-prefix-map=${_hl_root}=/hermetic-llvm/llvm")
     if(_hl_windows)
       # CodeView also records each object file's absolute path (S_OBJNAME),
       # which no prefix map covers; an empty name leaves that record blank.
-      hermetic_llvm_append_flags(_hl_c_flags "/clang:-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-        -Xclang -object-file-name=-)
+      foreach(_hl_map IN LISTS _hl_prefix_maps)
+        hermetic_llvm_append_flags(_hl_c_flags "/clang:${_hl_map}")
+      endforeach()
+      hermetic_llvm_append_flags(_hl_c_flags -Xclang -object-file-name=-)
     else()
-      hermetic_llvm_append_flags(_hl_c_flags "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache")
+      hermetic_llvm_append_flags(_hl_c_flags ${_hl_prefix_maps})
     endif()
   endif()
   if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows)

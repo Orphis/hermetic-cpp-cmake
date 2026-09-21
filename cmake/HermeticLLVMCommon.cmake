@@ -209,9 +209,14 @@ endfunction()
 #   hermetic_llvm_fetch_archive(
 #     NAME <dir name>  KIND <llvm|sysroot|...>  SHA256 <hex>
 #     URLS <url>...  [STRIP_COMPONENTS <n>]  [PATTERNS <glob>...]
-#     OUT_DIR <var>)
+#     [PKGUTIL <exe> PKG_PREFIX <path>]  OUT_DIR <var>)
+#
+# With PKGUTIL and PKG_PREFIX the archive is an Apple flat package (.pkg),
+# expanded with pkgutil (the cross-platform reimplementation from the
+# hermetic-llvm extras prebuilt); only the payload directory PKG_PREFIX is
+# extracted and becomes the destination.
 function(hermetic_llvm_fetch_archive)
-  cmake_parse_arguments(A "" "NAME;KIND;SHA256;HASH;STRIP_COMPONENTS;OUT_DIR" "URLS;PATTERNS" ${ARGN})
+  cmake_parse_arguments(A "" "NAME;KIND;SHA256;HASH;STRIP_COMPONENTS;OUT_DIR;PKGUTIL;PKG_PREFIX" "URLS;PATTERNS" ${ARGN})
   foreach(required NAME KIND URLS OUT_DIR)
     if(NOT A_${required})
       hermetic_llvm_fatal("hermetic_llvm_fetch_archive: missing ${required}")
@@ -265,7 +270,7 @@ function(hermetic_llvm_fetch_archive)
   list(GET A_URLS 0 first_url)
   string(REGEX REPLACE "[?#].*$" "" basename "${first_url}")
   get_filename_component(basename "${basename}" NAME)
-  if(NOT basename MATCHES "\\.(tar\\.(xz|gz|zst|bz2)|tgz|zip|vsix|nupkg)$")
+  if(NOT basename MATCHES "\\.(tar\\.(xz|gz|zst|bz2)|tgz|zip|vsix|nupkg|pkg)$")
     # URLs without a recognisable archive name (e.g. Chromium's sysroots are
     # addressed by hash); fall back to the target name.
     set(basename "${A_NAME}.tar.xz")
@@ -329,11 +334,28 @@ function(hermetic_llvm_fetch_archive)
   hermetic_llvm_log("Extracting ${basename} into ${dest}")
   set(tmp "${dest}.tmp")
   file(REMOVE_RECURSE "${tmp}" "${dest}")
-  set(patterns "")
-  if(A_PATTERNS)
-    set(patterns PATTERNS ${A_PATTERNS})
+  if(A_PKG_PREFIX)
+    string(REGEX REPLACE "[^/]+" "" slashes "${A_PKG_PREFIX}")
+    string(LENGTH "${slashes}" strip)
+    math(EXPR strip "${strip} + 1")
+    execute_process(COMMAND "${A_PKGUTIL}" --include "${A_PKG_PREFIX}/**" --strip-components ${strip}
+        --expand-full "${archive}" "${tmp}"
+      RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err)
+    if(NOT rc EQUAL 0)
+      set(hint "")
+      if(CMAKE_HOST_WIN32)
+        set(hint " The package contains symbolic links, which Windows only lets administrators, or users with Developer Mode enabled, create (hermeticbuild/hermetic-llvm#517); Dev Drives mishandle some of them (#580).")
+      endif()
+      hermetic_llvm_fatal("Could not expand ${basename} with pkgutil: ${err}${out}${hint}")
+    endif()
+    set(A_STRIP_COMPONENTS 0)
+  else()
+    set(patterns "")
+    if(A_PATTERNS)
+      set(patterns PATTERNS ${A_PATTERNS})
+    endif()
+    file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${tmp}" ${patterns})
   endif()
-  file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${tmp}" ${patterns})
 
   # Archives made on macOS may carry AppleDouble (._name) and .DS_Store
   # entries, which Linux extracts as real files; drop them.

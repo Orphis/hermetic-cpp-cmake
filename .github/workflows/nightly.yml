@@ -15,6 +15,8 @@ on:
 env:
   HERMETIC_LLVM_KEEP_ARCHIVES: "1"
   HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA: "1"
+  # macOS targets download the macOS SDK from Apple.
+  HERMETIC_LLVM_ACCEPT_APPLE_SDK_LICENSE: "1"
 
 jobs:
   build:
@@ -30,7 +32,7 @@ jobs:
           - name: glibc sweep (linux-aarch64)
             host: linux-aarch64-glibc
             os: ubuntu-24.04-arm
-            presets: linux-aarch64 linux-x86_64-gnu.2.44 linux-x86_64
+            presets: linux-aarch64 linux-x86_64-gnu.2.44 linux-x86_64 darwin-x86_64 darwin-aarch64-dbg
           - name: sanitizers (linux-x86_64)
             host: linux-x86_64-san
             os: ubuntu-latest
@@ -58,10 +60,10 @@ jobs:
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
           # sanitizers) takes about ten minutes to build.
-          - name: windows-x86_64 (linux targets)
+          - name: windows-x86_64 (linux and macOS targets)
             host: windows-x86_64-linux
             os: windows-latest
-            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44
+            presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 darwin-aarch64
           - name: windows-x86_64 (windows-x86_64 targets)
             host: windows-x86_64
             os: windows-latest
@@ -73,7 +75,7 @@ jobs:
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64
+            presets: host linux-aarch64-musl windows-x86_64 darwin-aarch64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest

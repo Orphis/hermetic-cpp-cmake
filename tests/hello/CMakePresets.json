@@ -298,6 +298,14 @@
       }
     },
     {
+      "name": "darwin-aarch64-hostsdk",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_LLVM_TARGET": "darwin-aarch64",
+        "HERMETIC_LLVM_SYSROOT": "host"
+      }
+    },
+    {
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
@@ -447,6 +455,10 @@
     {
       "name": "darwin-x86_64-dbg",
       "configurePreset": "darwin-x86_64-dbg"
+    },
+    {
+      "name": "darwin-aarch64-hostsdk",
+      "configurePreset": "darwin-aarch64-hostsdk"
     },
     {
       "name": "windows-x86_64-vs2022",

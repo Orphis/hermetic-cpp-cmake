@@ -7,9 +7,10 @@ that compiler (libc, compiler-rt, libc++) for every Linux target, so that
 cross-compiling needs no distribution sysroot at all. Linux targets pick
 the glibc version to link against (2.28 to 2.44, via headers plus symbol
 stubs, the same technique as Zig and hermetic-llvm) or musl (fully static
-binaries). macOS targets use an SDK, Windows targets (MSVC ABI) use the
-MSVC toolset and Windows SDK downloaded from Microsoft, with the MSVC STL or
-a libc++ built from source. Any host builds for any target.
+binaries). macOS targets use the macOS SDK downloaded from Apple, Windows
+targets (MSVC ABI) use the MSVC toolset and Windows SDK downloaded from
+Microsoft, with the MSVC STL or a libc++ built from source. Any host builds
+for any target.
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -36,21 +37,21 @@ Or with a preset:
 ## Hosts and targets
 
 The compiler prebuilt exists for six hosts; every host can build for every
-target. Runtime sets and Windows toolsets are downloaded or built the same
-way everywhere, only macOS targets need an SDK, which comes from Xcode on a
-macOS host and has to be supplied by hand elsewhere.
+target. Runtime sets, Windows toolsets and the macOS SDK are downloaded or
+built the same way everywhere.
 
 | Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC STL or libc++) |
 | --- | :---: | :---: | :---: |
-| Linux x86_64 | ✓ | ✓ with a supplied SDK | ✓ |
-| Linux arm64 | ✓ | ✓ with a supplied SDK | ✓ |
+| Linux x86_64 | ✓ | ✓ | ✓ |
+| Linux arm64 | ✓ | ✓ | ✓ |
 | macOS x86_64 | ✓ | ✓ | ✓ |
 | macOS arm64 | ✓ | ✓ | ✓ |
-| Windows x86_64 | ✓ | ✓ with a supplied SDK | ✓ |
-| Windows arm64 | ✓ | ✓ with a supplied SDK | ✓ |
+| Windows x86_64 | ✓ | ✓ ¹ | ✓ |
+| Windows arm64 | ✓ | ✓ ¹ | ✓ |
 
-"With a supplied SDK" means `HERMETIC_LLVM_SYSROOT` must point at a macOS SDK
-directory; nothing else differs. `HERMETIC_LLVM_TARGET` defaults to the
+¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
+administrators or users with Developer Mode create; see
+[macOS targets](#macos-targets). `HERMETIC_LLVM_TARGET` defaults to the
 host's own platform. Which combinations CI exercises is listed under
 [Testing and CI](#testing-and-ci).
 
@@ -60,9 +61,9 @@ Host notes:
   runs on any distribution; no distribution packages are needed beyond
   CMake and Ninja. Docker with QEMU registered is only used by the test
   suite to run cross-compiled binaries.
-- **macOS**: Xcode or the Command Line Tools provide the SDK for macOS
-  targets (`xcrun --show-sdk-path`); nothing from them is used for other
-  targets.
+- **macOS**: nothing from Xcode is needed. `HERMETIC_LLVM_SYSROOT=host`
+  uses the SDK of the installed Xcode or Command Line Tools
+  (`xcrun --show-sdk-path`) instead of the downloaded one.
 - **Windows**: no Visual Studio, MSYS or WSL. The compiler prebuilt is
   hermetic-llvm's MinGW-built one, the MSVC toolset and Windows SDK are
   downloaded like on the other hosts, and the test scripts run under Git
@@ -99,8 +100,10 @@ Host notes:
      libc++abi and libunwind as static libraries, and optionally the
      sanitizer runtimes, all built from the LLVM sources of the same version
      as the compiler. Links use `-rtlib=compiler-rt --unwindlib=libunwind`.
-3. **macOS targets** use the SDK from Xcode or the Command Line Tools (or
-   the directory in `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++.
+3. **macOS targets** use the macOS SDK downloaded from Apple's Command
+   Line Tools package (or the host's Xcode SDK, or any SDK directory, via
+   `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++. See
+   [macOS targets](#macos-targets).
 4. **Windows targets** (MSVC ABI) use `clang-cl` and `lld-link` with a MSVC
    toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
    default or a libc++ runtime set, and optionally the sanitizer runtimes.
@@ -156,7 +159,9 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_RUNTIME_SETS_FILES` | | Extra JSON indexes of prebuilt runtime sets (`{"<llvm>": {"<id>": {"url": ..., "sha256": ...}}}`). |
 | `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. Windows: ASan, UBSan, libFuzzer and profile, see [Sanitizers](#sanitizers). |
 | `HERMETIC_LLVM_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
-| `HERMETIC_LLVM_SYSROOT` | `sdk` | macOS: the SDK (`sdk` uses `xcrun`, or a directory). Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_LLVM_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
+| `HERMETIC_LLVM_SYSROOT` | `sdk` | macOS: `sdk` downloads the SDK (see the next two rows), `host` uses the SDK of the host's Xcode or Command Line Tools (macOS hosts only), or a directory names any SDK. Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_LLVM_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
+| `HERMETIC_LLVM_ACCEPT_APPLE_SDK_LICENSE` | | Must be `1` for macOS targets unless `HERMETIC_LLVM_SYSROOT` names an SDK: confirms you may use the macOS SDK (the Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf). Also read from the environment. |
+| `HERMETIC_LLVM_MACOS_SDK_VERSION` | `26.5` | macOS SDK for macOS targets: an exact version from the table (10.15 to 27.0), a major (`15` selects its newest listed version), or `latest`. `cmake -DTOPIC=macos -P scripts/help.cmake` lists the table. |
 | `HERMETIC_LLVM_EMULATOR` | | Sets `CMAKE_CROSSCOMPILING_EMULATOR` (a list), so `ctest` and `try_run` work when cross-compiling. |
 
 ### Flags and behaviour
@@ -176,6 +181,51 @@ After the toolchain file runs, projects can read `HERMETIC_LLVM_ROOT`,
 `HERMETIC_LLVM_TARGET_TRIPLE`, `HERMETIC_LLVM_EFFECTIVE_LIBC`,
 `HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB`, `HERMETIC_LLVM_CROSSCOMPILING` and, on
 Windows hosts building Windows targets, `HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR`.
+
+## macOS targets
+
+The macOS SDK comes from Apple's software update CDN, without an Apple
+account: the Command Line Tools ship their SDK as a separate package
+(`CLTools_macOSNMOS_SDK.pkg`, about 60 MB), which the toolchain downloads
+and expands with `pkgutil` from hermetic-llvm's extras prebuilt (a
+cross-platform reimplementation, so Linux and Windows hosts do it too) into
+`<cache>/macos/MacOSX<version>.sdk`, about 1 GB. The SDK is then a pinned
+input like everything else, and a macOS binary comes out identical whether
+it was built on a Mac or on a Linux or Windows host. Every SDK version
+Apple's catalog has carried since 2021 is listed in
+`cmake/distributions/macos_sdk.json` (10.15 through 27.0), and
+`scripts/update_macos_sdk.cmake` adds new ones as they appear.
+
+`HERMETIC_LLVM_SYSROOT=host` keeps the previous behaviour on a macOS host
+(the SDK of the installed Xcode or Command Line Tools, via `xcrun`), which
+needs no license confirmation; a directory names any SDK. The sample
+project pins `CMAKE_OSX_DEPLOYMENT_TARGET`, since the default follows the
+SDK version.
+
+Notes:
+
+- Two host differences are papered over so that debug builds and shared
+  libraries match across hosts too: the compiler's own directory (named
+  after the host, and the source of the builtin headers that macOS
+  targets, having no runtime set, record in their debug info) gets its own
+  prefix map, and CMake before 4.1 is given the runtime path flag it only
+  derives from a macOS host, without which a shared library gets its build
+  directory as install name instead of `@rpath`; on a Windows host CMake's
+  Ninja generator also writes that install name with a backslash, which the
+  link rules undo.
+- The 27.0 SDK's library stubs list `arm64e.x1` targets, which LLVM 23.1's
+  linker rejects; it needs a newer LLVM, hence the 26.5 default.
+- Only macOS SDKs are served this way. The iOS, tvOS, watchOS and visionOS
+  SDKs ship inside Xcode, which Apple only serves to signed-in developers,
+  so those targets stay out of reach of a hermetic download.
+- The SDK holds about 7,500 symbolic links (framework `Versions/Current`,
+  library stubs). Windows lets only administrators, or users with Developer
+  Mode enabled, create them, so on a Windows host without either the
+  extraction fails with a message saying so
+  ([hermetic-llvm#517](https://github.com/hermeticbuild/hermetic-llvm/issues/517));
+  Dev Drives (ReFS) mishandle directory symlinks created without the
+  directory flag, which `pkgutil` does not set yet
+  ([#580](https://github.com/hermeticbuild/hermetic-llvm/issues/580)).
 
 ## Windows targets
 
@@ -381,8 +431,9 @@ them:
 - [`tests.yml`](.github/workflows/tests.yml), on every push and pull request
   (about 15 minutes end to end): tables and selection checks, then native
   and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
-  x86_64, covering glibc, musl and the MSVC STL and libc++ Windows targets
-  with ASan. Each job builds at most a few runtime sets from source.
+  x86_64, covering glibc, musl, the MSVC STL and libc++ Windows targets
+  with ASan, and macOS targets from Linux. Each job builds at most a few
+  runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
@@ -396,15 +447,16 @@ them:
 
 Coverage of the hosts-and-targets table: every push builds all Linux
 targets from every host, Windows targets from every host, and macOS targets
-on macOS hosts (arm64 native; x86_64 native and the `darwin-x86_64` cross
-build nightly). Only a Windows arm64 host runs nightly rather than per push,
-and two combinations have no runner at all: macOS targets from non-macOS
-hosts (which need a supplied SDK) and `darwin-aarch64` cross-built from a
-macOS x86_64 host. Everything a job builds is executed on a runner, or under
+from Linux x86_64 and macOS arm64 hosts (with the downloaded SDK, and once
+with the host's Xcode SDK); nightly adds macOS targets from Linux arm64 and
+both Windows hosts, macOS x86_64 native and the `darwin-x86_64` cross
+build. Only a Windows arm64 host runs nightly rather than per push, and one
+combination has no runner at all: `darwin-aarch64` cross-built from a macOS
+x86_64 host. Everything a job builds is executed on a runner, or under
 Docker/QEMU, of the target platform.
 
-Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 250 MB,
-mostly the LLVM source archive) and rebuild runtime sets every time, which
+Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 300 MB,
+mostly the LLVM source archive and the macOS SDK package) and rebuild runtime sets every time, which
 keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 
@@ -429,9 +481,9 @@ macOS and Windows hosts are byte-identical, PDBs included (see
 Reproducibility under Windows targets). Three kinds of difference are
 reported but not enforced: sanitized program binaries (ASan and UBSan
 embed source paths that no prefix map covers); macOS binaries built
-against different SDK versions (the SDK is the host's Xcode, not a
-hermetic input, and the sample records the version so the check can
-tell); and debug info or PDBs built on a Windows host (the
+against different SDK versions (only with `HERMETIC_LLVM_SYSROOT=host`,
+where the SDK is the host's Xcode; the sample records the version so the
+check can tell); and debug info or PDBs built on a Windows host (the
 backslash-joined include paths), where only the Windows builds may deviate
 and every other host must still agree. The sample pins
 `CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset one follows the SDK version
@@ -456,9 +508,7 @@ into the binary. Publishing prebuilt runtime sets is still to come.
   build; here they are built once per (LLVM version, target, libc) into a
   cache directory by a `cmake -P` driver, or downloaded prebuilt.
 - Not ported yet: MinGW targets, wasm and BPF targets, libstdc++ as an
-  alternative C++ library, the hermetic macOS SDK download from Apple's CDN
-  (its `pkgutil` is in the extras prebuilt, so it is feasible), and the
-  compiler bootstrap stages.
+  alternative C++ library, and the compiler bootstrap stages.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
   (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is

@@ -1,0 +1,124 @@
+{
+  "_comment": "macOS SDKs from Apple's Command Line Tools packages (software update catalog, swcdn.apple.com); regenerate with cmake -P scripts/update_macos_sdk.cmake. Each package expands to Payload/Library/Developer/CommandLineTools/SDKs/MacOSX<version>.sdk.",
+  "default": "26.5",
+  "sdks": {
+    "10.15": {
+      "url": "https://swcdn.apple.com/content/downloads/02/62/071-54303-A_EU2CL1YVT7/943i95dpeyi2ghlnj2mgyq3t202t5gf18b/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "d459ae8498deb77f290f7f3adc99a98fb488441818a90042091ee7bb78c817c3",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260225053612id_/https://swcdn.apple.com/content/downloads/02/62/071-54303-A_EU2CL1YVT7/943i95dpeyi2ghlnj2mgyq3t202t5gf18b/CLTools_macOSLMOS_SDK.pkg"
+      ]
+    },
+    "11.1": {
+      "url": "https://swcdn.apple.com/content/downloads/46/21/001-89745-A_56FM390IW5/v1um2qppgfdnam2e9cdqcqu2r6k8aa3lis/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "4e73e80b858430840417031b83f05adfbb21c6b4fc3ba4feea3b6022ab2e8258",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX11.1.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260811140135id_/https://swcdn.apple.com/content/downloads/46/21/001-89745-A_56FM390IW5/v1um2qppgfdnam2e9cdqcqu2r6k8aa3lis/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "11.3": {
+      "url": "https://swcdn.apple.com/content/downloads/24/42/002-83793-A_74JRE8GVAT/rlnkct919wgc5c0pjq986z5bb9h62uvni2/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "998f584e5c93ba357a47cf5668d9a426b7ce41ab579e8496f202b19dac10cf94",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202506id_/https://swcdn.apple.com/content/downloads/24/42/002-83793-A_74JRE8GVAT/rlnkct919wgc5c0pjq986z5bb9h62uvni2/CLTools_macOSLMOS_SDK.pkg"
+      ]
+    },
+    "12.1": {
+      "url": "https://swcdn.apple.com/content/downloads/52/17/002-41708-A_E8MFK7B2PK/6p55tbmh0qttgbt4cy94uuvnacy6tkw435/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "991297bd677abf5fad22c52c30d4bc0bc5d2fd9be96facbaef9556d0a3d6f52f",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX12.1.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260811140233id_/https://swcdn.apple.com/content/downloads/52/17/002-41708-A_E8MFK7B2PK/6p55tbmh0qttgbt4cy94uuvnacy6tkw435/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "12.3": {
+      "url": "https://swcdn.apple.com/content/downloads/15/62/032-84673-A_7A1TG1RF8Z/xpc8q44ggn2pkn82iwr0fi1zeb9cxi8ath/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "f646b1c530dbb39cfeb6c2b7c1f4831ebcfe74212454026a4fbc317bfd7b676c",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX12.3.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202520id_/https://swcdn.apple.com/content/downloads/15/62/032-84673-A_7A1TG1RF8Z/xpc8q44ggn2pkn82iwr0fi1zeb9cxi8ath/CLTools_macOSLMOS_SDK.pkg"
+      ]
+    },
+    "13.1": {
+      "url": "https://swcdn.apple.com/content/downloads/03/28/012-92431-A_FKICGWU4EK/eflw1v4c64sgmvux4ljc083cfjj663wu9g/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "f3acebebdfa0e5bdedf3047a29bdcb76c01ff449d041406b765bdea3dc3ec866",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20251207163135id_/https://swcdn.apple.com/content/downloads/03/28/012-92431-A_FKICGWU4EK/eflw1v4c64sgmvux4ljc083cfjj663wu9g/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "13.3": {
+      "url": "https://swcdn.apple.com/content/downloads/14/48/052-59890-A_I0F5YGAY0Y/p9n40hio7892gou31o1v031ng6fnm9sb3c/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "4a98f94497f368211223e696c8f26c208eb2dc174b6cf89f3ea846f0a2a0e89b",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202525id_/https://swcdn.apple.com/content/downloads/14/48/052-59890-A_I0F5YGAY0Y/p9n40hio7892gou31o1v031ng6fnm9sb3c/CLTools_macOSLMOS_SDK.pkg"
+      ]
+    },
+    "14.0": {
+      "url": "https://swcdn.apple.com/content/downloads/11/17/042-32697-A_1GOTVNQE4A/hy88qtn1sygbgxswlmbfdepd4pcg52xyrx/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "fa3eb19eceab6d27a3ff55860f6e7753bec8193845d03787fce9735e7efb7dc9",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202523id_/https://swcdn.apple.com/content/downloads/11/17/042-32697-A_1GOTVNQE4A/hy88qtn1sygbgxswlmbfdepd4pcg52xyrx/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "14.4": {
+      "url": "https://swcdn.apple.com/content/downloads/14/48/052-59890-A_I0F5YGAY0Y/p9n40hio7892gou31o1v031ng6fnm9sb3c/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "6f35bd96401f2a07a8ab8f21321f2706a51d2309da7406fb81fbefd16af3c9d0",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20250211001355id_/https://swcdn.apple.com/content/downloads/14/48/052-59890-A_I0F5YGAY0Y/p9n40hio7892gou31o1v031ng6fnm9sb3c/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "14.5": {
+      "url": "https://swcdn.apple.com/content/downloads/52/01/082-41241-A_0747ZN8FHV/dectd075r63pppkkzsb75qk61s0lfee22j/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "ee10f491e7c5518bb7346527c242ec34b2d431bb787a2ee00247553e9806ea45",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202537id_/https://swcdn.apple.com/content/downloads/52/01/082-41241-A_0747ZN8FHV/dectd075r63pppkkzsb75qk61s0lfee22j/CLTools_macOSLMOS_SDK.pkg"
+      ]
+    },
+    "15.2": {
+      "url": "https://swcdn.apple.com/content/downloads/61/45/072-44426-A_16242I3TPF/74lkhd4yt26hcrwgpibrqtltf7yth9kc5w/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "55c193b80f3b4c5ae20b3bd926abe20e11a2933cdd1aa918a63f7e89c16dce21",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202533id_/https://swcdn.apple.com/content/downloads/61/45/072-44426-A_16242I3TPF/74lkhd4yt26hcrwgpibrqtltf7yth9kc5w/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "15.4": {
+      "url": "https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSLMOS_SDK.pkg",
+      "sha256": "07835d08fcdc4a57b930c9a7f5c91df18666d4fa246ae994c8850cfe5aab9753",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk"
+    },
+    "15.5": {
+      "url": "https://swcdn.apple.com/content/downloads/52/01/082-41241-A_0747ZN8FHV/dectd075r63pppkkzsb75qk61s0lfee22j/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "ba3453d62b3d2babf67f3a4a44e8073d6555c85f114856f4390a1f53bd76e24a",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260128202536id_/https://swcdn.apple.com/content/downloads/52/01/082-41241-A_0747ZN8FHV/dectd075r63pppkkzsb75qk61s0lfee22j/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "26.5": {
+      "url": "https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "debe353b27a13cd678b26ab216a040acf07b62c0639d8ac522df4ca07d121eb2",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260902184244id_/https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSNMOS_SDK.pkg"
+      ]
+    },
+    "27.0": {
+      "url": "https://swcdn.apple.com/content/downloads/58/48/082-83364-A_KCEBOO2NJS/0d2rj4y5ucjlkgcvqt6f6a4pergug5tu2b/CLTools_macOSNMOS_SDK.pkg",
+      "sha256": "d55351824fd17742fd6e1e7a252fa1028698f32147ee48be9a6b75442bf30575",
+      "prefix": "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk",
+      "mirrors": [
+        "https://web.archive.org/web/20260910221111id_/https://swcdn.apple.com/content/downloads/58/48/082-83364-A_KCEBOO2NJS/0d2rj4y5ucjlkgcvqt6f6a4pergug5tu2b/CLTools_macOSNMOS_SDK.pkg"
+      ],
+      "note": "its library stubs list arm64e.x1 targets, which LLVM 23.1's linker rejects (unknown target); needs a newer LLVM"
+    }
+  }
+}
