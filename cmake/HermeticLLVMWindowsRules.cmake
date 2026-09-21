@@ -12,19 +12,50 @@
 # (<LINK_FLAGS>, <LINK_LIBRARIES>) keep CMake's MSVC-style spelling and go
 # after /link, so -fsanitize=... belongs in the compile flags only.
 #
-# The hermetic-llvm prebuilts ship no llvm-lib, so static libraries are
-# created with llvm-ar (lld-link reads its archives). CREATE_STATIC_LIBRARY
-# must be set, or CMake's lib.exe rule stays in effect; the Ninja generator
-# runs it verbatim, without the "rm -f" it puts before ARCHIVE_CREATE, so
-# the rule deletes the old archive itself: "q" would otherwise append a
-# second copy of every rebuilt object to it.
+# Static libraries use lib.exe syntax when a lib front end is available:
+# llvm-lib if the prebuilt ships it, else the "lib" subcommand of the
+# multicall driver (bin/llvm, which every tool name links to). Both write a
+# fresh archive, as lib.exe does, which is what CMake's rule slot assumes:
+# the Ninja generator runs CREATE_STATIC_LIBRARY verbatim, without the
+# "rm -f" it puts before ARCHIVE_CREATE. Without either, llvm-ar creates the
+# archive (lld-link reads its archives) after deleting the old one, since
+# "q" would otherwise append a second copy of every rebuilt object.
+get_filename_component(_hl_tool_dir "${CMAKE_AR}" DIRECTORY)
+get_filename_component(_hl_tool_ext "${CMAKE_AR}" EXT)
+if(EXISTS "${_hl_tool_dir}/llvm-lib${_hl_tool_ext}")
+  set(_hl_lib "\"${_hl_tool_dir}/llvm-lib${_hl_tool_ext}\"")
+elseif(EXISTS "${_hl_tool_dir}/llvm${_hl_tool_ext}")
+  set(_hl_lib "\"${_hl_tool_dir}/llvm${_hl_tool_ext}\" lib")
+else()
+  set(_hl_lib "")
+endif()
+# On Windows hosts the lib command runs through llvm_lib.cmake, which turns
+# the backslashes CMake puts in object paths into forward slashes: lib.exe
+# syntax stores members under the path given, and the archive must not
+# depend on the host that built it.
+if(_hl_lib AND CMAKE_HOST_WIN32)
+  if(EXISTS "${_hl_tool_dir}/llvm-lib${_hl_tool_ext}")
+    set(_hl_lib "<CMAKE_COMMAND> -DLIB=\"${_hl_tool_dir}/llvm-lib${_hl_tool_ext}\"")
+  else()
+    set(_hl_lib "<CMAKE_COMMAND> -DLIB=\"${_hl_tool_dir}/llvm${_hl_tool_ext}\" -DSUBCOMMAND=lib")
+  endif()
+  string(APPEND _hl_lib " -P \"${CMAKE_CURRENT_LIST_DIR}/llvm_lib.cmake\" --")
+endif()
 foreach(lang C CXX ASM_MASM RC)
-  set(CMAKE_${lang}_CREATE_STATIC_LIBRARY
-    "<CMAKE_COMMAND> -E rm -f <TARGET> && <CMAKE_AR> qcs <TARGET> <OBJECTS>")
+  if(_hl_lib)
+    set(CMAKE_${lang}_CREATE_STATIC_LIBRARY
+      "${_hl_lib} /nologo <LINK_FLAGS> /out:<TARGET> <OBJECTS>")
+  else()
+    set(CMAKE_${lang}_CREATE_STATIC_LIBRARY
+      "<CMAKE_COMMAND> -E rm -f <TARGET> && <CMAKE_AR> qcs <TARGET> <OBJECTS>")
+  endif()
   set(CMAKE_${lang}_ARCHIVE_CREATE "<CMAKE_AR> qcs <TARGET> <OBJECTS>")
   set(CMAKE_${lang}_ARCHIVE_APPEND "<CMAKE_AR> q <TARGET> <OBJECTS>")
   set(CMAKE_${lang}_ARCHIVE_FINISH "")
 endforeach()
+unset(_hl_lib)
+unset(_hl_tool_dir)
+unset(_hl_tool_ext)
 # lib.exe-style static linker flags (/machine:x64) mean nothing to llvm-ar.
 set(CMAKE_STATIC_LINKER_FLAGS_INIT "")
 set(CMAKE_STATIC_LINKER_FLAGS "")
