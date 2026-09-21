@@ -20,7 +20,7 @@
 include_guard(GLOBAL)
 
 # Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 13)
+set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 15)
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -649,6 +649,13 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
         # PDB's GUID (recorded in the DLL) would depend on the build host's
         # paths; placed last so it overrides compiler-rt's own flag.
         "HERMETIC_LLVM_BOOTSTRAP_LINK_TAIL=/DEBUG:NONE"
+        # No debug info in the sanitizer runtimes: compiler-rt appends /Z7
+        # for MSVC-style compilers after every flag a toolchain can set, and
+        # on a Windows host clang joins the mapped include paths in the
+        # CodeView records with backslashes, which made the archives depend
+        # on the build host. Frames inside the runtime itself lose their
+        # line numbers in sanitizer reports; user code is unaffected.
+        "HERMETIC_LLVM_BOOTSTRAP_COMPILE_TAIL=/clang:-g0"
       ARGS -DLLVM_ENABLE_RUNTIMES=compiler-rt "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
         -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
         -DCOMPILER_RT_BUILD_BUILTINS=OFF -DCOMPILER_RT_BUILD_CRT=OFF -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON

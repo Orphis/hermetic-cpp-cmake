@@ -47,3 +47,13 @@ foreach(lang C CXX)
 endforeach()
 unset(_hl_link_head)
 unset(_hl_link_tail)
+
+# HERMETIC_LLVM_WINDOWS_COMPILE_TAIL: compile options placed after everything
+# a project adds, including per-target options (the runtime set build uses
+# it to drop the debug info compiler-rt insists on for the sanitizers).
+if(HERMETIC_LLVM_WINDOWS_COMPILE_TAIL)
+  foreach(lang C CXX)
+    string(REPLACE "<FLAGS> /Fo<OBJECT>" "<FLAGS> ${HERMETIC_LLVM_WINDOWS_COMPILE_TAIL} /Fo<OBJECT>"
+      CMAKE_${lang}_COMPILE_OBJECT "${CMAKE_${lang}_COMPILE_OBJECT}")
+  endforeach()
+endif()

@@ -261,14 +261,15 @@ profile runtime; no TSan, MSan or LSan. Things to know:
 
 **Reproducibility.** Windows binaries built on Linux, macOS and Windows
 hosts are byte-identical, including the ASan DLL, which is linked without
-a PDB. Two things are not: sanitized program binaries, because ASan records
-each module's source path and UBSan its check locations (including SDK
-header paths in the cache) and clang's prefix-map options cover neither; and
-the static sanitizer archives inside a set built on a Windows host, whose
-CodeView line tables join mapped paths with backslashes (the CodeView
-object-name record, which would otherwise hold each object's absolute path
-on every host, is left blank). The CI identity check reports the former and
-does not compare the latter.
+a PDB, and so are the runtime sets. Sanitized program binaries are not,
+because ASan records each module's source path and UBSan its check
+locations (including SDK header paths in the cache) and clang's prefix-map
+options cover neither; the CI identity check reports those. The sanitizer
+runtimes in a set are built without debug info (compiler-rt insists on
+`/Z7` for them): on a Windows host clang joins the mapped include paths in
+the CodeView records with backslashes, which made the archives depend on
+the build host. The CodeView object-name record, which would otherwise
+hold each object's absolute path on every host, is left blank everywhere.
 
 PDBs are deterministic too. lld-link records its own path, the path of
 every library it resolved and its whole command line in the PDB, and no
@@ -430,9 +431,9 @@ reported but not enforced: sanitized program binaries (ASan and UBSan
 embed source paths that no prefix map covers); macOS binaries built
 against different SDK versions (the SDK is the host's Xcode, not a
 hermetic input, and the sample records the version so the check can
-tell); and debug info, PDBs or runtime set archives built on a Windows
-host (the backslash-joined include paths), where only the Windows builds
-may deviate and every other host must still agree. The sample pins
+tell); and debug info or PDBs built on a Windows host (the
+backslash-joined include paths), where only the Windows builds may deviate
+and every other host must still agree. The sample pins
 `CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset one follows the SDK version
 into the binary. Publishing prebuilt runtime sets is still to come.
 

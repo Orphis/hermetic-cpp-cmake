@@ -118,9 +118,9 @@ echo "${table}" | awk '{printf "%-28s %-34s %s  %-24s %s\n", $1, $2, $3, $4, ($5
 #   UBSan its check locations, which no prefix map covers;
 # - macOS binaries built against different SDK versions (the SDK is the
 #   host's, not a hermetic input);
-# - debug info and runtime set archives built on a Windows host, where clang
-#   joins include paths with backslashes after the mapped prefix; only the
-#   Windows-host builds may deviate, every other host must still agree.
+# - debug info built on a Windows host, where clang joins include paths with
+#   backslashes after the mapped prefix; only the Windows-host builds may
+#   deviate, every other host must still agree.
 classified="$(echo "${table}" | awk '
   { k=$1" "$2; hosts[k]=hosts[k]" "$4; hash[k" "$4]=$3; sdk[k" "$4]=$5; if (!(k in seen)) { seen[k]=1; order[++n]=k } }
   END {
@@ -134,7 +134,7 @@ classified="$(echo "${table}" | awk '
       split(k, kk, " "); preset=kk[1]; file=kk[2]
       if (preset ~ /-(asan|ubsan|msan|tsan)($|-)/ && file !~ /^(clang_rt\.|set\/)/) print "expected", k
       else if (preset ~ /^darwin-/ && ns > 1) print "expected", k
-      else if ((file ~ /^set\// || preset ~ /-dbg($|-)/) && nu <= 1) print "expected", k
+      else if (preset ~ /-dbg($|-)/ && nu <= 1) print "expected", k
       else print "unexpected", k
     }
   }' | sort)"
