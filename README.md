@@ -592,8 +592,16 @@ keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 
 `tests/run_rbe_check.sh [presets...]` checks that builds are ready for
-remote execution (see [Remote execution](#remote-execution)); it needs the
-cache inside the checkout (`<repo>/.hermetic-llvm` by default).
+remote execution (see [Remote execution](#remote-execution)): it builds
+each preset through the reference wrapper in the checkout and in a copy at
+another path, and requires the same actions and byte-identical outputs.
+It uses `<repo>/.hermetic-llvm` as the cache, or links it to
+`HERMETIC_LLVM_CACHE_DIR` when that points elsewhere. Every build job runs
+it after building, on a subset of its presets (the `rbe` list of the job,
+built already, so nothing is downloaded or built again), on every host
+including Windows; the nightly jobs add sanitizer, Windows runtime set and
+macOS x86_64 presets. The "Tables and selection" job runs the wrapper's own
+tests (`tests/rbe_wrapper_test.py`), which need no toolchain.
 
 The run stage also hashes every binary and fails when the same preset built
 on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). It

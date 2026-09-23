@@ -24,6 +24,7 @@ jobs:
       - run: cmake -P tests/select_test.cmake
       - run: cmake -P scripts/help.cmake
       - run: cmake -DHERMETIC_LLVM_DRY_RUN=ON -DHERMETIC_LLVM_TARGET=linux-aarch64 -DHERMETIC_LLVM_LIBC=musl -P scripts/prefetch.cmake
+      - run: python3 tests/rbe_wrapper_test.py
 
   build:
     name: build on ${{ matrix.host }}
@@ -34,17 +35,21 @@ jobs:
           - host: linux-x86_64
             os: ubuntu-latest
             presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg
+            rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg
           - host: linux-aarch64
             os: ubuntu-24.04-arm
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg
+            rbe: host linux-x86_64-dbg windows-x86_64
           - host: macos-aarch64
             os: macos-latest
             presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu wasm32 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg
+            rbe: host linux-aarch64 windows-x86_64-dbg windows-x86_64-libcxx darwin-aarch64-dbg wasm32-dbg
           - host: windows-x86_64
             os: windows-latest
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg
+            rbe: host linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       HERMETIC_TESTS_SKIP_DOCKER: "1"
     steps:
@@ -80,6 +85,14 @@ jobs:
           name: bin-${{ matrix.host }}
           path: artifacts
           retention-days: 3
+      # Remote execution readiness: the rbe presets (built above, so the
+      # cache is reused) through the reference wrapper, in this checkout and
+      # a copy at another path; same actions and identical outputs required.
+      - name: Check commands for remote execution
+        shell: bash
+        run: |
+          export HERMETIC_LLVM_CACHE_DIR="${HERMETIC_LLVM_CACHE_DIR:-$HOME/.cache/hermetic-llvm}"
+          tests/run_rbe_check.sh ${{ matrix.rbe }}
       - name: Upload runtime set build logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -88,6 +101,9 @@ jobs:
           path: |
             ~/.cache/hermetic-llvm/logs
             C:/hl/logs
+            tests/hello/build/rbe-*.log
+            tests/hello/build/rbe-*.archives*
+            tests/hello/build/rbe-*/rbe-actions.jsonl*
           if-no-files-found: ignore
 
   run:

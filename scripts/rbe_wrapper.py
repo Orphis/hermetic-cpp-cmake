@@ -8,8 +8,8 @@ link command what an RBE client has to do before sending it to a worker,
 runs it locally the way a worker would, and checks that nothing
 machine-specific is left:
 
-    cmake ... -DHERMETIC_LLVM_CACHE_DIR=<root>/.hermetic-llvm \
-      "-DCMAKE_<LANG>_COMPILER_LAUNCHER=python3;<repo>/scripts/rbe_wrapper.py;--root=<root>;--log=<file>;--strict;--" \
+    cmake ... -DHERMETIC_LLVM_CACHE_DIR=<root>/.hermetic-llvm \\
+      "-DCMAKE_<LANG>_COMPILER_LAUNCHER=python3;<repo>/scripts/rbe_wrapper.py;--root=<root>;--log=<file>;--strict;--" \\
       "-DCMAKE_<LANG>_LINKER_LAUNCHER=<the same>"
 
 - Commands whose tool is not under the exec root (host tools) and compiler
@@ -30,16 +30,19 @@ machine-specific is left:
   same key is the same remote cache entry.
 
     rbe_wrapper.py --root=<exec root> [--log=<file>] [--strict] [--dry-run] -- <command...>
+    rbe_wrapper.py --root=<exec root> --archives-of=<build dir>
 
 Without --strict, problems are reported and the command still runs. With
 --dry-run, the relativized action is printed as JSON instead of run (and
-the exit code tells whether it has problems): for commands no launcher
-reaches, such as static library archiving, taken from the build files.
+the exit code tells whether it has problems). Static libraries have no
+launcher: --archives-of does the same for every archiving command
+(llvm-ar, llvm-ranlib, llvm-lib) of a Ninja build directory.
 """
 import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 
@@ -51,6 +54,8 @@ FAKE_VALUE_PREFIXES = ("/pdbsourcepath:", "/pdbaltpath:", "-ffile-compilation-di
 # A path glued to an option: -I<dir>, /vctoolsdir<dir>, -isystem<dir>...
 OPTION_PREFIX_RE = re.compile(r"[-/][A-Za-z][A-Za-z0-9_+-]*")
 DRIVE_RE = re.compile(r"[A-Za-z]:[\\/]")
+TRY_COMPILE_RE = re.compile(r"/CMakeFiles/(CMakeScratch/TryCompile-|CMakeTmp)")
+ARCHIVERS = ("llvm-ar", "llvm-ranlib", "llvm-lib")
 
 
 def fail(msg):
@@ -70,16 +75,18 @@ def roots_of(root):
 def under(path, roots):
     p = norm(path)
     for r in roots:
-        if p == r or p.startswith(r + "/") or (WINDOWS and p.lower().startswith(r.lower() + "/")):
+        if WINDOWS:
+            p, r = p.lower(), r.lower()
+        if p == r or p.startswith(r + "/"):
             return True
     return False
 
 
 def relativize(text, roots, rel):
     """Rewrites every occurrence of ROOTS/ in TEXT as REL/."""
+    flags = re.IGNORECASE if WINDOWS else 0
     for r in roots:
         for spelling in {r, r.replace("/", "\\")}:
-            flags = re.IGNORECASE if WINDOWS else 0
             text = re.sub(re.escape(spelling) + r"(?=[/\\])", lambda _: rel, text, flags=flags)
     return text
 
@@ -101,22 +108,17 @@ def absolute_paths_in(arg):
     if arg.startswith(FAKE_VALUE_PREFIXES):
         return []
     m = PREFIX_MAP_RE.match(arg)
-    if m:
-        arg = arg[: arg.find("=", m.end())] if "=" in arg[m.end():] else arg
-    found = []
+    if m and "=" in arg[m.end():]:
+        arg = arg[: arg.find("=", m.end())]
     for i, ch in enumerate(arg):
-        starts = ch == "/" or DRIVE_RE.match(arg, i)
-        if not starts:
+        if ch != "/" and not DRIVE_RE.match(arg, i):
             continue
         if i > 0 and arg[i - 1] not in "=,:;" and not OPTION_PREFIX_RE.fullmatch(arg[:i]):
             continue
-        if DRIVE_RE.match(arg, i) and i > 0 and arg[i - 1] == ":":
-            continue
         candidate = re.split(r"[=,;]", arg[i:], maxsplit=1)[0]
         if is_host_path(candidate):
-            found.append(candidate)
-            break
-    return found
+            return [candidate]
+    return []
 
 
 def overlay_files(argv):
@@ -127,7 +129,7 @@ def overlay_files(argv):
             # -Xclang -ivfsoverlay -Xclang <file>
             nxt = i + 2 if argv[i + 1] == "-Xclang" and i + 2 < len(argv) else i + 1
             files.append(argv[nxt])
-        elif a.startswith("-ivfsoverlay"):
+        elif a.startswith("-ivfsoverlay") and len(a) > len("-ivfsoverlay"):
             files.append(a[len("-ivfsoverlay"):])
         elif a.lower().startswith("/vfsoverlay:"):
             files.append(a[len("/vfsoverlay:"):])
@@ -139,49 +141,17 @@ def depfiles(argv):
     for i, a in enumerate(argv):
         if a == "-MF" and i + 1 < len(argv):
             files.append(argv[i + 1])
-        elif a.startswith("--dependency-file="):
-            files.append(a.split("=", 1)[1])
-        elif a.startswith("-Wl,--dependency-file="):
+        elif a.startswith(("--dependency-file=", "-Wl,--dependency-file=")):
             files.append(a.split("=", 1)[1])
     return files
 
 
-def main():
-    args = sys.argv[1:]
-    if "--" not in args:
-        fail("usage: rbe_wrapper.py --root=<dir> [--log=<file>] [--strict] -- <command...>")
-        return 2
-    sep = args.index("--")
-    opts, argv = args[:sep], args[sep + 1:]
-    root = log = None
-    strict = dry_run = False
-    for o in opts:
-        if o.startswith("--root="):
-            root = o.split("=", 1)[1]
-        elif o.startswith("--log="):
-            log = o.split("=", 1)[1]
-        elif o == "--strict":
-            strict = True
-        elif o == "--dry-run":
-            dry_run = True
-    if not root or not argv:
-        fail("--root and a command are required")
-        return 2
-
-    roots = roots_of(root)
-    cwd = norm(os.getcwd())
-    # Local actions: the tool is not part of the workspace, or this is a
-    # compiler check, which is not worth a round trip to a worker.
-    if not under(os.path.abspath(argv[0]), roots) or re.search(r"/CMakeFiles/(CMakeScratch/TryCompile-|CMakeTmp)", cwd + "/"):
-        return 0 if dry_run else subprocess.call(argv)
-
-    if not under(cwd, roots):
-        fail(f"working directory {cwd} is outside the exec root {roots[0]}")
-        return 2
-    real_root, real_cwd = os.path.realpath(root), os.path.realpath(cwd)
+def analyze(argv, roots, write_rsp):
+    """Relativizes ARGV for the current directory. Returns the action record
+    (with "problems" when absolute host paths remain)."""
+    real_root = os.path.realpath(roots[0])
+    real_cwd = os.path.realpath(os.getcwd())
     rel = norm(os.path.relpath(real_root, real_cwd))
-    rel_cwd = norm(os.path.relpath(real_cwd, real_root))
-
     problems = []
     new_argv = []
     rsp_contents = {}
@@ -193,10 +163,10 @@ def main():
             for tok in text.split():
                 problems += absolute_paths_in(tok.strip('"'))
             out = a[1:] + ".rbe"
-            if not dry_run:
+            if write_rsp:
                 with open(out, "w", encoding="utf-8", errors="surrogateescape") as f:
                     f.write(text)
-            rsp_contents[out] = text
+            rsp_contents[norm(out)] = text
             new_argv.append("@" + out)
         else:
             new_argv.append(relativize(a, roots, rel))
@@ -213,27 +183,62 @@ def main():
             if is_host_path(m.group(1)):
                 problems.append(f"{m.group(1)} (in {overlay})")
                 break
-
-    record = {"cwd": rel_cwd, "argv": new_argv}
+    record = {"cwd": norm(os.path.relpath(real_cwd, real_root)), "argv": new_argv}
     if rsp_contents:
         record["rsp"] = rsp_contents
     record["key"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
     if problems:
         record["problems"] = problems
-    if dry_run:
-        print(json.dumps(record, sort_keys=True))
-        return 1 if problems else 0
+    return record
+
+
+def append_log(log, record):
     if log:
-        line = json.dumps(record, sort_keys=True) + "\n"
         fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
         try:
-            os.write(fd, line.encode())
+            os.write(fd, (json.dumps(record, sort_keys=True) + "\n").encode())
         finally:
             os.close(fd)
-    if problems:
-        fail(f"absolute paths left in {os.path.basename(argv[0])} command: " + ", ".join(problems))
+
+
+def is_local(argv0, roots):
+    """Commands that stay local: tools outside the exec root, try_compile."""
+    return not under(os.path.abspath(argv0), roots) or bool(TRY_COMPILE_RE.search(norm(os.getcwd()) + "/"))
+
+
+def archive_commands(build_dir):
+    """The archiving commands of a Ninja build directory, as argument lists."""
+    out = subprocess.run(["ninja", "-C", build_dir, "-t", "commands"], capture_output=True, text=True, check=True).stdout
+    for line in out.splitlines():
+        # Windows hosts chain commands as: cmd.exe /C "cd . && a && b"
+        m = re.match(r'^cmd(?:\.exe)? /C "(.*)"$', line, re.IGNORECASE)
+        if m:
+            line = m.group(1)
+        for part in line.split(" && "):
+            argv = shlex.split(part.strip(), posix=not WINDOWS)
+            if WINDOWS:
+                argv = [a[1:-1] if len(a) > 1 and a[0] == a[-1] == '"' else a for a in argv]
+            if not argv:
+                continue
+            tool = os.path.splitext(os.path.basename(norm(argv[0])))[0]
+            if tool in ARCHIVERS or (tool == "llvm" and argv[1:2] == ["lib"]):
+                yield argv
+
+
+def run(argv, root, log, strict):
+    roots = roots_of(root)
+    if is_local(argv[0], roots):
+        return subprocess.call(argv)
+    if not under(os.getcwd(), roots):
+        fail(f"working directory {os.getcwd()} is outside the exec root {roots[0]}")
+        return 2
+    record = analyze(argv, roots, write_rsp=True)
+    append_log(log, record)
+    if "problems" in record:
+        fail(f"absolute paths left in {os.path.basename(argv[0])} command: " + ", ".join(record["problems"]))
         if strict:
             return 1
+    new_argv = record["argv"]
 
     # A worker's environment: nothing from this machine.
     env = {"PATH": os.defpath}
@@ -241,8 +246,7 @@ def main():
         for k in ("SYSTEMROOT", "TEMP", "TMP", "PATHEXT"):
             if k in os.environ:
                 env[k] = os.environ[k]
-    show_includes = any(a.lower() in ("/showincludes", "-showincludes") for a in new_argv)
-    if show_includes:
+    if any(a.lower() in ("/showincludes", "-showincludes") for a in new_argv):
         proc = subprocess.run(new_argv, env=env, stdout=subprocess.PIPE)
         sys.stdout.buffer.write(proc.stdout)
         sys.stdout.flush()
@@ -271,15 +275,55 @@ def main():
                 break
     if after:
         fail(f"absolute paths in the dependencies of {os.path.basename(argv[0])}: " + ", ".join(after))
-        if log:
-            fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-            try:
-                os.write(fd, (json.dumps({"key": record["key"], "dependency_problems": after}) + "\n").encode())
-            finally:
-                os.close(fd)
+        append_log(log, {"key": record["key"], "dependency_problems": after})
         if strict:
             return 1
     return 0
+
+
+def main():
+    args = sys.argv[1:]
+    sep = args.index("--") if "--" in args else len(args)
+    opts, argv = args[:sep], args[sep + 1:]
+    root = log = archives_of = None
+    strict = dry_run = False
+    for o in opts:
+        if o.startswith("--root="):
+            root = o.split("=", 1)[1]
+        elif o.startswith("--log="):
+            log = o.split("=", 1)[1]
+        elif o.startswith("--archives-of="):
+            archives_of = o.split("=", 1)[1]
+        elif o == "--strict":
+            strict = True
+        elif o == "--dry-run":
+            dry_run = True
+        else:
+            fail(f"unknown option {o}")
+            return 2
+    if not root or not (argv or archives_of):
+        fail("usage: rbe_wrapper.py --root=<dir> [--log=<file>] [--strict] [--dry-run] -- <command...>\n"
+             "       rbe_wrapper.py --root=<dir> --archives-of=<build dir>")
+        return 2
+    roots = roots_of(root)
+
+    if archives_of:
+        rc = 0
+        os.chdir(archives_of)
+        for cmd in archive_commands("."):
+            if is_local(cmd[0], roots):
+                continue
+            record = analyze(cmd, roots, write_rsp=False)
+            print(json.dumps(record, sort_keys=True))
+            rc |= "problems" in record
+        return rc
+    if dry_run:
+        if is_local(argv[0], roots):
+            return 0
+        record = analyze(argv, roots, write_rsp=False)
+        print(json.dumps(record, sort_keys=True))
+        return 1 if "problems" in record else 0
+    return run(argv, root, log, strict)
 
 
 if __name__ == "__main__":
