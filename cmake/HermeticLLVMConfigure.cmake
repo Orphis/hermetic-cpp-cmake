@@ -7,7 +7,10 @@
 
 include_guard(GLOBAL)
 
-# Finds the clang resource directory (lib/clang/<N>) under ROOT.
+# Finds the clang resource directory (lib/clang/<N>) under ROOT. Targets
+# without a runtime set pass it explicitly: the driver would otherwise
+# derive it from its own real path, which a remote execution wrapper cannot
+# rewrite (an absolute, machine-specific path in debug info and depfiles).
 function(hermetic_llvm_resource_dir ROOT OUT)
   file(GLOB dirs LIST_DIRECTORIES true "${ROOT}/lib/clang/*" "${ROOT}/lib64/clang/*")
   set(found "")
@@ -178,7 +181,12 @@ macro(hermetic_llvm_configure)
     # The compiler's own directory is named after the host (its builtin
     # headers appear in the debug info of targets without a runtime set,
     # such as macOS); its map comes second, since the last matching map wins.
-    set(_hl_prefix_maps "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
+    # Debug info also records the working directory (DW_AT_comp_dir,
+    # CodeView's build info), which differs from checkout to checkout:
+    # record "." instead, leaving relative paths relative to the build
+    # directory.
+    set(_hl_prefix_maps "-ffile-compilation-dir=."
+      "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
       "-ffile-prefix-map=${_hl_root}=/hermetic-llvm/llvm")
     if(_hl_windows)
       # CodeView also records each object file's absolute path (S_OBJNAME),
@@ -282,6 +290,11 @@ macro(hermetic_llvm_configure)
         # inside those two types are lost, everything else is checked).
         hermetic_llvm_append_flags(_hl_cxx_first_flags /D_DISABLE_STL_ANNOTATION)
       endif()
+    else()
+      # The compiler's own resource directory (builtin headers), named
+      # explicitly (see hermetic_llvm_resource_dir).
+      hermetic_llvm_resource_dir("${_hl_root}" _hl_resource)
+      hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
     endif()
     hermetic_llvm_append_flags(_hl_c_flags ${_hl_win_compile})
     hermetic_llvm_append_flags(_hl_link_flags ${_hl_win_link})
@@ -342,6 +355,11 @@ macro(hermetic_llvm_configure)
     if(_hl_sysroot AND IS_DIRECTORY "${_hl_sysroot}/usr/include/c++/v1")
       hermetic_llvm_append_flags(_hl_cxx_flags -nostdinc++ "-isystem${_hl_sysroot}/usr/include/c++/v1")
     endif()
+    # The compiler's own resource directory (builtin headers, compiler-rt),
+    # named explicitly (see hermetic_llvm_resource_dir).
+    hermetic_llvm_resource_dir("${_hl_root}" _hl_resource)
+    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
+    hermetic_llvm_append_flags(_hl_link_flags "-resource-dir=${_hl_resource}")
   endif()
 
   hermetic_llvm_append_flags(_hl_c_flags ${HERMETIC_LLVM_EXTRA_COMPILE_FLAGS})
