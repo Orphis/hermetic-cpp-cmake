@@ -187,7 +187,8 @@ macro(hermetic_llvm_resolve)
     elseif(_hl_target_OS STREQUAL "darwin")
       if(NOT HERMETIC_LLVM_SYSROOT OR HERMETIC_LLVM_SYSROOT MATCHES "^(default|sdk)$")
         # The SDK from Apple's CDN, the same on every host.
-        hermetic_llvm_provide_macos_sdk("${HERMETIC_LLVM_MACOS_SDK_VERSION}" HERMETIC_LLVM_RESOLVED_SYSROOT)
+        hermetic_llvm_provide_macos_sdk("${HERMETIC_LLVM_MACOS_SDK_VERSION}" HERMETIC_LLVM_RESOLVED_SYSROOT
+          COMPILER_ROOT "${HERMETIC_LLVM_RESOLVED_ROOT}")
       elseif(HERMETIC_LLVM_SYSROOT STREQUAL "host")
         if(NOT HERMETIC_LLVM_HOST_OS STREQUAL "darwin")
           hermetic_llvm_fatal("HERMETIC_LLVM_SYSROOT=host (the SDK of the installed Xcode or Command Line Tools) needs a macOS host; leave it unset to download the SDK, or point it at an SDK directory")
