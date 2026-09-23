@@ -147,7 +147,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMETIC_LLVM_VERSION` | `latest` | Exact version (`23.1.0`, `23.1.0-rc1`) or a requirement: `latest`, `first`, `latest:>=22,<23`. Prereleases are only selected by exact version. `latest` is relative to the bundled index, so it is reproducible for a given checkout. |
-| `HERMETIC_LLVM_RELEASE` | | Pin a hermetic-llvm release id (`llvm-23.1.0-3`) instead of a version. |
+| `HERMETIC_LLVM_RELEASE` | | Pin a hermetic-llvm release id (`llvm-23.1.0-4`) instead of a version. |
 | `HERMETIC_LLVM_HERMETICBUILD_INDEX` | | Another copy of the compiler index (same schema). |
 | `HERMETIC_LLVM_DISTRIBUTION_URL` / `_SHA256` / `_STRIP_COMPONENTS` | | Bring your own compiler archive (`bin/clang` at the root, or set the strip count). |
 | `HERMETIC_LLVM_MIRROR_URLS` | | URL templates tried after the primary URL; `{version}`, `{release}` and `{basename}` are substituted. |
