@@ -445,6 +445,28 @@ The compiler binary differs per host OS, so commands only match between
 machines of the same OS. `llvm-rc` include paths and CMake's own `cmake -E`
 steps are not meant to run remotely.
 
+[`scripts/rbe_wrapper.py`](scripts/rbe_wrapper.py) is a reference wrapper
+for checking a build, used as the compiler and linker launcher:
+
+```sh
+cmake --preset linux-aarch64 -DHERMETIC_LLVM_CACHE_DIR=$PWD/.hermetic-llvm \
+  "-DCMAKE_CXX_COMPILER_LAUNCHER=python3;$PWD/scripts/rbe_wrapper.py;--root=$PWD;--log=$PWD/rbe.jsonl;--strict;--" \
+  "-DCMAKE_CXX_LINKER_LAUNCHER=python3;$PWD/scripts/rbe_wrapper.py;--root=$PWD;--log=$PWD/rbe.jsonl;--strict;--"
+```
+
+It rewrites each command as above, fails it (with `--strict`) when an
+absolute path of the machine is left in it or in the VFS overlays it reads,
+runs it with a minimal environment, checks that the depfiles and
+`/showIncludes` output it produces are relative too, and logs the action
+(key, command) so that checkouts can be compared. Compiler checks
+(try_compile) and tools outside the exec root run unchanged. Static
+libraries have no launcher; `--dry-run` checks a command without running
+it, for archive commands taken from the build files.
+[`tests/run_rbe_check.sh`](tests/run_rbe_check.sh) builds presets through
+it in this checkout and in a copy at another path and fails unless both run
+the same actions (the same remote cache keys) and produce byte-identical
+outputs.
+
 ## Runtime sets
 
 A runtime set is a plain directory:
@@ -568,6 +590,10 @@ Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 300 MB,
 mostly the LLVM source archive and the macOS SDK package) and rebuild runtime sets every time, which
 keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
+
+`tests/run_rbe_check.sh [presets...]` checks that builds are ready for
+remote execution (see [Remote execution](#remote-execution)); it needs the
+cache inside the checkout (`<repo>/.hermetic-llvm` by default).
 
 The run stage also hashes every binary and fails when the same preset built
 on different hosts differs (`HERMETIC_TESTS_ENFORCE_REPRODUCIBLE=1`). It
