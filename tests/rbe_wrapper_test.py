@@ -79,6 +79,32 @@ def main():
         rc, r = dry_run(root, build, [tool, "-Xclang", "-ivfsoverlay", "-Xclang", f"{root}/.hermetic-llvm/o.yaml"])
         check("VFS overlays with absolute paths are reported", rc == 1 and "problems" in r, json.dumps(r))
 
+    # Archive commands as Ninja lists them, on Unix and Windows hosts.
+    sys.path.insert(0, os.path.dirname(WRAPPER))
+    import rbe_wrapper
+    unix = ("/r/.hermetic-llvm/bin/clang -D__DATE__=\\\"redacted\\\" -c a.c -o a.o\n"
+            ": && /usr/bin/cmake -E rm -f libx.a && /r/.hermetic-llvm/bin/llvm-ar qc libx.a  a.o b.o"
+            " && /r/.hermetic-llvm/bin/llvm-ranlib libx.a && /usr/bin/cmake -E touch libx.a && :\n")
+    got = list(rbe_wrapper.archive_commands(unix, windows=False))
+    check("finds archive commands (Unix host)",
+          got == [["/r/.hermetic-llvm/bin/llvm-ar", "qc", "libx.a", "a.o", "b.o"],
+                  ["/r/.hermetic-llvm/bin/llvm-ranlib", "libx.a"]], repr(got))
+    windows = ('C:/r/.hermetic-llvm/bin/clang-cl.exe -D__DATE__=\\"redacted\\" /FoCMakeFiles\\a.obj -c a.c\n'
+               'cmd.exe /C "cd . && C:\\cmake\\bin\\cmake.exe -E rm -f libx.a && '
+               'C:/r/.hermetic-llvm/bin/llvm-ar.exe qc libx.a CMakeFiles\\x.dir\\a.obj && '
+               'C:/r/.hermetic-llvm/bin/llvm-ranlib.exe libx.a && cd ."\n'
+               '"C:/r/.hermetic-llvm/bin/llvm-lib.exe" /nologo /out:x.lib "CMakeFiles/x dir/a.obj"\n'
+               'C:/r/.hermetic-llvm/bin/llvm.exe lib /out:y.lib b.obj\n')
+    got = list(rbe_wrapper.archive_commands(windows, windows=True))
+    check("finds archive commands (Windows host)",
+          got == [["C:/r/.hermetic-llvm/bin/llvm-ar.exe", "qc", "libx.a", "CMakeFiles\\x.dir\\a.obj"],
+                  ["C:/r/.hermetic-llvm/bin/llvm-ranlib.exe", "libx.a"],
+                  ["C:/r/.hermetic-llvm/bin/llvm-lib.exe", "/nologo", "/out:x.lib", "CMakeFiles/x dir/a.obj"],
+                  ["C:/r/.hermetic-llvm/bin/llvm.exe", "lib", "/out:y.lib", "b.obj"]], repr(got))
+    # The command line: a "b c" d\e \"f\" "g\\" h
+    got = rbe_wrapper.split_windows('a "b c" d\\e \\"f\\" "g\\\\" h')
+    check("splits like CommandLineToArgvW", got == ["a", "b c", "d\\e", '"f"', "g\\", "h"], repr(got))
+
     print("all passed" if failures == 0 else f"{failures} failed")
     return 1 if failures else 0
 

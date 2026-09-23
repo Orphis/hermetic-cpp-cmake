@@ -206,23 +206,63 @@ def is_local(argv0, roots):
     return not under(os.path.abspath(argv0), roots) or bool(TRY_COMPILE_RE.search(norm(os.getcwd()) + "/"))
 
 
-def archive_commands(build_dir):
-    """The archiving commands of a Ninja build directory, as argument lists."""
-    out = subprocess.run(["ninja", "-C", build_dir, "-t", "commands"], capture_output=True, text=True, check=True).stdout
-    for line in out.splitlines():
+# An archiving tool as a command's first word, possibly quoted, with or
+# without .exe (the multicall driver's "llvm lib" too).
+ARCHIVER_RE = re.compile(r'^"?[^" ]*?[\\/]?(llvm-ar|llvm-ranlib|llvm-lib|llvm(?=(\.exe)?"? lib\s))(\.exe)?"?(\s|$)',
+                         re.IGNORECASE)
+
+
+def split_windows(command):
+    """Splits COMMAND into arguments as Windows programs do
+    (CommandLineToArgvW): double quotes group, backslashes are literal
+    unless they precede a double quote."""
+    args, cur, quoted, have, i = [], [], False, False, 0
+    while i < len(command):
+        c = command[i]
+        if c == "\\":
+            j = i
+            while j < len(command) and command[j] == "\\":
+                j += 1
+            if j < len(command) and command[j] == '"':
+                cur.append("\\" * ((j - i) // 2))
+                if (j - i) % 2:
+                    cur.append('"')
+                    j += 1
+            else:
+                cur.append("\\" * (j - i))
+            have, i = True, j
+        elif c == '"':
+            quoted, have, i = not quoted, True, i + 1
+        elif c in " \t" and not quoted:
+            if have:
+                args.append("".join(cur))
+                cur, have = [], False
+            i += 1
+        else:
+            cur.append(c)
+            have, i = True, i + 1
+    if have:
+        args.append("".join(cur))
+    return args
+
+
+def archive_commands(commands, windows=WINDOWS):
+    """The archiving commands in COMMANDS (the output of ninja -t commands),
+    as argument lists; a command that cannot be split is returned whole, as
+    a string."""
+    for line in commands.splitlines():
         # Windows hosts chain commands as: cmd.exe /C "cd . && a && b"
         m = re.match(r'^cmd(?:\.exe)? /C "(.*)"$', line, re.IGNORECASE)
         if m:
             line = m.group(1)
         for part in line.split(" && "):
-            argv = shlex.split(part.strip(), posix=not WINDOWS)
-            if WINDOWS:
-                argv = [a[1:-1] if len(a) > 1 and a[0] == a[-1] == '"' else a for a in argv]
-            if not argv:
+            part = part.strip()
+            if not ARCHIVER_RE.match(part):
                 continue
-            tool = os.path.splitext(os.path.basename(norm(argv[0])))[0]
-            if tool in ARCHIVERS or (tool == "llvm" and argv[1:2] == ["lib"]):
-                yield argv
+            try:
+                yield split_windows(part) if windows else shlex.split(part)
+            except ValueError:
+                yield part
 
 
 def run(argv, root, log, strict):
@@ -310,7 +350,12 @@ def main():
     if archives_of:
         rc = 0
         os.chdir(archives_of)
-        for cmd in archive_commands("."):
+        commands = subprocess.run(["ninja", "-t", "commands"], capture_output=True, text=True, check=True).stdout
+        for cmd in archive_commands(commands):
+            if isinstance(cmd, str):
+                print(json.dumps({"argv": [cmd], "key": "", "problems": ["cannot split this command"]}))
+                rc = 1
+                continue
             if is_local(cmd[0], roots):
                 continue
             record = analyze(cmd, roots, write_rsp=False)
