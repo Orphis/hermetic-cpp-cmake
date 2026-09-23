@@ -170,7 +170,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
 | `HERMETIC_LLVM_SYSROOT` | `sdk` | macOS: `sdk` downloads the SDK (see the next two rows), `host` uses the SDK of the host's Xcode or Command Line Tools (macOS hosts only), or a directory names any SDK. Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_LLVM_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
 | `HERMETIC_LLVM_ACCEPT_APPLE_SDK_LICENSE` | | Must be `1` for macOS targets unless `HERMETIC_LLVM_SYSROOT` names an SDK: confirms you may use the macOS SDK (the Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf). Also read from the environment. |
-| `HERMETIC_LLVM_MACOS_SDK_VERSION` | `26.5` | macOS SDK for macOS targets: an exact version from the table (10.15 to 27.0), a major (`15` selects its newest listed version), or `latest`. `cmake -DTOPIC=macos -P scripts/help.cmake` lists the table. |
+| `HERMETIC_LLVM_MACOS_SDK_VERSION` | `27.0` | macOS SDK for macOS targets: an exact version from the table (10.15 to 27.0), a major (`15` selects its newest listed version), or `latest`. The default and `latest` skip SDKs the compiler cannot link against (26.5 with prebuilts older than `llvm-23.1.0-4`). `cmake -DTOPIC=macos -P scripts/help.cmake` lists the table. |
 | `HERMETIC_LLVM_EMULATOR` | | Sets `CMAKE_CROSSCOMPILING_EMULATOR` (a list), so `ctest` and `try_run` work when cross-compiling. |
 
 ### Flags and behaviour
@@ -222,8 +222,12 @@ Notes:
   directory as install name instead of `@rpath`; on a Windows host CMake's
   Ninja generator also writes that install name with a backslash, which the
   link rules undo.
-- The 27.0 SDK's library stubs list `arm64e.x1` targets, which LLVM 23.1's
-  linker rejects; it needs a newer LLVM, hence the 26.5 default.
+- The 27.0 SDK's library stubs list `arm64e.x1` targets, which only newer
+  linkers read (`llvm-23.1.0-4` and later prebuilts). The table records
+  such requirements, and the toolchain asks the compiler's `llvm-readtapi`
+  (the same TextAPI reader as `ld64.lld`) whether it reads them: the
+  default then falls back to the newest SDK the compiler can use, while
+  asking for 27.0 explicitly with an older compiler is an error.
 - Only macOS SDKs are served this way. The iOS, tvOS, watchOS and visionOS
   SDKs ship inside Xcode, which Apple only serves to signed-in developers,
   so those targets stay out of reach of a hermetic download.
@@ -306,8 +310,8 @@ WPP/ETW tracing tools, ...), Windows executables with no LLVM counterpart
 apart from `rc` and `mt`. On a Windows host the ones for the host
 architecture are extracted and their directory exported as
 `HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR` for custom commands; the toolchain
-itself keeps using `llvm-rc`, and `llvm-mt` once a prebuilt with libxml2 is
-available, so that outputs stay identical to those of Linux and macOS
+itself keeps using `llvm-rc` and `llvm-mt` (and `lld-link`'s own manifest
+merging), so that outputs stay identical to those of Linux and macOS
 hosts. On those hosts the variable is empty; mingw-w64's `widl` and `wmc`
 cover classic COM IDL and message tables there, `dxc` has native builds,
 and signing or packaging belong outside the hermetic build.
@@ -320,9 +324,14 @@ consequences for a project: `-fsanitize=...` belongs in the compile flags
 link step receives as well, while `CMAKE_EXE_LINKER_FLAGS`, `LINK_OPTIONS`
 and friends keep CMake's usual MSVC-style linker spelling. Static libraries
 use `lib.exe` syntax through `llvm-lib` when the prebuilt ships it, else
-the `lib` subcommand of the multicall `llvm` driver, else `llvm-ar`; and
-executables get no manifest (`/MANIFEST:NO`, since `llvm-mt` is built
-without libxml2).
+the `lib` subcommand of the multicall `llvm` driver, else `llvm-ar`.
+Executables and DLLs embed a manifest (`/MANIFEST:EMBED`, the default
+`asInvoker` one as with CMake's MSVC rules), merged by `lld-link` itself
+with any `/MANIFESTINPUT:<file>` a project adds to its link options;
+`/MANIFEST:NO` in a target's link options turns it off. This needs a
+compiler prebuilt built with libxml2 (`llvm-23.1.0-4` and later), which
+the toolchain checks through `llvm-mt`; with older ones links get no
+manifest.
 
 **C++ library.** By default the MSVC STL from the toolset. With
 `HERMETIC_LLVM_CXX_STDLIB=libc++` a runtime set `<target>-msvc.<toolset>` is

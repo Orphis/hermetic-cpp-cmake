@@ -1,6 +1,6 @@
 {
   "_comment": "macOS SDKs from Apple's Command Line Tools packages (software update catalog, swcdn.apple.com); regenerate with cmake -P scripts/update_macos_sdk.cmake. Each package expands to Payload/Library/Developer/CommandLineTools/SDKs/MacOSX<version>.sdk.",
-  "default": "26.5",
+  "default": "27.0",
   "sdks": {
     "10.15": {
       "url": "https://swcdn.apple.com/content/downloads/02/62/071-54303-A_EU2CL1YVT7/943i95dpeyi2ghlnj2mgyq3t202t5gf18b/CLTools_macOSLMOS_SDK.pkg",
@@ -118,7 +118,8 @@
       "mirrors": [
         "https://web.archive.org/web/20260910221111id_/https://swcdn.apple.com/content/downloads/58/48/082-83364-A_KCEBOO2NJS/0d2rj4y5ucjlkgcvqt6f6a4pergug5tu2b/CLTools_macOSNMOS_SDK.pkg"
       ],
-      "note": "its library stubs list arm64e.x1 targets, which LLVM 23.1's linker rejects (unknown target); needs a newer LLVM"
+      "requires_tapi_targets": ["arm64e.x1-macos"],
+      "note": "its library stubs list arm64e.x1 targets, which only newer compilers read (llvm-23.1.0-4 and later prebuilts); with older ones the default falls back to the newest SDK they can link against"
     }
   }
 }

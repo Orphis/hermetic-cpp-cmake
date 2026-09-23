@@ -286,12 +286,36 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
   set(${OUT}_TOOLS "${tools}" PARENT_SCOPE)
 endfunction()
 
+# Sets ${OUT} to TRUE when the manifest tool MT (the prebuilt's llvm-mt)
+# merges manifests: only prebuilts whose LLVM is built with libxml2 do, and
+# lld-link embeds manifests with the same library (older prebuilts would
+# have it run mt.exe from the PATH instead). The check merges a minimal
+# manifest in WORK_DIR.
+function(hermetic_llvm_manifest_merging_works MT WORK_DIR OUT)
+  set(${OUT} FALSE PARENT_SCOPE)
+  if(NOT EXISTS "${MT}")
+    return()
+  endif()
+  file(WRITE "${WORK_DIR}/probe.manifest"
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+    "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\"/>\n")
+  file(REMOVE "${WORK_DIR}/merged.manifest")
+  execute_process(COMMAND "${MT}" /nologo /manifest "${WORK_DIR}/probe.manifest" "/out:${WORK_DIR}/merged.manifest"
+    RESULT_VARIABLE rc OUTPUT_QUIET ERROR_QUIET)
+  if(rc EQUAL 0 AND EXISTS "${WORK_DIR}/merged.manifest")
+    set(${OUT} TRUE PARENT_SCOPE)
+  endif()
+endfunction()
+
 # Compile and link flags for the MSVC ABI environment described by a
 # HERMETIC_LLVM_RESOLVED_WINSDK list (see hermetic_llvm_resolve), following
 # hermetic-llvm's windows/msvc argument groups: explicit MSVC and SDK include
 # and library paths, a case-insensitive VFS overlay for the SDK's mixed-case
 # names, deterministic objects and links. Used by the consumer toolchain and
 # by the runtime set build alike.
+#
+# With EMBED_MANIFEST, links embed a manifest (see
+# hermetic_llvm_manifest_merging_works); without it they get none.
 #
 # With RELATIVE_ROOT <name>, the link step addresses the toolset and SDK
 # through <name> in place of the cache directory (a link to it in the build
@@ -301,7 +325,7 @@ endfunction()
 # then relative, and lld-link records them under /pdbsourcepath rather than
 # under the cache directory, whose location differs from machine to machine.
 function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
-  cmake_parse_arguments(arg "" "RELATIVE_ROOT;OUT_LINK_DRIVER" "" ${ARGN})
+  cmake_parse_arguments(arg "EMBED_MANIFEST" "RELATIVE_ROOT;OUT_LINK_DRIVER" "" ${ARGN})
   list(GET WINSDK 1 compat)
   list(GET WINSDK 2 msvc_include)
   list(GET WINSDK 3 msvc_lib)
@@ -341,10 +365,14 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
     "/vfsoverlay:${link_overlay}" /Brepro /INCREMENTAL:NO /lldignoreenv
     # Sanitized links get /DEBUG from the driver; keep the PDB path out of
     # the executable so it stays identical across hosts.
-    "/pdbaltpath:%_PDB%"
-    # No manifest embedding: it would need llvm-mt, which the prebuilt
-    # lacks libxml2 for; lld-link can embed one on request.
-    /MANIFEST:NO)
+    "/pdbaltpath:%_PDB%")
+  if(arg_EMBED_MANIFEST)
+    # As link.exe does for CMake's MSVC rules: the default manifest (UAC
+    # level asInvoker) as a resource, merged with any /MANIFESTINPUT: file.
+    list(APPEND link /MANIFEST:EMBED)
+  else()
+    list(APPEND link /MANIFEST:NO)
+  endif()
   if(ARCH STREQUAL "aarch64")
     list(APPEND link /MACHINE:ARM64)
   else()

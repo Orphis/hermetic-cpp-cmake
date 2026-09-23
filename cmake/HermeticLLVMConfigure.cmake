@@ -229,8 +229,18 @@ macro(hermetic_llvm_configure)
       endif()
     endif()
     set(_hl_link_set "${_hl_set}")
+    # Executables and DLLs embed a manifest when the prebuilt can merge
+    # them; compiler checks do without.
+    set(_hl_win_manifest "")
+    get_property(_hl_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
+    if(NOT _hl_in_try_compile)
+      hermetic_llvm_manifest_merging_works("${CMAKE_MT}" "${CMAKE_BINARY_DIR}/CMakeFiles/hermetic-llvm" _hl_mt_ok)
+      if(_hl_mt_ok)
+        set(_hl_win_manifest EMBED_MANIFEST)
+      endif()
+    endif()
     if(_hl_link_root)
-      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link
+      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest}
         RELATIVE_ROOT "${_hl_link_root}" OUT_LINK_DRIVER HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS)
       # lld-link found through a prefix directory keeps the relative path it
       # was found by as its own name (--ld-path is not a clang-cl option).
@@ -241,7 +251,7 @@ macro(hermetic_llvm_configure)
       endif()
       string(REPLACE ";" " " HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "${HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS}")
     else()
-      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link)
+      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest})
     endif()
     if(_hl_set)
       # Runtime set (libc++ and/or sanitizers). Its resource directory gives
