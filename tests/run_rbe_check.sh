@@ -4,42 +4,83 @@
 # mode, as the compiler and linker launcher) in this checkout and in a copy
 # of it at another path, and the two must run the same compile and link
 # actions (same commands once relativized, i.e. the same remote cache keys)
-# and produce byte-identical outputs. Static libraries have no launcher: their
-# archive commands are taken from the build files and checked by the wrapper
-# without running them (--dry-run).
+# and produce byte-identical outputs. Static libraries have no launcher:
+# their archive commands are taken from the build files and checked by the
+# wrapper without running them (--archives-of).
 #
 #   tests/run_rbe_check.sh                           # host preset
 #   tests/run_rbe_check.sh linux-aarch64 windows-x86_64-libcxx-dbg
 #
-# The toolchain cache must be inside the workspace for the wrapper to
-# rewrite it: HERMETIC_LLVM_CACHE_DIR defaults to <repo>/.hermetic-llvm
-# here (the copy links to it). Filling it downloads the compiler and
-# whatever the presets need, like any other cache directory.
+# The toolchain cache must be reachable from inside the workspace for the
+# wrapper to rewrite it: by default it is <repo>/.hermetic-llvm. When
+# HERMETIC_LLVM_CACHE_DIR names a cache elsewhere (such as CI's), the
+# checkout gets a link to it under that name, so the presets built there
+# are reused. The copy links to the same cache; HERMETIC_RBE_CHECK_KEEP=1
+# keeps it for inspection.
 set -euo pipefail
 
+windows=0
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=1 ;; esac
+# Paths as native programs (CMake, Python) take them.
+native() { if [[ ${windows} == 1 ]]; then cygpath -m "$1"; else printf '%s\n' "$1"; fi; }
+# Directory links: symbolic links, or junctions on Windows hosts.
+link_dir() {  # link_dir <target> <link>
+  if [[ ${windows} == 1 ]]; then
+    cmd //c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" > /dev/null
+  else
+    ln -s "$1" "$2"
+  fi
+}
+unlink_dir() {  # removes a directory link, never what it points to
+  if [[ ${windows} == 1 ]]; then
+    cmd //c rmdir "$(cygpath -w "$1")" 2> /dev/null || true
+  else
+    rm -f "$1"
+  fi
+}
+
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo="$(cd "${here}/.." && pwd)"
+repo="$(native "$(cd "${here}/.." && pwd)")"
 presets=("$@")
 if [[ ${#presets[@]} -eq 0 ]]; then
   presets=(host)
 fi
-cache="${HERMETIC_LLVM_CACHE_DIR:-${repo}/.hermetic-llvm}"
+if [[ ${windows} == 1 ]]; then
+  python="$(native "$(command -v python)")"
+else
+  python="$(command -v python3)"
+fi
+
+in_tree="${repo}/.hermetic-llvm"
+cache="$(native "${HERMETIC_LLVM_CACHE_DIR:-${in_tree}}")"
 mkdir -p "${cache}"
-cache="$(cd "${cache}" && pwd)"
 case "${cache}/" in
   "${repo}/"*) ;;
-  *) echo "HERMETIC_LLVM_CACHE_DIR (${cache}) must be inside ${repo}"; exit 1 ;;
+  *)
+    if [[ -e "${in_tree}" || -L "${in_tree}" ]]; then
+      if [[ "$(cd "${in_tree}" && pwd -P)" != "$(cd "${cache}" && pwd -P)" ]]; then
+        echo "${in_tree} exists and is not ${cache}; remove it or unset HERMETIC_LLVM_CACHE_DIR"; exit 1
+      fi
+    else
+      link_dir "${cache}" "${in_tree}"
+    fi
+    cache="${in_tree}"
+    ;;
 esac
 cache_rel="${cache#"${repo}/"}"
+cache_real="$(native "$(cd "${cache}" && pwd -P)")"
 
 # The copy: the tracked files as they are in the work tree, the cache linked.
-other="$(mktemp -d "${TMPDIR:-/tmp}/hermetic-llvm-rbe-check.XXXXXX")"
-trap 'rm -rf "${other}"' EXIT
-(cd "${repo}" && git ls-files -z --cached --others --exclude-standard | xargs -0 tar -cf - 2>/dev/null) | tar -xf - -C "${other}"
+other="$(native "$(mktemp -d "${TMPDIR:-/tmp}/hl-rbe.XXXXXX")")"
+cleanup() {
+  if [[ "${HERMETIC_RBE_CHECK_KEEP:-0}" == 1 ]]; then echo "kept the copy: ${other}"; return; fi
+  unlink_dir "${other}/${cache_rel}"
+  rm -rf "${other}"
+}
+trap cleanup EXIT
+(cd "${repo}" && git ls-files -z --cached --others --exclude-standard | xargs -0 tar -cf - 2> /dev/null) | tar -xf - -C "${other}"
 mkdir -p "$(dirname "${other}/${cache_rel}")"
-ln -s "${cache}" "${other}/${cache_rel}"
-
-python="$(command -v python3 || command -v python)"
+link_dir "${cache_real}" "${other}/${cache_rel}"
 
 build() {  # build <checkout> <preset>
   local root="$1" preset="$2"
@@ -54,6 +95,8 @@ build() {  # build <checkout> <preset>
     || { echo "configure failed (${root}, ${preset}):"; tail -20 "${dir}.log"; return 1; }
   cmake --build "${dir}" >> "${dir}.log" 2>&1 \
     || { echo "build failed (${root}, ${preset}):"; grep -A3 'rbe_wrapper\|error' "${dir}.log" | head -30; return 1; }
+  "${python}" "${root}/scripts/rbe_wrapper.py" "--root=${root}" "--archives-of=${dir}" > "${dir}.archives" \
+    || { echo "archive commands with absolute paths (${root}, ${preset}):"; grep problems "${dir}.archives" | head -3; return 1; }
 }
 
 outputs() {  # outputs <build dir>: the files a build produces
@@ -63,21 +106,20 @@ outputs() {  # outputs <build dir>: the files a build produces
 }
 
 keys() {  # keys <log>: the action keys, sorted
-  python3 -c 'import json,sys
+  "${python}" -c 'import json,sys
 for l in open(sys.argv[1]):
     r = json.loads(l)
     if "argv" in r: print(r["key"], r["argv"][0].rsplit("/", 1)[-1], r["argv"][-1])' "$1" | sort
 }
 
-archive_keys() {  # archive_keys <checkout> <build dir>: archive commands, relativized and checked
-  local root="$1" dir="$2" rc=0
-  while IFS= read -r cmd; do
-    [[ -n "${cmd}" ]] || continue
-    eval "set -- ${cmd}"
-    (cd "${dir}" && "${python}" "${root}/scripts/rbe_wrapper.py" "--root=${root}" --dry-run -- "$@") || rc=1
-  done < <(ninja -C "${dir}" -t commands | awk '{gsub(/ && /, "\n"); print}' \
-             | grep -E '/(llvm-ar|llvm-ranlib|llvm-lib)(\.exe)?"? ' || true)
-  return ${rc}
+compare_keys() {  # compare_keys <label> <log a> <log b>
+  local n
+  n=$(keys "$2" | wc -l | tr -d ' ')
+  if diff <(keys "$2") <(keys "$3") > "$2.diff"; then
+    echo "${n} $1, the same in both checkouts"
+  else
+    echo "$1 differ between the checkouts ($2.diff):"; head -10 "$2.diff"; return 1
+  fi
 }
 
 status=0
@@ -87,26 +129,14 @@ for preset in "${presets[@]}"; do
   build "${other}" "${preset}" || { status=1; continue; }
   a="${repo}/tests/hello/build/rbe-${preset}"
   b="${other}/tests/hello/build/rbe-${preset}"
-  if ! grep -q '"key"' "${a}/rbe-actions.jsonl" 2>/dev/null; then
+  if ! grep -q '"key"' "${a}/rbe-actions.jsonl" 2> /dev/null; then
     echo "no actions went through the wrapper"; status=1; continue
   fi
   if grep -q 'problems' "${a}/rbe-actions.jsonl" "${b}/rbe-actions.jsonl"; then
     echo "the wrapper reported problems:"; grep -h 'problems' "${a}/rbe-actions.jsonl" | head -5; status=1
   fi
-  n=$(keys "${a}/rbe-actions.jsonl" | wc -l | tr -d ' ')
-  if diff <(keys "${a}/rbe-actions.jsonl") <(keys "${b}/rbe-actions.jsonl") > "${a}.keys.diff"; then
-    echo "${n} remote actions, the same in both checkouts"
-  else
-    echo "actions differ between the checkouts (${a}.keys.diff):"; head -10 "${a}.keys.diff"; status=1
-  fi
-  if ! archive_keys "${repo}" "${a}" > "${a}.archives" || ! archive_keys "${other}" "${b}" > "${b}.archives"; then
-    echo "archive commands with absolute paths:"; grep -h problems "${a}.archives" "${b}.archives" | head -3; status=1
-  elif ! diff <(python3 -c 'import json,sys; [print(json.loads(l)["key"]) for l in open(sys.argv[1])]' "${a}.archives" | sort) \
-              <(python3 -c 'import json,sys; [print(json.loads(l)["key"]) for l in open(sys.argv[1])]' "${b}.archives" | sort) > /dev/null; then
-    echo "archive commands differ between the checkouts"; status=1
-  else
-    echo "$(wc -l < "${a}.archives" | tr -d ' ') archive commands (not run through the wrapper), the same in both checkouts"
-  fi
+  compare_keys "remote actions" "${a}/rbe-actions.jsonl" "${b}/rbe-actions.jsonl" || status=1
+  compare_keys "archive commands" "${a}.archives" "${b}.archives" || status=1
   files=$(outputs "${a}")
   if [[ "${files}" != "$(outputs "${b}")" ]]; then
     echo "the checkouts produced different sets of files"; status=1; continue

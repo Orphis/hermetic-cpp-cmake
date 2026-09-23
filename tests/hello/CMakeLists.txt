@@ -12,11 +12,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # that debug builds can take part in the cross-host identity check (the
 # toolchain records the build directory as ".").
 option(HERMETIC_TESTS_DEBUG_INFO "Build with debug info mapped to /src" OFF)
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  # Any link may write a PDB (sanitized links get /DEBUG from the driver);
+  # /pdbsourcepath keeps the build directory out of it.
+  add_link_options(/pdbsourcepath:/build)
+endif()
 if(HERMETIC_TESTS_DEBUG_INFO)
   if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_compile_options(/Z7 "/clang:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=/src")
-    # A PDB per binary; /pdbsourcepath keeps the build directory out of it.
-    add_link_options(/DEBUG /pdbsourcepath:/build)
+    # A PDB per binary.
+    add_link_options(/DEBUG)
   else()
     add_compile_options(-g "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=/src")
     if(APPLE)

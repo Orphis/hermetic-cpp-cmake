@@ -29,6 +29,7 @@ jobs:
             host: linux-x86_64-glibc
             os: ubuntu-latest
             presets: linux-x86_64 linux-x86_64-gnu.2.34 linux-x86_64-gnu.2.44 linux-aarch64
+            rbe: linux-x86_64-gnu.2.44
           - name: glibc sweep (linux-aarch64)
             host: linux-aarch64-glibc
             os: ubuntu-24.04-arm
@@ -37,6 +38,7 @@ jobs:
             host: linux-x86_64-san
             os: ubuntu-latest
             presets: linux-x86_64-asan linux-x86_64-ubsan
+            rbe: linux-x86_64-asan linux-x86_64-ubsan
           - name: sanitizers (linux-aarch64)
             host: linux-aarch64-san
             os: ubuntu-24.04-arm
@@ -57,6 +59,7 @@ jobs:
             host: macos-x86_64
             os: macos-15-intel
             presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg
+            rbe: host darwin-x86_64-dbg
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
           # sanitizers) takes about ten minutes to build.
@@ -64,10 +67,12 @@ jobs:
             host: windows-x86_64-linux
             os: windows-latest
             presets: linux-x86_64 linux-aarch64-musl linux-x86_64-gnu.2.44 darwin-aarch64
+            rbe: linux-x86_64 darwin-aarch64
           - name: windows-x86_64 (windows-x86_64 targets)
             host: windows-x86_64
             os: windows-latest
             presets: windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-libcxx-dbg
+            rbe: windows-x86_64-libcxx-dbg windows-x86_64-asan
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest
@@ -76,10 +81,12 @@ jobs:
             host: windows-aarch64
             os: windows-11-arm
             presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32
+            rbe: host windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
             os: ubuntu-latest
             presets: windows-x86_64 windows-x86_64-vs2022 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-libcxx-dbg
+            rbe: windows-x86_64-vs2022 windows-x86_64-libcxx-dbg
           - name: windows-aarch64 targets from linux
             host: linux-x86_64-windows-arm64
             os: ubuntu-latest
@@ -88,6 +95,7 @@ jobs:
             host: macos-aarch64-cross
             os: macos-latest
             presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg
+            rbe: darwin-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     env:
@@ -125,6 +133,13 @@ jobs:
           name: bin-${{ matrix.host }}
           path: artifacts
           retention-days: 3
+      # Remote execution readiness (see tests.yml), on the presets built above.
+      - name: Check commands for remote execution
+        if: matrix.rbe && !github.event.inputs.presets
+        shell: bash
+        run: |
+          export HERMETIC_LLVM_CACHE_DIR="${HERMETIC_LLVM_CACHE_DIR:-$HOME/.cache/hermetic-llvm}"
+          tests/run_rbe_check.sh ${{ matrix.rbe }}
       - name: Upload runtime set build logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -133,6 +148,9 @@ jobs:
           path: |
             ~/.cache/hermetic-llvm/logs
             C:/hl/logs
+            tests/hello/build/rbe-*.log
+            tests/hello/build/rbe-*.archives*
+            tests/hello/build/rbe-*/rbe-actions.jsonl*
           if-no-files-found: ignore
 
   run:
