@@ -193,12 +193,33 @@ def analyze(argv, roots, write_rsp):
 
 
 def append_log(log, record):
-    if log:
-        fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+    """Appends RECORD to LOG as one line. Ninja runs actions in parallel and
+    appends are not atomic everywhere (Windows), hence the lock."""
+    if not log:
+        return
+    line = (json.dumps(record, sort_keys=True) + "\n").encode()
+    with open(log + ".lock", "a+b") as lock:
+        if WINDOWS:
+            import msvcrt
+            lock.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError:
+                    pass  # LK_LOCK gives up after ten seconds; keep waiting
+        else:
+            import fcntl
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
-            os.write(fd, (json.dumps(record, sort_keys=True) + "\n").encode())
+            with open(log, "ab") as f:
+                f.write(line)
         finally:
-            os.close(fd)
+            if WINDOWS:
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def is_local(argv0, roots):
