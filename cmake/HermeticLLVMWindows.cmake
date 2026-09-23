@@ -111,17 +111,46 @@ function(_hermetic_llvm_single_subdir DIR OUT)
 endfunction()
 
 # Writes a case-insensitive VFS overlay covering every directory in DIRS
-# (used with clang's -ivfsoverlay and lld-link's /vfsoverlay:). With
-# PREFIX_FROM and PREFIX_TO, that prefix of every path (the roots and the
-# files they redirect to) is replaced: a relative PREFIX_TO gives an overlay
-# whose paths are resolved against the working directory of the process
-# using it, as any relative path would be.
+# (used with clang's -ivfsoverlay and lld-link's /vfsoverlay:).
+#
+# By default the overlay names everything relative to its own directory
+# ('root-relative' and 'overlay-relative'), so it holds no absolute path and
+# works wherever the cache is and however it is reached (absolutely, through
+# a build directory's link, or rewritten relative by a remote execution
+# wrapper), provided the overlay and the directories it covers are named the
+# same way. Files keep the name they were found by ('use-external-names'
+# off), so that debug info and dependency output name them as the command
+# line does, where the prefix maps (or a wrapper's rewrite) apply, rather
+# than by the absolute path the overlay resolves them to. That suits clang;
+# lld-link opens the files it finds by the name the overlay reports, so
+# EXTERNAL_NAMES writes an overlay that reports their real (absolute) paths.
+#
+# With PREFIX_FROM and PREFIX_TO, the overlay instead names every path with
+# that prefix replaced: a relative PREFIX_TO gives an overlay resolved
+# against the working directory, whose real paths stay relative (what
+# lld-link records in PDBs through a build directory's link).
 function(hermetic_llvm_write_case_overlay OUT_FILE)
-  cmake_parse_arguments(arg "" "PREFIX_FROM;PREFIX_TO" "" ${ARGN})
+  cmake_parse_arguments(arg "EXTERNAL_NAMES" "PREFIX_FROM;PREFIX_TO" "" ${ARGN})
   set(dirs ${arg_UNPARSED_ARGUMENTS})
-  set(marker "# roots: ${dirs}")
+  get_filename_component(base "${OUT_FILE}" DIRECTORY)
+  set(head "{\n  'version': 0,\n  'case-sensitive': 'false',\n")
   if(arg_PREFIX_FROM)
-    string(APPEND marker " (${arg_PREFIX_FROM} as ${arg_PREFIX_TO})")
+    # No absolute path here either: the file is an input of every link.
+    string(REPLACE "${arg_PREFIX_FROM}" "${arg_PREFIX_TO}" rel_dirs "${dirs}")
+    set(marker "# case overlay (from the working directory): ${rel_dirs}")
+  else()
+    set(rel_dirs "")
+    foreach(dir IN LISTS dirs)
+      file(RELATIVE_PATH rel "${base}" "${dir}")
+      list(APPEND rel_dirs "${rel}")
+    endforeach()
+    string(APPEND head "  'root-relative': 'overlay-dir',\n  'overlay-relative': true,\n")
+    if(arg_EXTERNAL_NAMES)
+      set(marker "# case overlay (relative, external names): ${rel_dirs}")
+    else()
+      set(marker "# case overlay (relative, virtual names): ${rel_dirs}")
+      string(APPEND head "  'use-external-names': false,\n")
+    endif()
   endif()
   if(EXISTS "${OUT_FILE}")
     file(STRINGS "${OUT_FILE}" first LIMIT_COUNT 1)
@@ -129,7 +158,7 @@ function(hermetic_llvm_write_case_overlay OUT_FILE)
       return()
     endif()
   endif()
-  set(yaml "${marker}\n{\n  'version': 0,\n  'case-sensitive': 'false',\n  'roots': [\n")
+  set(yaml "${marker}\n${head}  'roots': [\n")
   foreach(dir IN LISTS dirs)
     file(GLOB_RECURSE subdirs LIST_DIRECTORIES true "${dir}/*")
     set(all_dirs "${dir}")
@@ -143,9 +172,10 @@ function(hermetic_llvm_write_case_overlay OUT_FILE)
       if(NOT files)
         continue()
       endif()
-      set(root "${d}")
       if(arg_PREFIX_FROM)
-        string(REPLACE "${arg_PREFIX_FROM}" "${arg_PREFIX_TO}" root "${root}")
+        string(REPLACE "${arg_PREFIX_FROM}" "${arg_PREFIX_TO}" root "${d}")
+      else()
+        file(RELATIVE_PATH root "${base}" "${d}")
       endif()
       string(APPEND yaml "    { 'name': '${root}', 'type': 'directory', 'contents': [\n")
       foreach(f IN LISTS files)
@@ -156,8 +186,7 @@ function(hermetic_llvm_write_case_overlay OUT_FILE)
     endforeach()
   endforeach()
   string(APPEND yaml "  ]\n}\n")
-  get_filename_component(parent "${OUT_FILE}" DIRECTORY)
-  file(MAKE_DIRECTORY "${parent}")
+  file(MAKE_DIRECTORY "${base}")
   file(WRITE "${OUT_FILE}" "${yaml}")
 endfunction()
 
@@ -264,13 +293,14 @@ function(hermetic_llvm_provide_windows_sdk ARCH OUT)
   endforeach()
 
   set(overlay "${HERMETIC_LLVM_CACHE_DIR}/winsdk/overlays/msvc-${msvc_version}-sdk-${sdk_version}-${ms_arch}.yaml")
+  # For compilation, and for links: through a build directory's link to the
+  # cache (hermetic_llvm_windows_flags RELATIVE_ROOT), so that the library
+  # paths lld-link resolves stay relative, or from anywhere.
   hermetic_llvm_write_case_overlay("${overlay}" "${msvc_include}" ${msvc_lib} "${sdk_include}" "${sdk_ucrt_lib}" "${sdk_um_lib}")
-  # The link overlay names the library directories relative to a build
-  # directory's link to the cache (hermetic_llvm_windows_flags RELATIVE_ROOT),
-  # so the library paths lld-link resolves through it are relative too.
   hermetic_llvm_write_case_overlay("${overlay}.link.yaml"
     PREFIX_FROM "${HERMETIC_LLVM_CACHE_DIR}" PREFIX_TO "${HERMETIC_LLVM_CACHE_LINK_NAME}"
     ${msvc_lib} "${sdk_ucrt_lib}" "${sdk_um_lib}")
+  hermetic_llvm_write_case_overlay("${overlay}.lib.yaml" EXTERNAL_NAMES ${msvc_lib} "${sdk_ucrt_lib}" "${sdk_um_lib}")
 
   set(${OUT}_MSVC_VERSION "${msvc_version}" PARENT_SCOPE)
   set(${OUT}_MSVC_COMPAT_VERSION "${compat}" PARENT_SCOPE)
@@ -348,7 +378,7 @@ function(hermetic_llvm_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
     -Xclang -ivfsoverlay -Xclang "${overlay}"
     /Brepro /clang:-gno-codeview-command-line)
   set(link_driver "")
-  set(link_overlay "${overlay}")
+  set(link_overlay "${overlay}.lib.yaml")
   if(arg_RELATIVE_ROOT)
     set(link_overlay "${overlay}.link.yaml")
     foreach(var toolset_dir sdk_root msvc_lib sdk_ucrt_lib sdk_um_lib link_overlay)

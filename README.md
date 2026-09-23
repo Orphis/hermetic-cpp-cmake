@@ -178,7 +178,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMETIC_LLVM_USE_LLD` | `ON` | Link with LLD. |
-| `HERMETIC_LLVM_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags). |
+| `HERMETIC_LLVM_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)). |
 | `HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
 | `HERMETIC_LLVM_CACHE_DIR` | `$HERMETIC_LLVM_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-llvm`, `~/.cache/hermetic-llvm`, `%LOCALAPPDATA%/hermetic-llvm` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_LLVM_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
@@ -395,12 +395,55 @@ the link command names the toolset, SDK, runtime set and `lld-link` itself
 through them. With a project-chosen `/pdbsourcepath:` (the sample uses
 `/build`) the PDB then records `/build/hermetic-llvm/...` everywhere, and
 the executable, which embeds the PDB's GUID, matches too. Compilation keeps
-absolute paths; the prefix map covers those. The link is only created
+absolute paths; the prefix map covers those. The case-insensitive VFS
+overlay used for compilation names everything relative to its own location
+and reports headers by the path they were found by, so it holds no
+absolute path and suits any spelling of the cache (see
+[Remote execution](#remote-execution)); links use variants that report
+the libraries' real paths, which `lld-link` opens. The link is only created
 for Windows targets and only supports the Ninja generators, whose commands
 run from the build directory.
 
 Not ported from hermetic-llvm: MinGW targets and the static-CRT variants
 of its Windows sanitizer route beyond what is described above.
+
+## Remote execution
+
+Remote build execution (RBE) caches an action by its command line and
+inputs, so a compile, archive or link step is only shared between machines
+when its command is the same on each. CMake writes absolute paths (the
+tools, `-I` directories, sources), and so does the toolchain for the
+cache; an RBE wrapper (such as a `CMAKE_<LANG>_COMPILER_LAUNCHER`) rewrites
+them relative to the build directory before sending an action out. The
+toolchain keeps everything else about the command independent of the
+machine, and try_compile checks, which run locally, are left alone.
+
+- **Put the cache inside the source tree**
+  (`HERMETIC_LLVM_CACHE_DIR=<source>/.hermetic-llvm`), so that every input
+  lies under the one root the wrapper uploads.
+- **Rewrite every absolute path under that root**, including inside joined
+  options: `--sysroot=`, `-resource-dir=`, `-isysroot`, `-isystem<dir>`,
+  the left-hand side of `-ffile-prefix-map=` (the compiler then sees the
+  same spelling in the paths it maps), and for MSVC-ABI targets
+  `/vctoolsdir<dir>`, `/winsdkdir<dir>`, `/imsvc<dir>`, `/FI<file>` and
+  the `-ivfsoverlay` file. Rewrite them all the same way: the
+  case-insensitive VFS overlay names its directories relative to its own
+  location, so it matches the toolset and SDK paths when both are spelled
+  alike. MSVC-ABI links already name the toolset, SDK and runtime set
+  through the build directory's `hermetic-llvm` link (a relative symbolic
+  link, which stays inside the tree when the cache does).
+- What the toolchain does for it with `HERMETIC_LLVM_REPRODUCIBLE`: debug
+  info records the working directory as `.` (`-ffile-compilation-dir=.`),
+  the cache is mapped to a fixed name, and targets without a runtime set
+  name the compiler's resource directory explicitly (the driver would
+  otherwise derive an absolute path from its own location, which no
+  command-line rewrite reaches).
+
+Outputs do not depend on the checkout or on the host OS: a Linux target
+built on macOS and on Linux comes out byte-identical, debug info included.
+The compiler binary differs per host OS, so commands only match between
+machines of the same OS. `llvm-rc` include paths and CMake's own `cmake -E`
+steps are not meant to run remotely.
 
 ## Runtime sets
 
@@ -538,9 +581,10 @@ backslashes, which `-ffile-reproducible` does not undo), blanks CodeView's
 object-name record and builds libunwind and libc++abi without assertions
 (glibc 2.44's `assert` reads the file name through `__builtin_FILE()`,
 which no prefix map covers). The `-dbg` presets build the sample with debug
-information, mapping its source and build directories to fixed names (the
-toolchain maps the cache directory for every build when
-`HERMETIC_LLVM_REPRODUCIBLE` is on), so debug info is measured too.
+information, mapping its source directory to a fixed name (the toolchain
+records the build directory as `.` and maps the cache directory for every
+build when `HERMETIC_LLVM_REPRODUCIBLE` is on), so debug info is measured
+too.
 
 Result: release and debug binaries built on Linux x86_64, Linux arm64,
 macOS and Windows hosts are byte-identical, PDBs included (see
