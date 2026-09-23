@@ -101,6 +101,14 @@ jobs:
           path: |
             ~/.cache/hermetic-llvm/logs
             C:/hl/logs
+          if-no-files-found: ignore
+      # Separately: an artifact cannot mix C:/hl and the workspace (D:).
+      - name: Upload remote execution check logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbe-logs-${{ matrix.host }}
+          path: |
             tests/hello/build/rbe-*.log
             tests/hello/build/rbe-*.archives*
             tests/hello/build/rbe-*/rbe-actions.jsonl*

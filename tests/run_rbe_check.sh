@@ -23,17 +23,18 @@ windows=0
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) windows=1 ;; esac
 # Paths as native programs (CMake, Python) take them.
 native() { if [[ ${windows} == 1 ]]; then cygpath -m "$1"; else printf '%s\n' "$1"; fi; }
-# Directory links: symbolic links, or junctions on Windows hosts.
+# Directory links: symbolic links, or junctions on Windows hosts (made and
+# removed by Python: Git Bash would rewrite cmd's /J switch as a path).
 link_dir() {  # link_dir <target> <link>
   if [[ ${windows} == 1 ]]; then
-    cmd //c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" > /dev/null
+    "${python}" -c 'import _winapi, sys; _winapi.CreateJunction(sys.argv[1], sys.argv[2])' "$(native "$1")" "$(native "$2")"
   else
     ln -s "$1" "$2"
   fi
 }
-unlink_dir() {  # removes a directory link, never what it points to
+unlink_dir() {  # removes a directory link, never what it points to (rmdir cannot)
   if [[ ${windows} == 1 ]]; then
-    cmd //c rmdir "$(cygpath -w "$1")" 2> /dev/null || true
+    "${python}" -c 'import os, sys; os.rmdir(sys.argv[1])' "$(native "$1")" 2> /dev/null || true
   else
     rm -f "$1"
   fi
