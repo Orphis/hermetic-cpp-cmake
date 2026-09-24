@@ -25,6 +25,43 @@ function(hermetic_llvm_resource_dir ROOT OUT)
   set(${OUT} "${found}" PARENT_SCOPE)
 endfunction()
 
+# Debugger settings for a build directory. Reproducible builds record fixed
+# or relative paths in debug info: the cache as /hermetic-llvm/cache, the
+# compiler as /hermetic-llvm/llvm, the working directory as "." (and, when a
+# remote execution wrapper made a compile's paths relative, the sources
+# relative to the build directory). hermetic-llvm.gdb and hermetic-llvm.lldb
+# in the build directory map them back for GDB (gdb -x <file>) and LLDB
+# (lldb -s <file>); projects add the maps of their own -ffile-prefix-map
+# options with hermetic_llvm_debugger_source_map.
+function(hermetic_llvm_debugger_source_map FROM TO)
+  set_property(GLOBAL APPEND PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS "${FROM}=${TO}")
+  _hermetic_llvm_write_debugger_files()
+endfunction()
+
+function(_hermetic_llvm_write_debugger_files)
+  get_property(dir GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_BUILD_DIR)
+  if(NOT dir)
+    return()
+  endif()
+  get_property(maps GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS)
+  get_filename_component(parent "${dir}" DIRECTORY)
+  set(gdb "# Written by the hermetic-llvm toolchain: where the sources of this build\n# directory's binaries are. gdb -x <this file> <program>\n")
+  set(lldb "# Written by the hermetic-llvm toolchain: where the sources of this build\n# directory's binaries are. lldb -s <this file> <program>\n")
+  foreach(map IN LISTS maps)
+    string(FIND "${map}" "=" eq)
+    string(SUBSTRING "${map}" 0 ${eq} from)
+    math(EXPR eq "${eq} + 1")
+    string(SUBSTRING "${map}" ${eq} -1 to)
+    string(APPEND gdb "set substitute-path \"${from}\" \"${to}\"\n")
+    string(APPEND lldb "settings append target.source-map \"${from}\" \"${to}\"\n")
+  endforeach()
+  # The working directory ("."), for paths relative to it.
+  string(APPEND gdb "directory \"${dir}\"\n")
+  string(APPEND lldb "settings append target.source-map .. \"${parent}\"\n")
+  file(CONFIGURE OUTPUT "${dir}/hermetic-llvm.gdb" CONTENT "${gdb}" @ONLY)
+  file(CONFIGURE OUTPUT "${dir}/hermetic-llvm.lldb" CONTENT "${lldb}" @ONLY)
+endfunction()
+
 macro(hermetic_llvm_configure)
   set(_hl_root "${HERMETIC_LLVM_RESOLVED_ROOT}")
   set(_hl_set "${HERMETIC_LLVM_RESOLVED_RUNTIME_SET}")
@@ -390,6 +427,16 @@ macro(hermetic_llvm_configure)
   hermetic_llvm_append_flags(CMAKE_OBJCXX_STANDARD_LIBRARIES_INIT ${_hl_cxx_libs})
 
   # Exported for consumers (e.g. to find clang-tidy / clang-format).
+  if(HERMETIC_LLVM_REPRODUCIBLE)
+    get_property(_hl_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
+    if(NOT _hl_in_try_compile)
+      set_property(GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_BUILD_DIR "${CMAKE_BINARY_DIR}")
+      set_property(GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS
+        "/hermetic-llvm/cache=${HERMETIC_LLVM_CACHE_DIR}" "/hermetic-llvm/llvm=${_hl_root}")
+      _hermetic_llvm_write_debugger_files()
+    endif()
+  endif()
+
   set(HERMETIC_LLVM_ROOT "${_hl_root}")
   set(HERMETIC_LLVM_BIN_DIR "${_hl_bin}")
   set(HERMETIC_LLVM_RUNTIME_SET "${_hl_set}")
