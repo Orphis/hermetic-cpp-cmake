@@ -445,6 +445,27 @@ The compiler binary differs per host OS, so commands only match between
 machines of the same OS. `llvm-rc` include paths and CMake's own `cmake -E`
 steps are not meant to run remotely.
 
+### Debugging
+
+Debug info then names the cache as `/hermetic-llvm/cache`, the compiler as
+`/hermetic-llvm/llvm` and the working directory as `.` (sources a remote
+execution wrapper made relative stay relative to the build directory), so a
+debugger has to be told where those are. The toolchain writes the settings
+into every build directory:
+
+```sh
+gdb -x build/hermetic-llvm.gdb build/app      # set substitute-path, directory
+lldb -s build/hermetic-llvm.lldb build/app    # settings append target.source-map
+```
+
+A project that maps its own paths with `-ffile-prefix-map` adds them with
+`hermetic_llvm_debugger_source_map(<from> <to>)` (the sample does for its
+`/src`). On macOS the debug info stays in the object files, which the
+executable names relative to the build directory when linked with
+`-Wl,-oso_prefix,.`: LLDB finds them when started in the build directory,
+or from a dSYM made with `dsymutil --oso-prepend-path=<build dir> <binary>`,
+which it loads from next to the binary.
+
 [`scripts/rbe_wrapper.py`](scripts/rbe_wrapper.py) is a reference wrapper
 for checking a build, used as the compiler and linker launcher:
 

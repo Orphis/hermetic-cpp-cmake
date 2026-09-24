@@ -18,6 +18,11 @@ if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
   add_link_options(/pdbsourcepath:/build)
 endif()
 if(HERMETIC_TESTS_DEBUG_INFO)
+  # Tell the debugger settings the toolchain writes (hermetic-llvm.gdb,
+  # hermetic-llvm.lldb in the build directory) about that map.
+  if(COMMAND hermetic_llvm_debugger_source_map)
+    hermetic_llvm_debugger_source_map(/src "${CMAKE_SOURCE_DIR}")
+  endif()
   if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_compile_options(/Z7 "/clang:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=/src")
     # A PDB per binary.
