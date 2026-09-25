@@ -38,8 +38,9 @@ Or with a preset:
 ## Hosts and targets
 
 The compiler prebuilt exists for six hosts; every host can build for every
-target. Runtime sets, Windows toolsets and the macOS SDK are downloaded or
-built the same way everywhere.
+target with clang. Runtime sets, Windows toolsets and the macOS SDK are
+downloaded or built the same way everywhere. Windows hosts can also build
+Windows targets with Microsoft's `cl.exe` (`HERMETIC_COMPILER=msvc`).
 
 | Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC ABI with the MSVC STL or libc++, or GNU ABI with MinGW-w64) | WebAssembly (`wasm32`, `wasm64`; freestanding) |
 | --- | :---: | :---: | :---: | :---: |
@@ -47,12 +48,16 @@ built the same way everywhere.
 | Linux arm64 | ✓ | ✓ | ✓ | ✓ |
 | macOS x86_64 | ✓ | ✓ | ✓ | ✓ |
 | macOS arm64 | ✓ | ✓ | ✓ | ✓ |
-| Windows x86_64 | ✓ | ✓ ¹ | ✓ | ✓ |
-| Windows arm64 | ✓ | ✓ ¹ | ✓ | ✓ |
+| Windows x86_64 | ✓ | ✓ ¹ | ✓ ² | ✓ |
+| Windows arm64 | ✓ | ✓ ¹ | ✓ ² | ✓ |
 
 ¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
 administrators or users with Developer Mode create; see
-[macOS targets](#macos-targets). `HERMETIC_TARGET` defaults to the
+[macOS targets](#macos-targets).
+² With clang-cl, or with `cl.exe` (`HERMETIC_COMPILER=msvc`) for either
+Windows target on the MSVC ABI with the MSVC STL; lld-link and the LLVM
+tools link, archive and handle resources either way. See
+[Windows targets](#windows-targets). `HERMETIC_TARGET` defaults to the
 host's own platform. Which combinations CI exercises is listed under
 [Testing and CI](#testing-and-ci).
 
@@ -67,8 +72,10 @@ Host notes:
   (`xcrun --show-sdk-path`) instead of the downloaded one.
 - **Windows**: no Visual Studio, MSYS or WSL. The compiler prebuilt is
   hermetic-llvm's MinGW-built one, the MSVC toolset and Windows SDK are
-  downloaded like on the other hosts, and the test scripts run under Git
-  Bash. Keep the cache directory short (`HERMETIC_CACHE_DIR=C:/hl`) to
+  downloaded like on the other hosts (and, with `HERMETIC_COMPILER=msvc`,
+  the `cl.exe` compilers for the host and target architecture from the
+  same manifest), and the test scripts run under Git Bash. Keep the cache
+  directory short (`HERMETIC_CACHE_DIR=C:/hl`) to
   stay clear of path length limits; a Windows libc++ runtime set builds
   libc++ four times, one per C runtime flavour, so it takes a few minutes
   longer than a Linux set.
