@@ -46,7 +46,7 @@ jobs:
             rbe: host linux-aarch64 windows-x86_64-dbg windows-x86_64-libcxx darwin-aarch64-dbg wasm32-dbg
           - host: windows-x86_64
             os: windows-latest
-            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg
+            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-msvc windows-x86_64-msvc-dbg
             rbe: host linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60

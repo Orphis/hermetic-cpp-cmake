@@ -151,6 +151,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_HERMETICBUILD_INDEX` | | Another copy of the compiler index (same schema). |
 | `HERMETIC_LLVM_DISTRIBUTION_URL` / `_SHA256` / `_STRIP_COMPONENTS` | | Bring your own compiler archive (`bin/clang` at the root, or set the strip count). |
 | `HERMETIC_MIRROR_URLS` | | URL templates tried after the primary URL; `{version}`, `{release}` and `{basename}` are substituted. |
+| `HERMETIC_COMPILER` | `llvm` | `llvm` (clang from the prebuilt, every host and target) or `msvc` (Microsoft's `cl.exe` from the toolset packages, Windows hosts building Windows targets on the MSVC ABI with the MSVC STL; lld-link and the LLVM tools still link, archive and handle resources). See [Windows targets](#windows-targets). |
 
 ### Target, libc and runtimes
 
@@ -287,6 +288,26 @@ as the C runtime, and 32-bit x86.
 
 The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
 `clang-cl` and `lld-link` with Microsoft's runtime and SDK.
+
+**MSVC compiler.** With `HERMETIC_COMPILER=msvc` the compiler is
+Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the
+host and target architecture come from the same Visual Studio installer
+manifest as the toolset (about 28 MB, with the English message resources
+`cl.exe` needs), so a Windows host builds with the exact MSVC release the
+toolset version names, and nothing from a Visual Studio installation. The
+link step is unchanged, `lld-link` through CMake's MSVC rules
+(`cmake/HermeticMSVCRules.cmake`), `llvm-lib` creates static libraries and
+`llvm-rc` and `llvm-mt` handle resources and manifests, so `link.exe` and
+`lib.exe` from the package are never run. The toolset and SDK headers are
+plain include directories (`/X` keeps the host's `INCLUDE` out), and with
+`HERMETIC_REPRODUCIBLE` the objects get `/Brepro`,
+`/experimental:deterministic` and a `/pathmap:` of the cache directory
+(toolset 14.40, Visual Studio 17.10, and newer). Debug info goes into the
+objects (`/Z7`, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` unless the
+project sets it). Only Windows hosts, Windows targets on the MSVC ABI and the
+MSVC STL: cross-compiling, libc++ and the sanitizer runtime sets stay with
+the `llvm` compiler. `cl.exe` binaries are not expected to match `clang-cl`
+ones, and the cross-host identity check does not cover them.
 
 **Toolset and SDK.** The MSVC toolset (C runtime and STL headers and
 libraries) comes from the Visual Studio installer manifest and the Windows

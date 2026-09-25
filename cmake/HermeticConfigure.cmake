@@ -82,12 +82,17 @@ macro(hermetic_configure)
 
   set(_hl_windows FALSE)
   set(_hl_mingw FALSE)
+  set(_hl_msvc FALSE)  # cl.exe instead of clang-cl (HERMETIC_COMPILER=msvc)
   if(_hl_tgt_OS STREQUAL "windows" AND HERMETIC_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
     # GNU ABI: the plain clang driver with MinGW-w64 from the runtime set.
     set(_hl_mingw TRUE)
     hermetic_windows_gnu_triple("${_hl_tgt_ARCH}" _hl_triple)
   elseif(_hl_tgt_OS STREQUAL "windows")
     set(_hl_windows TRUE)
+    if(HERMETIC_RESOLVED_COMPILER STREQUAL "msvc")
+      set(_hl_msvc TRUE)
+    endif()
+    list(GET HERMETIC_RESOLVED_WINSDK 0 _hl_msvc_version)
     list(GET HERMETIC_RESOLVED_WINSDK 2 _hl_msvc_include)
     list(GET HERMETIC_RESOLVED_WINSDK 3 _hl_msvc_lib)
     string(REPLACE "|" ";" _hl_msvc_lib "${_hl_msvc_lib}")
@@ -98,7 +103,30 @@ macro(hermetic_configure)
   endif()
 
   # ---- Tools -------------------------------------------------------------
-  if(_hl_windows)
+  if(_hl_msvc)
+    # MSVC's cl.exe from the toolset packages; lld-link, llvm-lib, llvm-rc
+    # and llvm-mt from the LLVM prebuilt, driven by CMake's MSVC rules with
+    # the linker named in HermeticMSVCRules.cmake.
+    set(CMAKE_C_COMPILER "${HERMETIC_RESOLVED_MSVC_BIN}/cl.exe")
+    set(CMAKE_CXX_COMPILER "${HERMETIC_RESOLVED_MSVC_BIN}/cl.exe")
+    set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-rc${_hl_exe}" CACHE FILEPATH "Resource compiler")
+    set(CMAKE_MT "${_hl_bin}/llvm-mt${_hl_exe}" CACHE FILEPATH "Manifest tool")
+    set(CMAKE_AR "${_hl_bin}/llvm-lib${_hl_exe}" CACHE FILEPATH "Archiver")
+    if(NOT EXISTS "${CMAKE_AR}")
+      hermetic_fatal("HERMETIC_COMPILER=msvc needs llvm-lib in the LLVM prebuilt (${CMAKE_AR}); use an LLVM release that ships it")
+    endif()
+    foreach(_hl_masm ml64.exe armasm64.exe)
+      if(EXISTS "${HERMETIC_RESOLVED_MSVC_BIN}/${_hl_masm}")
+        set(CMAKE_ASM_MASM_COMPILER "${HERMETIC_RESOLVED_MSVC_BIN}/${_hl_masm}")
+      endif()
+    endforeach()
+    # Debug info in the objects (/Z7) rather than a compile PDB (/Zi): no
+    # mspdbsrv, and objects that depend on their content only.
+    if(NOT DEFINED CMAKE_MSVC_DEBUG_INFORMATION_FORMAT)
+      set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+    endif()
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticMSVCRules.cmake")
+  elseif(_hl_windows)
     # MSVC ABI: clang-cl and lld-link, driven by CMake's MSVC-style rules.
     set(CMAKE_C_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
     set(CMAKE_CXX_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
@@ -209,7 +237,19 @@ macro(hermetic_configure)
   set(_hl_exe_link_flags "")
   set(_hl_cxx_libs "")
 
-  if(HERMETIC_REPRODUCIBLE)
+  if(HERMETIC_REPRODUCIBLE AND _hl_msvc)
+    # cl.exe: /Brepro zeroes the object timestamp, /experimental:deterministic
+    # (toolset 14.40, Visual Studio 17.10, and newer) removes the remaining
+    # host-dependent content, and /pathmap replaces the cache directory in
+    # the paths CodeView records, as the prefix maps do for clang.
+    hermetic_append_flags(_hl_c_flags /Brepro)
+    if(_hl_msvc_version VERSION_GREATER_EQUAL 14.40)
+      hermetic_append_flags(_hl_c_flags /experimental:deterministic
+        "/pathmap:${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache")
+    else()
+      message(WARNING "[hermetic-cpp] MSVC toolset ${_hl_msvc_version} has no /experimental:deterministic or /pathmap (14.40 and newer): objects will record host paths")
+    endif()
+  elseif(HERMETIC_REPRODUCIBLE)
     # hermetic-llvm's deterministic_compile_flags.
     hermetic_append_flags(_hl_c_flags -Wno-builtin-macro-redefined "-D__DATE__=\\\"redacted\\\"" "-D__TIMESTAMP__=\\\"redacted\\\"" "-D__TIME__=\\\"redacted\\\"")
     # Debug info and assertion strings name the runtime set, toolset and SDK
@@ -284,7 +324,13 @@ macro(hermetic_configure)
         set(_hl_win_manifest EMBED_MANIFEST)
       endif()
     endif()
+    # cl.exe: lld-link named through the build directory link in the rules
+    # (HermeticMSVCRules.cmake), so the PDB records a relative path.
+    set(HERMETIC_MSVC_LINKER "${_hl_bin}/lld-link${_hl_exe}")
     if(_hl_link_root)
+      # As cmd.exe wants a relative program: ".\dir\lld-link.exe" (a
+      # forward slash would end the command name).
+      string(REPLACE "/" "\\" HERMETIC_MSVC_LINKER ".\\${_hl_link_root}/llvm/${HERMETIC_RESOLVED_LLVM_VERSION}/bin/lld-link${_hl_exe}")
       hermetic_windows_flags("${HERMETIC_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest}
         RELATIVE_ROOT "${_hl_link_root}" OUT_LINK_DRIVER HERMETIC_WINDOWS_LINK_DRIVER_FLAGS)
       # lld-link found through a prefix directory keeps the relative path it
@@ -298,7 +344,13 @@ macro(hermetic_configure)
     else()
       hermetic_windows_flags("${HERMETIC_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest})
     endif()
-    if(_hl_set)
+    if(_hl_msvc)
+      # cl.exe takes the toolset and SDK headers as plain include directories,
+      # and /X keeps the INCLUDE environment of the host out of the build.
+      set(_hl_win_compile /X "/I${_hl_msvc_include}"
+        "/I${_hl_sdk_include}/ucrt" "/I${_hl_sdk_include}/um" "/I${_hl_sdk_include}/shared"
+        "/I${_hl_sdk_include}/winrt" "/I${_hl_sdk_include}/cppwinrt")
+    elseif(_hl_set)
       # Runtime set (libc++ and/or sanitizers). Its resource directory gives
       # the driver the compiler-rt runtimes (builtins, sanitizers, profile)
       # for the link step. The set holds one libc++ archive per C runtime

@@ -273,6 +273,23 @@
       }
     },
     {
+      "name": "windows-x86_64-msvc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc"
+      }
+    },
+    {
+      "name": "windows-x86_64-msvc-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
       "name": "windows-x86_64-libcxx-dbg",
       "inherits": "base",
       "cacheVariables": {

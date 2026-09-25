@@ -191,7 +191,8 @@ function(hermetic_write_case_overlay OUT_FILE)
 endfunction()
 
 # Provides the MSVC runtime and Windows SDK for ARCH (x86_64 or aarch64).
-# Sets ${OUT}_MSVC_VERSION, _MSVC_COMPAT_VERSION, _MSVC_INCLUDE, _MSVC_LIB (a
+# Sets ${OUT}_MSVC_VERSION, _MSVC_COMPAT_VERSION, _MSVC_INCLUDE, _MSVC_BIN
+# (cl.exe's directory with HERMETIC_COMPILER=msvc, else empty), _MSVC_LIB (a
 # list of directories, "|" separated),
 # _SDK_VERSION, _SDK_INCLUDE_VERSION, _SDK_INCLUDE (…/Include/<ver>),
 # _SDK_UCRT_LIB, _SDK_UM_LIB, _OVERLAY.
@@ -248,6 +249,40 @@ function(hermetic_provide_windows_sdk ARCH OUT)
     endif()
     list(APPEND msvc_lib "${dir}")
   endforeach()
+
+  # HERMETIC_COMPILER=msvc: the compilers for this host and target
+  # architecture (cl, c1, c2, link, lib and their DLLs) from the same
+  # manifest, with cl.exe's English message resources (1033/clui.dll) copied
+  # next to it, since cl.exe refuses to run without them.
+  set(msvc_bin "")
+  if(HERMETIC_COMPILER STREQUAL "msvc")
+    hermetic_detect_host(tools_host_os tools_host_arch)
+    string(JSON tools ERROR_VARIABLE err GET "${toolset}" "tools" "${tools_host_arch}" "${ARCH}")
+    if(err)
+      hermetic_fatal("MSVC toolset ${msvc_version} has no compilers for a ${tools_host_arch} host targeting ${ARCH} in the manifest")
+    endif()
+    string(JSON entry GET "${tools}" 0)
+    _hermetic_json_payload("${entry}" url hash)
+    hermetic_fetch_archive(NAME "msvc-${msvc_version}-tools-${tools_host_arch}-${ms_arch}" KIND msvc HASH "${hash}" URLS "${url}"
+      STRIP_COMPONENTS 0 PATTERNS "Contents/VC" OUT_DIR tools_dir)
+    file(GLOB cl_exe "${tools_dir}/Contents/VC/Tools/MSVC/${msvc_version}/bin/Host*/${ms_arch}/cl.exe")
+    list(LENGTH cl_exe n_cl)
+    if(NOT n_cl EQUAL 1)
+      hermetic_fatal("MSVC compiler package did not contain one bin/Host*/${ms_arch}/cl.exe (found: '${cl_exe}')")
+    endif()
+    get_filename_component(msvc_bin "${cl_exe}" DIRECTORY)
+    string(JSON entry GET "${tools}" 1)
+    _hermetic_json_payload("${entry}" url hash)
+    hermetic_fetch_archive(NAME "msvc-${msvc_version}-tools-${tools_host_arch}-${ms_arch}-res" KIND msvc HASH "${hash}" URLS "${url}"
+      STRIP_COMPONENTS 0 PATTERNS "Contents/VC" OUT_DIR res_dir)
+    file(GLOB clui "${res_dir}/Contents/VC/Tools/MSVC/${msvc_version}/bin/Host*/${ms_arch}/1033/clui.dll")
+    if(NOT clui)
+      hermetic_fatal("MSVC compiler resource package did not contain 1033/clui.dll")
+    endif()
+    if(NOT EXISTS "${msvc_bin}/1033/clui.dll")
+      file(COPY ${clui} DESTINATION "${msvc_bin}/1033")
+    endif()
+  endif()
 
   string(JSON sdk GET "${json}" "windows_sdk" "versions" "${sdk_version}")
   string(JSON pkg GET "${sdk}" "packages" "Microsoft.Windows.SDK.CPP")
@@ -313,6 +348,7 @@ function(hermetic_provide_windows_sdk ARCH OUT)
   set(${OUT}_SDK_UCRT_LIB "${sdk_ucrt_lib}" PARENT_SCOPE)
   set(${OUT}_SDK_UM_LIB "${sdk_um_lib}" PARENT_SCOPE)
   set(${OUT}_OVERLAY "${overlay}" PARENT_SCOPE)
+  set(${OUT}_MSVC_BIN "${msvc_bin}" PARENT_SCOPE)
   set(${OUT}_TOOLS "${tools}" PARENT_SCOPE)
 endfunction()
 

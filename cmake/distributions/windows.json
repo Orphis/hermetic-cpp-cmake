@@ -52,6 +52,42 @@
               "size": 51744734
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/19fc1a72-65f6-4a52-b880-318fc7bb317b/9bbbef55116b125a373ec680f3b972a0bb565db3cb9e2718931d048efc06de6f/Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "9bbbef55116b125a373ec680f3b972a0bb565db3cb9e2718931d048efc06de6f",
+                "size": 18197460
+              },
+              {
+                "package": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/19fc1a72-65f6-4a52-b880-318fc7bb317b/a7165743559502da4ffe58349b529fd2abb4bc831791e6ff9d8e85a92431d52c/Microsoft.VC.14.29.16.11.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "a7165743559502da4ffe58349b529fd2abb4bc831791e6ff9d8e85a92431d52c",
+                "size": 216309
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/19fc1a72-65f6-4a52-b880-318fc7bb317b/baf885a62a31b70bb10977c4f5ec717ba488c8f7df42f790c23967447e2098f2/Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "baf885a62a31b70bb10977c4f5ec717ba488c8f7df42f790c23967447e2098f2",
+                "size": 17375981
+              },
+              {
+                "package": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/19fc1a72-65f6-4a52-b880-318fc7bb317b/e4e098caf5bdbf0a3c24b45ef17c365ef6cbd39eb885c8372c76687d09632e3a/Microsoft.VC.14.29.16.11.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "e4e098caf5bdbf0a3c24b45ef17c365ef6cbd39eb885c8372c76687d09632e3a",
+                "size": 216334
+              }
+            ]
+          }
         }
       },
       "14.30.30705": {
@@ -97,6 +133,42 @@
               "size": 58077910
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1fbaaf4e-3940-45b0-9177-54af8e4a482b/8f543c2f5dbb44ad7364aa9d7c5317744f7cd7ba4c735a40b67b66ad5d1cae6c/Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "8f543c2f5dbb44ad7364aa9d7c5317744f7cd7ba4c735a40b67b66ad5d1cae6c",
+                "size": 18359416
+              },
+              {
+                "package": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1fbaaf4e-3940-45b0-9177-54af8e4a482b/e8f86ba7b32e5d37c33d13a3c38b9bda4d0cfc8c1b71e24be7772b0b3f049420/Microsoft.VC.14.30.17.0.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "e8f86ba7b32e5d37c33d13a3c38b9bda4d0cfc8c1b71e24be7772b0b3f049420",
+                "size": 215967
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1fbaaf4e-3940-45b0-9177-54af8e4a482b/7927b9060e20e2fe1210d4d3b01a0d3f7e0249115f61da9dec2771aeefcf2e77/Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "7927b9060e20e2fe1210d4d3b01a0d3f7e0249115f61da9dec2771aeefcf2e77",
+                "size": 17532484
+              },
+              {
+                "package": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1fbaaf4e-3940-45b0-9177-54af8e4a482b/3d7e9f976edb6b1e9096837a7bf8ece51d2b884756c06d80fd6ece8f5837871b/Microsoft.VC.14.30.17.0.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "3d7e9f976edb6b1e9096837a7bf8ece51d2b884756c06d80fd6ece8f5837871b",
+                "size": 216047
+              }
+            ]
+          }
         }
       },
       "14.31.31103": {
@@ -142,6 +214,42 @@
               "size": 56923852
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7c1e52e0-0921-4611-a6db-8243c58bc751/55fe8d2cdb7fe90e4403e0efa1edfaa455890caa6807ec70731ce7e655e0f193/Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "55fe8d2cdb7fe90e4403e0efa1edfaa455890caa6807ec70731ce7e655e0f193",
+                "size": 18557907
+              },
+              {
+                "package": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/94f5aebb-bf97-49b6-8ad3-a731b5a97e61/8f7ea83f05dc6d197decab4ac69ce80065e4b36c4060938d9b25f711531c1c7c/Microsoft.VC.14.31.17.1.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "8f7ea83f05dc6d197decab4ac69ce80065e4b36c4060938d9b25f711531c1c7c",
+                "size": 215274
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/94f5aebb-bf97-49b6-8ad3-a731b5a97e61/0f706058a232a9019a603aff28e35f09968732acb565ef407529e91ce22e5a0e/Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "0f706058a232a9019a603aff28e35f09968732acb565ef407529e91ce22e5a0e",
+                "size": 17725398
+              },
+              {
+                "package": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/94f5aebb-bf97-49b6-8ad3-a731b5a97e61/f54ccc834bb059acaf8670e6e0c5d0cc18fe7c040dd850578ac7c8c25c5c9881/Microsoft.VC.14.31.17.1.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "f54ccc834bb059acaf8670e6e0c5d0cc18fe7c040dd850578ac7c8c25c5c9881",
+                "size": 215305
+              }
+            ]
+          }
         }
       },
       "14.32.31326": {
@@ -187,6 +295,76 @@
               "size": 58180947
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/8b167767a82257128d2125479109d0ef81b34384f5aa4edd4848d907a2b27aad/Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "8b167767a82257128d2125479109d0ef81b34384f5aa4edd4848d907a2b27aad",
+                "size": 21890049
+              },
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/38eb265bdfc93c2756623c734e4e1c522d20e3228bf608c401869ab4ad096899/Microsoft.VC.14.32.17.2.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "38eb265bdfc93c2756623c734e4e1c522d20e3228bf608c401869ab4ad096899",
+                "size": 214364
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/34e5ccf5a61d74699275148a0998ac886e207b17afb41e1314be8de2785a2741/Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "34e5ccf5a61d74699275148a0998ac886e207b17afb41e1314be8de2785a2741",
+                "size": 21058008
+              },
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/63290e3efa1396f9ca1d95b5611760782e373e9b81c6974fbc72d80b2651de97/Microsoft.VC.14.32.17.2.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "63290e3efa1396f9ca1d95b5611760782e373e9b81c6974fbc72d80b2651de97",
+                "size": 214412
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/11cba80977b61c8c59035d7825c8da1f10ad48e58eabc311986ac594715b7cb7/Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "11cba80977b61c8c59035d7825c8da1f10ad48e58eabc311986ac594715b7cb7",
+                "size": 20022387
+              },
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/84c95d39ce5ec4a821b462c0f373d196c06882248899a4a5b9aca2b972421666/Microsoft.VC.14.32.17.2.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "84c95d39ce5ec4a821b462c0f373d196c06882248899a4a5b9aca2b972421666",
+                "size": 246835
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/ba7ca439db2dffa9e33d1c95300a6d650ec85575e74f6a5297c66b98e42a7c95/Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "ba7ca439db2dffa9e33d1c95300a6d650ec85575e74f6a5297c66b98e42a7c95",
+                "size": 19556885
+              },
+              {
+                "package": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/0cfb09bb-60ee-494a-887d-9697d4e466e4/d9cdea824bde74b851f1648c804634821472ce54061ad28296d676932b0955d0/Microsoft.VC.14.32.17.2.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "d9cdea824bde74b851f1648c804634821472ce54061ad28296d676932b0955d0",
+                "size": 243695
+              }
+            ]
+          }
         }
       },
       "14.33.31629": {
@@ -232,6 +410,76 @@
               "size": 58229225
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/5213b7d9f32109ca83de17d4e0dd216b653ced6e9578b087a94194b727545758/Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "5213b7d9f32109ca83de17d4e0dd216b653ced6e9578b087a94194b727545758",
+                "size": 19081117
+              },
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/ef37b88b04a47f8383eccab90f7adf7e7dae2c887aa5a24073fc617fda3e207a/Microsoft.VC.14.33.17.3.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "ef37b88b04a47f8383eccab90f7adf7e7dae2c887aa5a24073fc617fda3e207a",
+                "size": 214884
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/7613ff3ef537b655bbf4856440fb3540db050cae81448b0d374ec7c38c4ec907/Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "7613ff3ef537b655bbf4856440fb3540db050cae81448b0d374ec7c38c4ec907",
+                "size": 18303054
+              },
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/2ad3dd28605ef2ed85ae830f960af253c67ff5eb691984b6d4a5c7cda1c3b4a0/Microsoft.VC.14.33.17.3.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "2ad3dd28605ef2ed85ae830f960af253c67ff5eb691984b6d4a5c7cda1c3b4a0",
+                "size": 214899
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/0a253da6b3366e45672524f240afc9f53288d5ccfa7562e5f047a8b4efffb12e/Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "0a253da6b3366e45672524f240afc9f53288d5ccfa7562e5f047a8b4efffb12e",
+                "size": 17102750
+              },
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/9c48f0dcf96b15d16eb862535207ca9e66c84dae765b8484ae8dcf155b0ff54f/Microsoft.VC.14.33.17.3.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "9c48f0dcf96b15d16eb862535207ca9e66c84dae765b8484ae8dcf155b0ff54f",
+                "size": 244934
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/d7f3173b1a645ac35cf9523855e8c1c0c98b15266ee57e935623a4ac90bed432/Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "d7f3173b1a645ac35cf9523855e8c1c0c98b15266ee57e935623a4ac90bed432",
+                "size": 16674395
+              },
+              {
+                "package": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/46cf77c2-7256-4461-9633-adc977326715/fb918104523183c3f17515ada9d9ca0eccced168666950ec9c24ca60e8259011/Microsoft.VC.14.33.17.3.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "fb918104523183c3f17515ada9d9ca0eccced168666950ec9c24ca60e8259011",
+                "size": 247997
+              }
+            ]
+          }
         }
       },
       "14.34.31933": {
@@ -277,6 +525,76 @@
               "size": 60345715
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/6d3c4fc9e0fc0178559a413e36c10cd900f5c28b2b2306612243099f249c7de2/Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "6d3c4fc9e0fc0178559a413e36c10cd900f5c28b2b2306612243099f249c7de2",
+                "size": 19829098
+              },
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/5e380df52af14fba275f9881c25436d78de5bed759e16033cfaaeef8290d762d/Microsoft.VC.14.34.17.4.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "5e380df52af14fba275f9881c25436d78de5bed759e16033cfaaeef8290d762d",
+                "size": 215882
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/7514306113c2b77395bcf8f9fb3995b0aae6655b88eb58c3b31ff07277111206/Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "7514306113c2b77395bcf8f9fb3995b0aae6655b88eb58c3b31ff07277111206",
+                "size": 18864984
+              },
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/aed273cb0db68f32fe4b0255798a06c65cb570c70d79bdd037d80ee37ae33e46/Microsoft.VC.14.34.17.4.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "aed273cb0db68f32fe4b0255798a06c65cb570c70d79bdd037d80ee37ae33e46",
+                "size": 216062
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/857d9d80d4f0eb1780ca74efb1dfdc08dffa6b630ec6b5aec06dfffb16958d57/Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "857d9d80d4f0eb1780ca74efb1dfdc08dffa6b630ec6b5aec06dfffb16958d57",
+                "size": 18857780
+              },
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/331a9245646413f1fd5c2cfb6101777a51def1b0674435973737f66638108db1/Microsoft.VC.14.34.17.4.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "331a9245646413f1fd5c2cfb6101777a51def1b0674435973737f66638108db1",
+                "size": 244199
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/aab436060ab74e26096964d1f170bcc37fb34fe2357dc5a24250dd7e74b76494/Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "aab436060ab74e26096964d1f170bcc37fb34fe2357dc5a24250dd7e74b76494",
+                "size": 18421610
+              },
+              {
+                "package": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7cb5aa78-965f-4d55-805f-316c7a25e443/12dced1867f565e7f22989705c9e9b3d87b77899b71f493753bba4ca1e077793/Microsoft.VC.14.34.17.4.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "12dced1867f565e7f22989705c9e9b3d87b77899b71f493753bba4ca1e077793",
+                "size": 241294
+              }
+            ]
+          }
         }
       },
       "14.35.32215": {
@@ -322,6 +640,76 @@
               "size": 60737082
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/e7eaebb1457b214c99686c7679767c65031ba86853b01eab99bf3e7a9765b3aa/Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "e7eaebb1457b214c99686c7679767c65031ba86853b01eab99bf3e7a9765b3aa",
+                "size": 19323261
+              },
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/b96f3d1432da33a840a25ab43a91fe1990ce6a6c0208380512c8c34b66ac3310/Microsoft.VC.14.35.17.5.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "b96f3d1432da33a840a25ab43a91fe1990ce6a6c0208380512c8c34b66ac3310",
+                "size": 216113
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/159f01711a1b368d3a08136af5eaf23c615a0dc5fe4ca8e678d3e33822b82bb7/Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "159f01711a1b368d3a08136af5eaf23c615a0dc5fe4ca8e678d3e33822b82bb7",
+                "size": 18624825
+              },
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/d95fce2749fb73a0d8ad29aaf9e9f5d88da96060d46122265d56f0a11a467518/Microsoft.VC.14.35.17.5.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "d95fce2749fb73a0d8ad29aaf9e9f5d88da96060d46122265d56f0a11a467518",
+                "size": 216183
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/3f4b71cdfef7a56d4a530942fd94873b9d32210df84a2473e4aa080e3ef57276/Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "3f4b71cdfef7a56d4a530942fd94873b9d32210df84a2473e4aa080e3ef57276",
+                "size": 18280104
+              },
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/702badddd23b1a95c3ed2c9772cd21b8a5d7b38b501740cc1e3b5487c6e6a554/Microsoft.VC.14.35.17.5.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "702badddd23b1a95c3ed2c9772cd21b8a5d7b38b501740cc1e3b5487c6e6a554",
+                "size": 241785
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/71604c60293795a4bf2e6dee01e46c13444b4f3fdb271b988ffc7d227172b888/Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "71604c60293795a4bf2e6dee01e46c13444b4f3fdb271b988ffc7d227172b888",
+                "size": 18064303
+              },
+              {
+                "package": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/90116cfe-2a21-46fe-bf66-459e56aefe3a/022ceb58aaa23cc06822fc83520f88648b36fce2044083f5f56462d9c9c9d7c0/Microsoft.VC.14.35.17.5.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "022ceb58aaa23cc06822fc83520f88648b36fce2044083f5f56462d9c9c9d7c0",
+                "size": 241788
+              }
+            ]
+          }
         }
       },
       "14.36.32532": {
@@ -367,6 +755,76 @@
               "size": 60545957
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/b41a92d20abaa83f25abc21f68c5508cf79958e4778c799787959cb52bd21017/Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "b41a92d20abaa83f25abc21f68c5508cf79958e4778c799787959cb52bd21017",
+                "size": 19838215
+              },
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/146e64997f4fe5e0c209044d0ea210b5aebbee141f0924c85bd7132f466352f8/Microsoft.VC.14.36.17.6.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "146e64997f4fe5e0c209044d0ea210b5aebbee141f0924c85bd7132f466352f8",
+                "size": 218569
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/c4fff0107284996a780c6f7e3ba621822abd80cee64491921cdf8b25010a488e/Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "c4fff0107284996a780c6f7e3ba621822abd80cee64491921cdf8b25010a488e",
+                "size": 19263771
+              },
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/1d0fc5a8092b0901ccbcd6e6a459b8accd538f545d8e57d80bfb806a8465716c/Microsoft.VC.14.36.17.6.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "1d0fc5a8092b0901ccbcd6e6a459b8accd538f545d8e57d80bfb806a8465716c",
+                "size": 218628
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/f73ff85b5514351049abc65dd9dc0b0e4949e5defbc6b828344b17c6162211e5/Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "f73ff85b5514351049abc65dd9dc0b0e4949e5defbc6b828344b17c6162211e5",
+                "size": 19091946
+              },
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/bbc41321de216c40893acb95ea777c798ab8cc7271907cf5a47f0405a3b13465/Microsoft.VC.14.36.17.6.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "bbc41321de216c40893acb95ea777c798ab8cc7271907cf5a47f0405a3b13465",
+                "size": 250493
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/1ad0a4bf84797496433e12132c16ab4e525c61d970a436167f71e3d184c6cd4b/Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "1ad0a4bf84797496433e12132c16ab4e525c61d970a436167f71e3d184c6cd4b",
+                "size": 18891368
+              },
+              {
+                "package": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/4412a7b5-bb37-4b87-9e51-4aa2d8e96aed/933057e1eb9be1d9a8655544163b079c9876e795152852f883e0a370f1c98aaa/Microsoft.VC.14.36.17.6.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "933057e1eb9be1d9a8655544163b079c9876e795152852f883e0a370f1c98aaa",
+                "size": 250475
+              }
+            ]
+          }
         }
       },
       "14.37.32822": {
@@ -412,6 +870,76 @@
               "size": 60642233
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/37722825bee31043bee81038c487fbcc08daa026129c59419ecf6deb8f2607fe/Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "37722825bee31043bee81038c487fbcc08daa026129c59419ecf6deb8f2607fe",
+                "size": 19884235
+              },
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/48ceca2648ce95b85c46fd755c2a9aa5b73c43e4cf186363e3f2cf32067a3bd5/Microsoft.VC.14.37.17.7.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "48ceca2648ce95b85c46fd755c2a9aa5b73c43e4cf186363e3f2cf32067a3bd5",
+                "size": 218291
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/5f08b5fe55de84130871c0b99d8c0dd36040d122236f0c70824d56cf72e8a4ae/Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "5f08b5fe55de84130871c0b99d8c0dd36040d122236f0c70824d56cf72e8a4ae",
+                "size": 19389080
+              },
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/ee931cdddc889b89899f0d8fe67d124cb202023aeb744437162018ea40a0f9e4/Microsoft.VC.14.37.17.7.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "ee931cdddc889b89899f0d8fe67d124cb202023aeb744437162018ea40a0f9e4",
+                "size": 218602
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/0204115258e31588b48109386ddffaa7c40a2761980b45ba69c14bb240edfca9/Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "0204115258e31588b48109386ddffaa7c40a2761980b45ba69c14bb240edfca9",
+                "size": 19089630
+              },
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/ed42d23393e82a7b8cc8314ba5dffb5c405d48d5819536531a0b81b341d58996/Microsoft.VC.14.37.17.7.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "ed42d23393e82a7b8cc8314ba5dffb5c405d48d5819536531a0b81b341d58996",
+                "size": 247809
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/faf70b8c89dccfc3e7411d338819e46a73f88437cbde2861759396d19d415edb/Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "faf70b8c89dccfc3e7411d338819e46a73f88437cbde2861759396d19d415edb",
+                "size": 18913976
+              },
+              {
+                "package": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/47b236ad-5505-4752-9d2b-5cf9795528bc/59f5297121c183e1c624b11bfa1efb3fb361d9f6bfc0b1c7a0bac5f2083f6239/Microsoft.VC.14.37.17.7.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "59f5297121c183e1c624b11bfa1efb3fb361d9f6bfc0b1c7a0bac5f2083f6239",
+                "size": 246252
+              }
+            ]
+          }
         }
       },
       "14.38.33130": {
@@ -457,6 +985,76 @@
               "size": 60879316
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/ea7aeb0e6248888458d162663d7794e1d52d1ec4b9225c68472578afd99983c0/Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "ea7aeb0e6248888458d162663d7794e1d52d1ec4b9225c68472578afd99983c0",
+                "size": 20221736
+              },
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/aad782d941d1af8de389cda8eaebc5278b2af194fba6f7fd8fa87037095d5e27/Microsoft.VC.14.38.17.8.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "aad782d941d1af8de389cda8eaebc5278b2af194fba6f7fd8fa87037095d5e27",
+                "size": 220606
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/550503c56f6d062b8a0683fb2bb04ad9cdf92b20963516469771fbf5f6f2f91b/Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "550503c56f6d062b8a0683fb2bb04ad9cdf92b20963516469771fbf5f6f2f91b",
+                "size": 19751906
+              },
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/0df477fc9f6466144beb0d09bf03fb9791f96fb5e62c4db267a092cf5732cb07/Microsoft.VC.14.38.17.8.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "0df477fc9f6466144beb0d09bf03fb9791f96fb5e62c4db267a092cf5732cb07",
+                "size": 220659
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/0e199a9cea27c5fc1566ba43dafbe5b6e325be4b7e250e18bbe05fa4f175b7e6/Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "0e199a9cea27c5fc1566ba43dafbe5b6e325be4b7e250e18bbe05fa4f175b7e6",
+                "size": 19635385
+              },
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/b2c3c260db3c98687f77dc052bff3ae6f39eb2e23b6d4be005604b69dc820b46/Microsoft.VC.14.38.17.8.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "b2c3c260db3c98687f77dc052bff3ae6f39eb2e23b6d4be005604b69dc820b46",
+                "size": 251126
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/f8210b1f6069334579ca49b490b332aef0ee2437d4653ec8e3680d4b5f56fd66/Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "f8210b1f6069334579ca49b490b332aef0ee2437d4653ec8e3680d4b5f56fd66",
+                "size": 19444877
+              },
+              {
+                "package": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/7320a60d-18e1-4e9b-9f8d-30ff7ee6cd6d/db25946905097064b61c6931a84e28a6ab6ff831ee945cc69518162955d16d1e/Microsoft.VC.14.38.17.8.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "db25946905097064b61c6931a84e28a6ab6ff831ee945cc69518162955d16d1e",
+                "size": 249499
+              }
+            ]
+          }
         }
       },
       "14.39.33519": {
@@ -502,6 +1100,76 @@
               "size": 60587509
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/e35eb4be1c72d8419f5a1fa7d59e11a5aecfc4b96e0e0e7e67b0aa59ad4b52b9/Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "e35eb4be1c72d8419f5a1fa7d59e11a5aecfc4b96e0e0e7e67b0aa59ad4b52b9",
+                "size": 20318709
+              },
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/1bc064b34d4fbe798e278dd461dd095cdf030d2b9d9cc2a1e8f0ef5dd610c65f/Microsoft.VC.14.39.17.9.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "1bc064b34d4fbe798e278dd461dd095cdf030d2b9d9cc2a1e8f0ef5dd610c65f",
+                "size": 220204
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/d33ae164baa1fa7a3448a1d960f24e3eaf6de2bc4581bf48ca49bc60900ab320/Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "d33ae164baa1fa7a3448a1d960f24e3eaf6de2bc4581bf48ca49bc60900ab320",
+                "size": 19836239
+              },
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/8c6a2adebab9f427b067a6ae6ab0e5d0468b480b269ce21c387bd652443bcedf/Microsoft.VC.14.39.17.9.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "8c6a2adebab9f427b067a6ae6ab0e5d0468b480b269ce21c387bd652443bcedf",
+                "size": 220562
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/90c57c4d08df2a099f013a787c512898424224fffde91a2f534f4d4923a26441/Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "90c57c4d08df2a099f013a787c512898424224fffde91a2f534f4d4923a26441",
+                "size": 19654496
+              },
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/07dd222a82faa592a06d07088cc52462f5ad921ac3fcc9b3e2f4806b29e18f9f/Microsoft.VC.14.39.17.9.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "07dd222a82faa592a06d07088cc52462f5ad921ac3fcc9b3e2f4806b29e18f9f",
+                "size": 253149
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/cd258a78fcd3012a52d3d79f7dbd77c2eabf5adf73f97975a81c9094e3f10415/Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "cd258a78fcd3012a52d3d79f7dbd77c2eabf5adf73f97975a81c9094e3f10415",
+                "size": 19541044
+              },
+              {
+                "package": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/76697fd9-5c84-4e10-9209-374cb27a9f53/2960c0a53deee30fe05320d495344721230452193a9d68a0c4dda95525b2803f/Microsoft.VC.14.39.17.9.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "2960c0a53deee30fe05320d495344721230452193a9d68a0c4dda95525b2803f",
+                "size": 253254
+              }
+            ]
+          }
         }
       },
       "14.40.33807": {
@@ -547,6 +1215,76 @@
               "size": 60766229
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/b329cd50a1a87db71fa3ffe4532bc43f10e05e775f8e277183b690ae9df3dc7b/Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "b329cd50a1a87db71fa3ffe4532bc43f10e05e775f8e277183b690ae9df3dc7b",
+                "size": 21180788
+              },
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/299b8d38e67162cdbbb06bf1459d0b064f62bc3046526aa4f7d932f4f9854f1b/Microsoft.VC.14.40.17.10.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "299b8d38e67162cdbbb06bf1459d0b064f62bc3046526aa4f7d932f4f9854f1b",
+                "size": 223835
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/f42908e9bf5855bda6d62d46c491d91907ee652ea775a618adb2ed050fdad63a/Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "f42908e9bf5855bda6d62d46c491d91907ee652ea775a618adb2ed050fdad63a",
+                "size": 20679289
+              },
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/ecfec3b8e7a3f95237f92550433fecd8b5ab9c750f74d84e96c8c76acb330929/Microsoft.VC.14.40.17.10.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "ecfec3b8e7a3f95237f92550433fecd8b5ab9c750f74d84e96c8c76acb330929",
+                "size": 223883
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/f3e64c9c0554e4130f89b12941838e97b55562c3b09e9136f7e9fbf7a194e537/Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "f3e64c9c0554e4130f89b12941838e97b55562c3b09e9136f7e9fbf7a194e537",
+                "size": 20662890
+              },
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/cc41edae2c98a572083f9cd6b03e826f33f236edb4af6d1467fbc79d0ec1b6ac/Microsoft.VC.14.40.17.10.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "cc41edae2c98a572083f9cd6b03e826f33f236edb4af6d1467fbc79d0ec1b6ac",
+                "size": 257353
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/9b550db7bcf4c3d2101a7d85c19e99f060d8a8191809a1c9b5ef140dddde20bb/Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "9b550db7bcf4c3d2101a7d85c19e99f060d8a8191809a1c9b5ef140dddde20bb",
+                "size": 20499468
+              },
+              {
+                "package": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/0c400c06fe393d26f89297e312aded521ce994fdff41a77f4cd4e894561d088c/Microsoft.VC.14.40.17.10.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "0c400c06fe393d26f89297e312aded521ce994fdff41a77f4cd4e894561d088c",
+                "size": 257475
+              }
+            ]
+          }
         }
       },
       "14.41.34120": {
@@ -592,6 +1330,76 @@
               "size": 60858490
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/b7da47e1b09f8d8c3bf146032c7915f8e96df952887cc5d63300c223567afd1c/Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "b7da47e1b09f8d8c3bf146032c7915f8e96df952887cc5d63300c223567afd1c",
+                "size": 21323305
+              },
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/6d2defcbc83e6e897c21b91eb03d0f454002111938f046086855695e3369b67f/Microsoft.VC.14.41.17.11.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "6d2defcbc83e6e897c21b91eb03d0f454002111938f046086855695e3369b67f",
+                "size": 223890
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/8cb8b18e4ed3d542fdda5a6099519f70c9e1b0369d16ce0df98dab42474c3459/Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "8cb8b18e4ed3d542fdda5a6099519f70c9e1b0369d16ce0df98dab42474c3459",
+                "size": 20858062
+              },
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/b73aa44c3d9ded80173abe9a335f982a133b692c8b3d506fcdae42c63c19df60/Microsoft.VC.14.41.17.11.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "b73aa44c3d9ded80173abe9a335f982a133b692c8b3d506fcdae42c63c19df60",
+                "size": 223935
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/7f1fa429968ba04f36aa2cbb836b03b003eaeb8ddc8854660ff098c27bd46c1b/Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "7f1fa429968ba04f36aa2cbb836b03b003eaeb8ddc8854660ff098c27bd46c1b",
+                "size": 20880479
+              },
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/58e6be1680be4165fea9dcf62eacd2e2b0ba711f9e61ed8271b81d4a0c872865/Microsoft.VC.14.41.17.11.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "58e6be1680be4165fea9dcf62eacd2e2b0ba711f9e61ed8271b81d4a0c872865",
+                "size": 256552
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/2e5d65b1601dd8247dbf5d53228877b6dc5c424de162a85fb3cb8ea4a1704492/Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "2e5d65b1601dd8247dbf5d53228877b6dc5c424de162a85fb3cb8ea4a1704492",
+                "size": 20760698
+              },
+              {
+                "package": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/841e1e20-4cb3-4518-9934-6ad4930cdcf5/d37186ee554926509c9be871039c7fe509371edb599c74869cee724a8f3d204d/Microsoft.VC.14.41.17.11.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "d37186ee554926509c9be871039c7fe509371edb599c74869cee724a8f3d204d",
+                "size": 256559
+              }
+            ]
+          }
         }
       },
       "14.42.34433": {
@@ -637,6 +1445,76 @@
               "size": 61126402
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/ab31489e6974a173d2a120460f450bb1ec2ca10280e0510bf7d8f8e408885b97/Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "ab31489e6974a173d2a120460f450bb1ec2ca10280e0510bf7d8f8e408885b97",
+                "size": 21719107
+              },
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/530d3f9c5e0f0541c13b0c06c4e9b6546332102b575bc6f0d570bd79fc8fea42/Microsoft.VC.14.42.17.12.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "530d3f9c5e0f0541c13b0c06c4e9b6546332102b575bc6f0d570bd79fc8fea42",
+                "size": 224069
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/6b9fba7ada547c1295ca6fb7365d5a0c8719eeff80247719c45802453de13a26/Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "6b9fba7ada547c1295ca6fb7365d5a0c8719eeff80247719c45802453de13a26",
+                "size": 21271248
+              },
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/f601a163a24c1bdeba32079f765d65e2673bb37a4429ac5e7f34fd022b1c3e77/Microsoft.VC.14.42.17.12.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "f601a163a24c1bdeba32079f765d65e2673bb37a4429ac5e7f34fd022b1c3e77",
+                "size": 224091
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/53b92e6031c68071fd6eb605970562fe32e54778010a2a5f16cf9b21aea90ba0/Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "53b92e6031c68071fd6eb605970562fe32e54778010a2a5f16cf9b21aea90ba0",
+                "size": 21941166
+              },
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/f7a1523902d9b8e310a28df54e8dbeadcbf48db274b3af93e7ec58c4357f6257/Microsoft.VC.14.42.17.12.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "f7a1523902d9b8e310a28df54e8dbeadcbf48db274b3af93e7ec58c4357f6257",
+                "size": 257772
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/e52db7de84b1bd713049197fa92537769d227ada46e14dc1dcf26aac10e0ea49/Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "e52db7de84b1bd713049197fa92537769d227ada46e14dc1dcf26aac10e0ea49",
+                "size": 21993383
+              },
+              {
+                "package": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6981b64e-b0fe-475e-960d-8b3b527821e0/1543258dabf4990e519fd0387fd4712a10cec4f3b1ea6f09e0e740ed986099ca/Microsoft.VC.14.42.17.12.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "1543258dabf4990e519fd0387fd4712a10cec4f3b1ea6f09e0e740ed986099ca",
+                "size": 257731
+              }
+            ]
+          }
         }
       },
       "14.43.34808": {
@@ -682,6 +1560,76 @@
               "size": 61823330
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/b632d51d8c86532f7459759ce09a383209a8eea573c198255a7106415106e5cc/Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "b632d51d8c86532f7459759ce09a383209a8eea573c198255a7106415106e5cc",
+                "size": 21909583
+              },
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/5a3e571e5cdb856e004560d466da41d830b681308d754bf09d80cb1b419c1897/Microsoft.VC.14.43.17.13.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "5a3e571e5cdb856e004560d466da41d830b681308d754bf09d80cb1b419c1897",
+                "size": 224526
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/bfa0908c0bd79e0228eec7e297ad9054655cd6b04c9b2349bc041849b32d6532/Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "bfa0908c0bd79e0228eec7e297ad9054655cd6b04c9b2349bc041849b32d6532",
+                "size": 21437499
+              },
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/d70116fc485865a009c5c70bb547c898c89b124b0ae5f69013563aeb2265b7b0/Microsoft.VC.14.43.17.13.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "d70116fc485865a009c5c70bb547c898c89b124b0ae5f69013563aeb2265b7b0",
+                "size": 224563
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/81e8a58ee4af48ef65148863574b7d22a36f0bfb282bc8cf15ef605c23cf1cb3/Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "81e8a58ee4af48ef65148863574b7d22a36f0bfb282bc8cf15ef605c23cf1cb3",
+                "size": 22192116
+              },
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/5ddd77a8862b41bdea980f9b07c6a4d037d9e43f05dcfea514805b91d5ccfada/Microsoft.VC.14.43.17.13.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "5ddd77a8862b41bdea980f9b07c6a4d037d9e43f05dcfea514805b91d5ccfada",
+                "size": 256678
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/ee148375348360c0ed5555e4560127c3fbd4e76ad36efc7cf74ba7a30ae56ac7/Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "ee148375348360c0ed5555e4560127c3fbd4e76ad36efc7cf74ba7a30ae56ac7",
+                "size": 22236312
+              },
+              {
+                "package": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/6bc1a084-a9f2-40bc-b544-ba6edf825c1a/dae354945f5057bf3831fe72ad166f0f97fc9cba6c25f72dc33d7715fda27162/Microsoft.VC.14.43.17.13.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "dae354945f5057bf3831fe72ad166f0f97fc9cba6c25f72dc33d7715fda27162",
+                "size": 258346
+              }
+            ]
+          }
         }
       },
       "14.44.35207": {
@@ -727,6 +1675,76 @@
               "size": 61763448
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/101737476c74086532caac9ef969dc2db11130011935c4df9de21132a9127216/Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "101737476c74086532caac9ef969dc2db11130011935c4df9de21132a9127216",
+                "size": 26654208
+              },
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/b794dd213be14c1a02cf00fe0178befeaaeff75cb3321bf2858f767683f6dbcf/Microsoft.VC.14.44.17.14.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "b794dd213be14c1a02cf00fe0178befeaaeff75cb3321bf2858f767683f6dbcf",
+                "size": 225915
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/7504f7447ea6193e6ded8dfe5b6f2b928823de0236a4937e504c6e81adc7e9bd/Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "7504f7447ea6193e6ded8dfe5b6f2b928823de0236a4937e504c6e81adc7e9bd",
+                "size": 21487472
+              },
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/5372b959e79f9479adaecdef6e32df6bf60da612cd32acdcb865b2306231787b/Microsoft.VC.14.44.17.14.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "5372b959e79f9479adaecdef6e32df6bf60da612cd32acdcb865b2306231787b",
+                "size": 225973
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/55196fdbb8c31f30d7c3d4c25e8dc0014f5c80675cf364419048813df44ab024/Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "55196fdbb8c31f30d7c3d4c25e8dc0014f5c80675cf364419048813df44ab024",
+                "size": 27329912
+              },
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/2576cc40c6e08b224592aae08471cfdf8500f0a57682d48f8e9f0b2f1c69090c/Microsoft.VC.14.44.17.14.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "2576cc40c6e08b224592aae08471cfdf8500f0a57682d48f8e9f0b2f1c69090c",
+                "size": 268407
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/ca74ba7f0e7cc2327a1fa6b46f2800002496f192b6e7ddfa83cedc6e9621faa9/Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "ca74ba7f0e7cc2327a1fa6b46f2800002496f192b6e7ddfa83cedc6e9621faa9",
+                "size": 22573662
+              },
+              {
+                "package": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/c71920fd-68f5-49e1-b9b4-0970b025e793/f75b07730e8c5391838502b044d01f135dc808bcdc2cb5d7658d6768a29c2955/Microsoft.VC.14.44.17.14.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "f75b07730e8c5391838502b044d01f135dc808bcdc2cb5d7658d6768a29c2955",
+                "size": 268505
+              }
+            ]
+          }
         }
       },
       "14.50.35717": {
@@ -772,6 +1790,76 @@
               "size": 61402031
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/03f56d24dd23314467144060c8ee70ca0fdd79a901b60e7d2f92f9cbe8d042cf/Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "03f56d24dd23314467144060c8ee70ca0fdd79a901b60e7d2f92f9cbe8d042cf",
+                "size": 28520084
+              },
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/40bc5dd011e16ee46698a8e36e71f4c85ee34dbe938368b295ed27690c569860/Microsoft.VC.14.50.18.0.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "40bc5dd011e16ee46698a8e36e71f4c85ee34dbe938368b295ed27690c569860",
+                "size": 232952
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/5429f355167b4053020590185d96c4f1c8fd85ed7469df63a4d5e5d53894c942/Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "5429f355167b4053020590185d96c4f1c8fd85ed7469df63a4d5e5d53894c942",
+                "size": 23231307
+              },
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/6e75682f06ae38b2cbc179914c7147d1587adb164eaa07d78a225e0a3c73bfaf/Microsoft.VC.14.50.18.0.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "6e75682f06ae38b2cbc179914c7147d1587adb164eaa07d78a225e0a3c73bfaf",
+                "size": 232975
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/c4c749f119040da1d27a32e19aead97f53c0ceaf48ee8e086be11c5126bf64f7/Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "c4c749f119040da1d27a32e19aead97f53c0ceaf48ee8e086be11c5126bf64f7",
+                "size": 29659195
+              },
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/6a6de8090754b70451716c1ddf0568c7391e16d9bf6b4121b60ba919a843d056/Microsoft.VC.14.50.18.0.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "6a6de8090754b70451716c1ddf0568c7391e16d9bf6b4121b60ba919a843d056",
+                "size": 272034
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/3e2e3525c6d02c05f55266bbcc24a0866a282a88eb05d9c3bee93f5c215b2890/Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "3e2e3525c6d02c05f55266bbcc24a0866a282a88eb05d9c3bee93f5c215b2890",
+                "size": 24833798
+              },
+              {
+                "package": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/1ba1a05a-b180-4eff-ab21-8828f249aba7/e4073050944e91e93198772cd982d25d549ddb39f9871e2996d294ea1477b802/Microsoft.VC.14.50.18.0.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "e4073050944e91e93198772cd982d25d549ddb39f9871e2996d294ea1477b802",
+                "size": 271993
+              }
+            ]
+          }
         }
       },
       "14.51.36014": {
@@ -817,6 +1905,76 @@
               "size": 62624329
             }
           ]
+        },
+        "tools": {
+          "x86_64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostX64.TargetX64.base",
+                "file": "Microsoft.VC.14.51.Tools.HostX64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/fd4049e4f8e9247f0abbad12d445890c1e9e7b81cf7a82db30efc5ef78a5bfea/Microsoft.VC.14.51.Tools.HostX64.TargetX64.base.vsix",
+                "sha256": "fd4049e4f8e9247f0abbad12d445890c1e9e7b81cf7a82db30efc5ef78a5bfea",
+                "size": 28080171
+              },
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostX64.TargetX64.Res.base",
+                "file": "Microsoft.VC.14.51.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/d9a4ec24b351e80aa414197180f0b2a50eb596b79d05a903493d541d01b7fe51/Microsoft.VC.14.51.Tools.HostX64.TargetX64.Res.base.enu.vsix",
+                "sha256": "d9a4ec24b351e80aa414197180f0b2a50eb596b79d05a903493d541d01b7fe51",
+                "size": 233492
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostX64.TargetARM64.base",
+                "file": "Microsoft.VC.14.51.Tools.HostX64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/272d3c3e3999d774008f90c1d89eca5f1a69dafea1e84c25aecb2cd6e4984592/Microsoft.VC.14.51.Tools.HostX64.TargetARM64.base.vsix",
+                "sha256": "272d3c3e3999d774008f90c1d89eca5f1a69dafea1e84c25aecb2cd6e4984592",
+                "size": 22843860
+              },
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostX64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.51.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/61d74a34c8cc542197ca734e1e287ff5333f3736d720cebb0f2036ec73d38be7/Microsoft.VC.14.51.Tools.HostX64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "61d74a34c8cc542197ca734e1e287ff5333f3736d720cebb0f2036ec73d38be7",
+                "size": 233539
+              }
+            ]
+          },
+          "aarch64": {
+            "x86_64": [
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostARM64.TargetX64.base",
+                "file": "Microsoft.VC.14.51.Tools.HostARM64.TargetX64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/76cb51caf75ad98c9e566ca73d1ff2c445dd7a860ee782b82297275453571715/Microsoft.VC.14.51.Tools.HostARM64.TargetX64.base.vsix",
+                "sha256": "76cb51caf75ad98c9e566ca73d1ff2c445dd7a860ee782b82297275453571715",
+                "size": 29158248
+              },
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostARM64.Targetx64.Res.base",
+                "file": "Microsoft.VC.14.51.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/21ceccd6412b61fa89d166f968a9890ccf0cdb640fc361092e6927e561f9c42f/Microsoft.VC.14.51.Tools.HostARM64.Targetx64.Res.base.enu.vsix",
+                "sha256": "21ceccd6412b61fa89d166f968a9890ccf0cdb640fc361092e6927e561f9c42f",
+                "size": 275691
+              }
+            ],
+            "aarch64": [
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.base",
+                "file": "Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.base.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/2eb9bfe6b5dd7e9c053637a4f15f75c3d1ca89565478432bba8da10d4f2beece/Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.base.vsix",
+                "sha256": "2eb9bfe6b5dd7e9c053637a4f15f75c3d1ca89565478432bba8da10d4f2beece",
+                "size": 24217632
+              },
+              {
+                "package": "Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.Res.base",
+                "file": "Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "url": "https://download.visualstudio.microsoft.com/download/pr/35399cd7-f13c-4f49-af59-4d821e260717/c45c897df4455b789950d4e2d252d076330296d1dfc30c62a3c8fdc74e838731/Microsoft.VC.14.51.Tools.HostARM64.TargetARM64.Res.base.enu.vsix",
+                "sha256": "c45c897df4455b789950d4e2d252d076330296d1dfc30c62a3c8fdc74e838731",
+                "size": 275793
+              }
+            ]
+          }
         }
       }
     }

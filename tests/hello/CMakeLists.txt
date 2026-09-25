@@ -23,7 +23,10 @@ if(HERMETIC_TESTS_DEBUG_INFO)
   if(COMMAND hermetic_debugger_source_map)
     hermetic_debugger_source_map(/src "${CMAKE_SOURCE_DIR}")
   endif()
-  if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # cl.exe (toolset 14.40 and newer): /pathmap is its prefix map.
+    add_compile_options(/Z7 "/pathmap:${CMAKE_SOURCE_DIR}=/src")
+  elseif(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_compile_options(/Z7 "/clang:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=/src")
     # A PDB per binary.
     add_link_options(/DEBUG)

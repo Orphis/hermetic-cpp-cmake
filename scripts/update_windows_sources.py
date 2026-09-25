@@ -48,11 +48,15 @@ def version_key(v):
 
 def msvc_toolsets(manifest):
     by_id = {}
+    # Language resource packages share one id across languages; keep English.
+    english = {}
     for p in manifest["packages"]:
         by_id.setdefault(p["id"].lower(), p)
+        if p.get("language") == "en-US":
+            english.setdefault(p["id"].lower(), p)
 
-    def payload(package_id):
-        p = by_id[package_id]
+    def payload(package_id, table=None):
+        p = (table or by_id)[package_id]
         pl = p["payloads"][0]
         return {"package": p["id"], "file": pl["fileName"], "url": pl["url"], "sha256": pl["sha256"].lower(), "size": pl["size"]}
 
@@ -83,11 +87,22 @@ def msvc_toolsets(manifest):
                 libs[arch] = [payload(desktop), payload(store)]
         if not libs:
             continue
+        # The compilers (cl, c1, c2, link, lib and their DLLs) per host and
+        # target architecture, with the English message resources cl.exe
+        # needs next to it: for HERMETIC_COMPILER=msvc.
+        tools = {}
+        for host_ms_arch, host_arch in ARCHES.items():
+            for ms_arch, arch in ARCHES.items():
+                base = f"{family}tools.host{host_ms_arch}.target{ms_arch}.base"
+                res = f"{family}tools.host{host_ms_arch}.target{ms_arch}.res.base"
+                if base in by_id and res in english:
+                    tools.setdefault(host_arch, {})[arch] = [payload(base), payload(res, english)]
         toolsets[toolset] = {
             "package_version": version,
             "compatibility_version": "19." + ".".join(toolset.split(".")[1:]),
             "headers": payload(pid),
             "libs": libs,
+            "tools": tools,
         }
     return toolsets
 
