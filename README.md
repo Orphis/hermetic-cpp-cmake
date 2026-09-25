@@ -203,8 +203,10 @@ are atomic and lock-protected, and reconfigures only check stamp files.
 - CMake 3.19 or newer, and Ninja to build runtime sets.
 - A Linux, macOS or Windows host, x86_64 or arm64; see the host notes above
   for what each one needs.
-- Disk: about 3 GB for the extracted LLVM sources plus 100 to 300 MB per
-  runtime set built locally.
+- Disk: about 210 MB for the LLVM sources the runtime sets are built from
+  (only the runtimes, LLVM libc, `third-party/` and their CMake modules are
+  extracted from the archive) plus 100 to 300 MB per runtime set built
+  locally.
 
 ## Options
 

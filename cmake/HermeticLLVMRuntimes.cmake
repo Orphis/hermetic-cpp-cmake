@@ -99,6 +99,14 @@ endfunction()
 
 # ---- Fetching inputs ------------------------------------------------------------
 
+# The directories of the LLVM source tree that the runtime set builds read:
+# LLVM's runtimes/ build, its CMake modules, the runtimes themselves, LLVM
+# libc, whose shared headers libc++ includes (charconv), and third-party/
+# (SipHash, for the aarch64 builtins). About 15% of the archive's files,
+# which matters most on Windows hosts, where extracting the whole tree took
+# minutes.
+set(HERMETIC_LLVM_SOURCE_DIRS runtimes cmake llvm/cmake compiler-rt libcxx libcxxabi libunwind libc third-party)
+
 function(hermetic_llvm_fetch_llvm_source VERSION OUT_DIR)
   hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/llvm_sources.json" json)
   string(JSON entry ERROR_VARIABLE err GET "${json}" "${VERSION}")
@@ -107,7 +115,30 @@ function(hermetic_llvm_fetch_llvm_source VERSION OUT_DIR)
   endif()
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
-  hermetic_fetch_archive(NAME "llvm-project-${VERSION}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
+  # Patterns start with the archive's top-level directory, named after the
+  # archive (llvm-project-<version>.src); a wildcard would also match the
+  # same names deeper in the tree.
+  get_filename_component(top "${url}" NAME)
+  string(REGEX REPLACE "\\.tar\\.[a-z0-9]+$" "" top "${top}")
+  set(patterns "")
+  foreach(sub IN LISTS HERMETIC_LLVM_SOURCE_DIRS)
+    list(APPEND patterns "${top}/${sub}")
+  endforeach()
+  # A tree extracted with fewer directories (the list grew) is extracted
+  # again; a whole tree from an older toolchain has them all and is kept.
+  set(dest "${HERMETIC_CACHE_DIR}/src/llvm-project-${VERSION}")
+  foreach(sub IN LISTS HERMETIC_LLVM_SOURCE_DIRS)
+    if(EXISTS "${dest}/.hermetic-cpp.stamp" AND NOT IS_DIRECTORY "${dest}/${sub}")
+      file(REMOVE "${dest}/.hermetic-cpp.stamp")
+    endif()
+  endforeach()
+  hermetic_fetch_archive(NAME "llvm-project-${VERSION}" KIND src SHA256 "${sha}" URLS "${url}"
+    STRIP_COMPONENTS 1 PATTERNS ${patterns} OUT_DIR dir)
+  foreach(sub IN LISTS HERMETIC_LLVM_SOURCE_DIRS)
+    if(NOT IS_DIRECTORY "${dir}/${sub}")
+      hermetic_fatal("${sub} is missing from the LLVM source archive ${url} (expected under ${top}/)")
+    endif()
+  endforeach()
   hermetic_llvm_patch_llvm_source("${dir}")
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
 endfunction()
