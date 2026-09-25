@@ -559,6 +559,18 @@
     {
       "name": "windows-x86_64-vs2022",
       "configurePreset": "windows-x86_64-vs2022"
+    },
+    {
+      "name": "windows-x86_64-msvc",
+      "configurePreset": "windows-x86_64-msvc"
+    },
+    {
+      "name": "windows-x86_64-msvc-dbg",
+      "configurePreset": "windows-x86_64-msvc-dbg"
+    },
+    {
+      "name": "windows-aarch64-msvc",
+      "configurePreset": "windows-aarch64-msvc"
     }
   ],
   "testPresets": [
