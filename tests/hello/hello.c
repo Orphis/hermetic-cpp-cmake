@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#if defined(HELLO_MALLOC) && defined(_WIN32) && defined(_DLL)
-/* HERMETIC_MALLOC on the DLL runtime: mimalloc.dll, which ucrtbase.dll's
- * allocation functions were redirected to. */
+#if defined(HELLO_MALLOC) && defined(_WIN32) && (defined(_DLL) || defined(__MINGW32__))
+/* HERMETIC_MALLOC on ucrtbase.dll (the DLL runtime, MinGW-w64): mimalloc.dll,
+ * which ucrtbase.dll's allocation functions were redirected to. */
 __declspec(dllimport) _Bool mi_is_in_heap_region(const void* ptr);
 #define OWNED(p) mi_is_in_heap_region(p)
 #elif defined(HELLO_MALLOC)

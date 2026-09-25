@@ -65,6 +65,10 @@ function(_hermetic_malloc_mimalloc_settings TARGET DIR MAP)
       target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>)
     endif()
     target_link_libraries(${TARGET} PRIVATE psapi shell32 user32 advapi32 bcrypt)
+  elseif(WIN32)
+    # MinGW-w64.
+    target_compile_options(${TARGET} PRIVATE -w)
+    target_link_libraries(${TARGET} PRIVATE psapi shell32 user32 advapi32 bcrypt)
   else()
     target_compile_options(${TARGET} PRIVATE -w -fvisibility=hidden)
     if(NOT APPLE)
@@ -77,25 +81,33 @@ function(_hermetic_malloc_mimalloc_settings TARGET DIR MAP)
   endif()
 endfunction()
 
-# mimalloc as the hermetic_malloc static library, and for Windows targets on
-# the MSVC ABI also as mimalloc.dll (hermetic_malloc_dll) with its redirection
-# DLL, for executables on the DLL C runtime. Sets ${OUT_REDIRECT} to the
-# redirection DLL, or to nothing.
-function(_hermetic_malloc_add_mimalloc DIR MAP OUT_REDIRECT)
+# mimalloc as the hermetic_malloc static library (STATIC), for the shims that
+# define the allocation functions, and as mimalloc.dll (hermetic_malloc_dll,
+# DLL) with its redirection DLL, for Windows executables on ucrtbase.dll: the
+# DLL runtime of the MSVC ABI (/MD), and MinGW-w64. The redirection DLL, a
+# prebuilt that ships with mimalloc's sources, patches ucrtbase.dll's
+# allocation functions when mimalloc.dll loads, so that every module of the
+# process allocates with mimalloc; it finds mimalloc.dll by that name. Sets
+# ${OUT_REDIRECT} to the redirection DLL, or to nothing.
+function(_hermetic_malloc_add_mimalloc DIR MAP STATIC DLL OUT_REDIRECT)
   set(src "${HERMETIC_MALLOC_SOURCE_DIR}")
+  set(msvc_like FALSE)
+  if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" OR MSVC)
+    set(msvc_like TRUE)
+  endif()
   file(CONFIGURE OUTPUT "${DIR}/mimalloc.c"
     CONTENT "/* mimalloc @HERMETIC_MALLOC_VERSION@ (src/ is an include directory) */\n#include \"static.c\"\n" @ONLY)
-  configure_file("${HERMETIC_DIR}/malloc/backend_mimalloc.c" "${DIR}/backend_mimalloc.c" COPYONLY)
-  add_library(hermetic_malloc STATIC "${DIR}/mimalloc.c" "${DIR}/backend_mimalloc.c")
-  _hermetic_malloc_mimalloc_settings(hermetic_malloc "${DIR}" "${MAP}")
+  if(STATIC)
+    configure_file("${HERMETIC_DIR}/malloc/backend_mimalloc.c" "${DIR}/backend_mimalloc.c" COPYONLY)
+    add_library(hermetic_malloc STATIC "${DIR}/mimalloc.c" "${DIR}/backend_mimalloc.c")
+    _hermetic_malloc_mimalloc_settings(hermetic_malloc "${DIR}" "${MAP}")
+    if(msvc_like)
+      # The shim replaces the static runtime's allocator (see shim_windows.c).
+      set_target_properties(hermetic_malloc PROPERTIES MSVC_RUNTIME_LIBRARY MultiThreaded)
+    endif()
+  endif()
   set(redirect "")
-  if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" OR MSVC)
-    # The shim replaces the static runtime's allocator (see shim_windows.c).
-    set_target_properties(hermetic_malloc PROPERTIES MSVC_RUNTIME_LIBRARY MultiThreaded)
-    # The DLL runtime is ucrtbase.dll's, which mimalloc-redirect.dll (a
-    # prebuilt that ships with mimalloc's sources) patches when mimalloc.dll
-    # loads, so that every module of the process allocates with mimalloc.
-    # It finds mimalloc.dll by that name.
+  if(DLL)
     set(suffix "")
     if(HERMETIC_TARGET MATCHES "aarch64")
       set(suffix "-arm64")
@@ -109,8 +121,14 @@ function(_hermetic_malloc_add_mimalloc DIR MAP OUT_REDIRECT)
     _hermetic_malloc_mimalloc_settings(hermetic_malloc_dll "${DIR}" "${MAP}")
     target_compile_definitions(hermetic_malloc_dll PRIVATE MI_SHARED_LIB MI_SHARED_LIB_EXPORT MI_MALLOC_OVERRIDE)
     target_link_libraries(hermetic_malloc_dll PRIVATE "${redirect}.lib")
-    set_target_properties(hermetic_malloc_dll PROPERTIES OUTPUT_NAME mimalloc
-      ARCHIVE_OUTPUT_NAME mimalloc.dll PDB_NAME mimalloc.dll MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+    set_target_properties(hermetic_malloc_dll PROPERTIES OUTPUT_NAME mimalloc)
+    if(msvc_like)
+      set_target_properties(hermetic_malloc_dll PROPERTIES
+        ARCHIVE_OUTPUT_NAME mimalloc.dll PDB_NAME mimalloc.dll MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+    else()
+      # mimalloc.dll rather than MinGW's libmimalloc.dll.
+      set_target_properties(hermetic_malloc_dll PROPERTIES PREFIX "")
+    endif()
     set(redirect "${redirect}.dll")
   endif()
   set(${OUT_REDIRECT} "${redirect}" PARENT_SCOPE)
@@ -138,23 +156,89 @@ function(_hermetic_malloc_attach)
     endif()
     hermetic_debugger_source_map("/hermetic-cpp/malloc" "${dir}")
   endif()
-  set(redirect "")
+  set(builtin FALSE)
   if(HERMETIC_MALLOC_SOURCE_DIR)
-    _hermetic_malloc_add_mimalloc("${dir}" "${map}" redirect)
-    set(backends hermetic_malloc)
-    if(redirect)
+    set(builtin TRUE)
+  elseif(NOT TARGET "${HERMETIC_MALLOC_BACKEND}")
+    message(FATAL_ERROR "[hermetic-cpp] HERMETIC_MALLOC=${HERMETIC_MALLOC_BACKEND} is neither a built-in allocator (${HERMETIC_MALLOC_BUILTIN_BACKENDS}) nor a target of this project implementing malloc/hermetic_malloc.h")
+  endif()
+  set(mingw FALSE)
+  set(msvc_abi FALSE)
+  if(WIN32 AND HERMETIC_EFFECTIVE_WINDOWS_ABI STREQUAL "gnu")
+    set(mingw TRUE)
+  elseif(WIN32)
+    set(msvc_abi TRUE)
+  endif()
+
+  # The executables, and what their C runtime needs: the static library for
+  # the shims that define the allocation functions, mimalloc.dll for those
+  # on ucrtbase.dll. With the MSVC ABI that depends on each executable's
+  # runtime flavour (CMake's default is the DLL one), which may depend on
+  # the configuration: a DLL flavour anywhere asks for mimalloc.dll, and a
+  # flavour that does not always end in DLL for the static library.
+  get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  _hermetic_malloc_executables("${CMAKE_SOURCE_DIR}" candidates)
+  set(executables "")
+  set(copies "")
+  set(need_static FALSE)
+  set(need_dll FALSE)
+  foreach(exe IN LISTS candidates)
+    get_target_property(wanted "${exe}" HERMETIC_MALLOC)
+    if(NOT wanted STREQUAL "wanted-NOTFOUND" AND NOT wanted)
+      continue()
+    endif()
+    list(APPEND executables "${exe}")
+    get_target_property(out "${exe}" RUNTIME_OUTPUT_DIRECTORY)
+    if(NOT out)
+      get_target_property(out "${exe}" BINARY_DIR)
+      if(multi_config)
+        string(APPEND out "/$<CONFIG>")
+      endif()
+    endif()
+    if(mingw)
+      set(need_dll TRUE)
+      list(APPEND copies "${out}")
+    elseif(msvc_abi)
+      get_target_property(runtime "${exe}" MSVC_RUNTIME_LIBRARY)
+      if(NOT runtime)
+        set(runtime "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+      endif()
+      if(runtime MATCHES "DLL")
+        set(need_dll TRUE)
+        # Executables on the DLL runtime find mimalloc.dll and the
+        # redirection DLL next to them.
+        list(APPEND copies "$<$<NOT:$<OR:$<STREQUAL:${runtime},MultiThreaded>,$<STREQUAL:${runtime},MultiThreadedDebug>>>:${out}>")
+      endif()
+      if(NOT runtime MATCHES "DLL$")
+        set(need_static TRUE)
+      endif()
+    else()
+      set(need_static TRUE)
+    endif()
+  endforeach()
+
+  set(backends "")
+  set(redirect "")
+  if(builtin)
+    if(NOT WIN32)
+      set(need_dll FALSE)
+    endif()
+    _hermetic_malloc_add_mimalloc("${dir}" "${map}" ${need_static} ${need_dll} redirect)
+    if(need_static)
+      list(APPEND backends hermetic_malloc)
+    endif()
+    if(need_dll)
       # After the static library, whose members must resolve among
       # themselves; before everything else, for mimalloc.dll to come first
       # in the import table (the shim names __imp_mi_version).
       list(APPEND backends hermetic_malloc_dll)
     endif()
-  elseif(TARGET "${HERMETIC_MALLOC_BACKEND}")
-    set(backends "${HERMETIC_MALLOC_BACKEND}")
   else()
-    message(FATAL_ERROR "[hermetic-cpp] HERMETIC_MALLOC=${HERMETIC_MALLOC_BACKEND} is neither a built-in allocator (${HERMETIC_MALLOC_BUILTIN_BACKENDS}) nor a target of this project implementing malloc/hermetic_malloc.h")
+    set(backends "${HERMETIC_MALLOC_BACKEND}")
   endif()
+  # The shims import mimalloc.dll on ucrtbase.dll; other backends refuse it.
   set(windows_redirect 0)
-  if(redirect)
+  if(builtin AND WIN32)
     set(windows_redirect 1)
   endif()
   get_filename_component(shim_name "${HERMETIC_MALLOC_SHIM}" NAME)
@@ -163,15 +247,7 @@ function(_hermetic_malloc_attach)
   file(CONFIGURE OUTPUT "${dir}/hermetic_malloc_config.h"
     CONTENT "/* Written by the hermetic-cpp toolchain. */\n#define HERMETIC_MALLOC_WINDOWS_REDIRECT ${windows_redirect}\n")
 
-  get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-  _hermetic_malloc_executables("${CMAKE_SOURCE_DIR}" executables)
-  set(count 0)
-  set(copies "")
   foreach(exe IN LISTS executables)
-    get_target_property(wanted "${exe}" HERMETIC_MALLOC)
-    if(NOT wanted STREQUAL "wanted-NOTFOUND" AND NOT wanted)
-      continue()
-    endif()
     # Set directly rather than with target_sources/target_link_libraries,
     # which some policy settings restrict to targets of the calling directory.
     set_property(TARGET "${exe}" APPEND PROPERTY SOURCES "${dir}/${shim_name}")
@@ -184,24 +260,6 @@ function(_hermetic_malloc_attach)
       set(libraries "")
     endif()
     set_property(TARGET "${exe}" PROPERTY LINK_LIBRARIES ${backends} ${libraries})
-    if(redirect)
-      # Executables on the DLL runtime (CMake's default) find mimalloc.dll and
-      # the redirection DLL next to them. The runtime flavour may depend on
-      # the configuration, hence a generator expression.
-      get_target_property(runtime "${exe}" MSVC_RUNTIME_LIBRARY)
-      if(NOT runtime)
-        set(runtime "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-      endif()
-      get_target_property(out "${exe}" RUNTIME_OUTPUT_DIRECTORY)
-      if(NOT out)
-        get_target_property(out "${exe}" BINARY_DIR)
-        if(multi_config)
-          string(APPEND out "/$<CONFIG>")
-        endif()
-      endif()
-      list(APPEND copies "$<$<NOT:$<OR:$<STREQUAL:${runtime},MultiThreaded>,$<STREQUAL:${runtime},MultiThreadedDebug>>>:${out}>")
-    endif()
-    math(EXPR count "${count} + 1")
   endforeach()
   if(redirect)
     # Referencing the executables themselves ($<TARGET_FILE_DIR:...>) would
@@ -215,6 +273,7 @@ function(_hermetic_malloc_attach)
         VERBATIM)
     endforeach()
   endif()
+  list(LENGTH executables count)
   message(STATUS "[hermetic-cpp] HERMETIC_MALLOC=${HERMETIC_MALLOC_BACKEND}: ${count} executable(s)")
 endfunction()
 

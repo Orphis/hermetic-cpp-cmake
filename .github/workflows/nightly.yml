@@ -85,7 +85,7 @@ jobs:
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc windows-aarch64-mimalloc-md windows-x86_64-mimalloc-md
+            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc windows-aarch64-mimalloc-md windows-x86_64-mimalloc-md windows-aarch64-gnu-mimalloc
             rbe: host windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
@@ -95,7 +95,7 @@ jobs:
           - name: windows-aarch64 targets from linux
             host: linux-x86_64-windows-arm64
             os: ubuntu-latest
-            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-gnu
+            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-gnu windows-aarch64-gnu-mimalloc
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest

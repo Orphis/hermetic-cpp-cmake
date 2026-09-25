@@ -547,6 +547,24 @@
         "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=address",
         "HERMETIC_MALLOC": "mimalloc"
       }
+    },
+    {
+      "name": "windows-x86_64-gnu-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-aarch64-gnu-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
     }
   ],
   "buildPresets": [
@@ -805,6 +823,14 @@
     {
       "name": "linux-x86_64-asan-mimalloc",
       "configurePreset": "linux-x86_64-asan-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-gnu-mimalloc",
+      "configurePreset": "windows-x86_64-gnu-mimalloc"
+    },
+    {
+      "name": "windows-aarch64-gnu-mimalloc",
+      "configurePreset": "windows-aarch64-gnu-mimalloc"
     }
   ],
   "testPresets": [

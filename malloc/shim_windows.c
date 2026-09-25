@@ -1,7 +1,7 @@
 /* Copyright 2026 The hermetic-cpp-cmake Authors.
  * SPDX-License-Identifier: Apache-2.0
  *
- * HERMETIC_MALLOC for Windows targets on the MSVC ABI.
+ * HERMETIC_MALLOC for Windows targets.
  *
  * Static release runtime (/MT, CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded):
  * the UCRT's own allocations (_strdup, stdio buffers, getcwd, ...) do not go
@@ -19,9 +19,10 @@
  * returned there; blocks the executable hands to it must not be freed by it,
  * which is the rule of the static runtime anyway.
  *
- * DLL runtime (/MD, /MDd, CMake's default): the allocator is ucrtbase.dll's,
- * which no definition in the executable replaces. With mimalloc, the
- * executable imports mimalloc.dll instead, first in its import table, whose
+ * DLL runtime (/MD, /MDd, CMake's default), and MinGW-w64, which always
+ * uses it: the allocator is ucrtbase.dll's, which no definition in the
+ * executable replaces. With mimalloc, the executable imports mimalloc.dll
+ * instead, first in its import table, whose
  * redirection DLL (mimalloc-redirect.dll) patches ucrtbase.dll's allocation
  * functions when it loads: every module of the process then allocates with
  * mimalloc. Other backends need the static runtime.
@@ -54,7 +55,19 @@
 
 #if !HERMETIC_MALLOC_SANITIZED
 
-#if defined(_DLL)
+#if defined(__MINGW32__)
+
+/* MinGW-w64 programs always run on ucrtbase.dll: the import of mimalloc.dll,
+ * as with the DLL runtime of the MSVC ABI below. A reference to its import
+ * is enough (and does not call anything). */
+#if HERMETIC_MALLOC_WINDOWS_REDIRECT
+__declspec(dllimport) int mi_version(void);
+__attribute__((used)) static void *hermetic_malloc_import(void) { return (void *)&mi_version; }
+#else
+#error "HERMETIC_MALLOC with a backend of the project is not available for MinGW-w64: its C runtime is ucrtbase.dll, whose heap only mimalloc redirects."
+#endif
+
+#elif defined(_DLL)
 
 #if HERMETIC_MALLOC_WINDOWS_REDIRECT
 /* The import itself, not the static library's mi_version: mimalloc.dll's

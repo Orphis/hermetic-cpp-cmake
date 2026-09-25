@@ -527,8 +527,9 @@ toolchain option: what has to be replaced depends on the C runtime.
   whatever the executable defines, so the allocator becomes the default
   malloc zone before `main`; blocks allocated before that still go back to
   the system zone.
-- **Windows (MSVC ABI), DLL runtime** (`/MD`, `/MDd`, CMake's default):
-  the allocator is ucrtbase.dll's, which nothing linked into the executable
+- **Windows, ucrtbase.dll**: the DLL runtime of the MSVC ABI (`/MD`,
+  `/MDd`, CMake's default) and every MinGW-w64 program (GNU ABI). The
+  allocator is ucrtbase.dll's, which nothing linked into the executable
   replaces. mimalloc is built as `mimalloc.dll` as well, which every
   executable imports first; the redirection DLL that ships with mimalloc's
   sources (`mimalloc-redirect.dll`, a prebuilt from Microsoft, which only
@@ -545,15 +546,17 @@ toolchain option: what has to be replaced depends on the C runtime.
   when freed, but blocks the executable hands to a DLL must not be freed
   there, as usual with `/MT`. The debug runtime (`/MTd`) keeps its debug
   heap. A backend of the project (see below) needs this runtime; with `/MD`
-  its executables fail to compile with a message saying so.
-- Not available yet on Windows targets on the GNU ABI, nor on WebAssembly
-  (freestanding, no allocator to replace).
+  its executables fail to compile with a message saying so, and it is not
+  available with MinGW-w64.
+- Not available on WebAssembly (freestanding, no allocator to replace).
 
 The toolchain does it with a small shim per platform in [`malloc/`](malloc),
 added as a source to every executable target at the end of the top-level
 `CMakeLists.txt` (through `CMAKE_PROJECT_INCLUDE`, chained with a
-project's own), and a static library `hermetic_malloc` built from the
-mimalloc sources; try_compile checks are left alone. The shim is compiled
+project's own), and what the executables' C runtimes need built from the
+mimalloc sources: a static library `hermetic_malloc` for the shims that
+define the allocation functions, `mimalloc.dll` for those on
+ucrtbase.dll, or both; try_compile checks are left alone. The shim is compiled
 with each executable's own flags, so it stays empty under sanitizers that
 bring their own allocator (ASan, HWASan, MSan, TSan) and under the Windows
 debug runtime. An executable opts out with the target property
@@ -763,7 +766,7 @@ them:
   with ASan, MinGW-w64 Windows targets, macOS targets from Linux, the
   WebAssembly targets, the `cl.exe` presets in a Windows job of their own,
   and `HERMETIC_MALLOC=mimalloc` on musl, glibc, macOS
-  and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`), whose programs check that their
+  and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
   blocks, the C library's and a shared library's included, come from
   mimalloc. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
