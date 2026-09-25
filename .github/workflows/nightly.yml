@@ -72,12 +72,12 @@ jobs:
             host: windows-x86_64
             os: windows-latest
             presets: windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx-ubsan windows-x86_64-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-libcxx-dbg
+            rbe: windows-x86_64-libcxx-dbg windows-x86_64-asan
           - name: windows-x86_64 (cl.exe)
             host: windows-x86_64-msvc
             os: windows-latest
             presets: windows-x86_64-msvc windows-x86_64-msvc-dbg
             rbe: windows-x86_64-msvc-dbg
-            rbe: windows-x86_64-libcxx-dbg windows-x86_64-asan
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest

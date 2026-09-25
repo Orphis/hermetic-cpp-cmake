@@ -203,8 +203,10 @@ are atomic and lock-protected, and reconfigures only check stamp files.
 - CMake 3.19 or newer, and Ninja to build runtime sets.
 - A Linux, macOS or Windows host, x86_64 or arm64; see the host notes above
   for what each one needs.
-- Disk: about 3 GB for the extracted LLVM sources plus 100 to 300 MB per
-  runtime set built locally.
+- Disk: about 210 MB for the LLVM sources the runtime sets are built from
+  (only the runtimes, LLVM libc, `third-party/` and their CMake modules are
+  extracted from the archive) plus 100 to 300 MB per runtime set built
+  locally.
 
 ## Options
 
@@ -375,7 +377,7 @@ link step is unchanged, `lld-link` through CMake's MSVC rules
 `lib.exe` from the package are never run. The toolset and SDK headers are
 plain include directories (`/X` keeps the host's `INCLUDE` out), and with
 `HERMETIC_REPRODUCIBLE` the objects get `/Brepro`,
-`/experimental:deterministic` and a `/pathmap:` of the cache directory
+`/experimental:deterministic` and a `/pathmap:` of the cache and build directories (the latter spelled with backslashes, the only spelling cl.exe matches against the path each object records as its own name)
 (toolset 14.40, Visual Studio 17.10, and newer). Debug info goes into the
 objects (`/Z7`, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` unless the
 project sets it). Only Windows hosts, Windows targets on the MSVC ABI and the
@@ -712,10 +714,14 @@ combination has no runner at all: `darwin-aarch64` cross-built from a macOS
 x86_64 host. Everything a job builds is executed on a runner, or under
 Docker/QEMU, of the target platform.
 
-Both workflows cache only `~/.cache/hermetic-cpp/downloads` (about 300 MB,
-mostly the LLVM source archive and the macOS SDK package) and rebuild runtime sets every time, which
-keeps them honest about the from-source path; a set takes one to three
-minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
+Both workflows cache `~/.cache/hermetic-cpp/downloads` (400 to 600 MB per
+host: the LLVM source archive, the macOS SDK package, the MSVC and Windows
+SDK packages). `tests.yml` also caches each job's runtime sets (20 to 50 MB
+compressed), keyed by everything under `runtimes/` and `cmake/`, so they are
+only rebuilt when the recipe or the toolchain changes: a run then takes
+about four minutes instead of twenty; `nightly.yml` builds every set from source, which keeps the
+from-source path and the cross-host identity of the sets honest. A set
+takes one to three minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 A preset that fails to build does not stop its job's other presets, and the
 run stage still checks whatever was built, so one failure costs its own
 checks only.

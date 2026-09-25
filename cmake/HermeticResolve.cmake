@@ -102,6 +102,10 @@ macro(hermetic_resolve)
     # Windows targets on the MSVC ABI from a Windows host; lld-link and the
     # LLVM tools serve both.
     set(HERMETIC_RESOLVED_COMPILER "${HERMETIC_COMPILER}")
+    if(HERMETIC_RESOLVED_COMPILER STREQUAL "")
+      # The default for scripts too (prefetch.cmake), not only the toolchain file.
+      set(HERMETIC_RESOLVED_COMPILER llvm)
+    endif()
     if(NOT HERMETIC_RESOLVED_COMPILER MATCHES "^(llvm|msvc)$")
       hermetic_fatal("HERMETIC_COMPILER must be llvm or msvc, not '${HERMETIC_COMPILER}'")
     endif()
