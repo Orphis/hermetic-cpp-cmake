@@ -1,18 +1,24 @@
 # Hermetic C/C++ toolchain for CMake
 
-A CMake toolchain file that follows the model of
+A CMake toolchain file that downloads everything a C or C++ build needs
+and builds the same binaries on every host. It follows the model of
 [hermeticbuild/hermetic-llvm](https://github.com/hermeticbuild/hermetic-llvm):
-a small prebuilt Clang/LLD, and a **runtime set** built from source with
-that compiler (libc, compiler-rt, libc++) for every Linux target, so that
-cross-compiling needs no distribution sysroot at all. Linux targets pick
-the glibc version to link against (2.28 to 2.44, via headers plus symbol
-stubs, the same technique as Zig and hermetic-llvm) or musl (fully static
-binaries). macOS targets use the macOS SDK downloaded from Apple, Windows
-targets (MSVC ABI) use the MSVC toolset and Windows SDK downloaded from
-Microsoft, with the MSVC STL or a libc++ built from source, and freestanding
-WebAssembly targets get the compiler-rt builtins. Any host builds for any
-target with clang; Windows hosts can also build Windows targets with
-Microsoft's `cl.exe`.
+a small prebuilt Clang/LLD, and the target's runtime libraries built from
+source with it, so no distribution sysroot is involved.
+
+- **Linux** targets: glibc of a chosen version (2.28 to 2.44, headers plus
+  symbol stubs, the technique of Zig and hermetic-llvm) or musl (fully
+  static binaries), with compiler-rt and libc++ built for the target.
+- **macOS** targets: the macOS SDK downloaded from Apple.
+- **Windows** targets: the MSVC toolset and Windows SDK downloaded from
+  Microsoft, with the MSVC STL or a libc++ built from source; or
+  MinGW-w64 built from source, with nothing from Microsoft.
+- **WebAssembly** targets: freestanding modules with the compiler-rt
+  builtins.
+- Any host, Linux, macOS or Windows, builds for any target with clang.
+  Windows hosts can also build Windows targets with Microsoft's `cl.exe`.
+- Reproducible: the same target built on different hosts, or in different
+  checkouts, gives byte-identical binaries, debug info and PDBs included.
 
 ```sh
 cmake -S . -B build -G Ninja \
