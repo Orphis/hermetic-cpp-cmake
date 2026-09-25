@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Source lists of the mingw-w64 CRT libraries (mingw-w64 v14.0.0, relative to

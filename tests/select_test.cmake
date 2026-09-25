@@ -1,11 +1,11 @@
 # Unit test for archive selection, run with `cmake -P tests/select_test.cmake`.
 cmake_minimum_required(VERSION 3.19)
-get_filename_component(HERMETIC_LLVM_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMCommon.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDistributions.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMTargets.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMConfigure.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMRuntimes.cmake")
+get_filename_component(HERMETIC_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+include("${HERMETIC_DIR}/cmake/HermeticCommon.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticDistributions.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticTargets.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticConfigure.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticLLVMRuntimes.cmake")
 set(failures 0)
 
 # hermeticbuild compiler prebuilts.
@@ -33,18 +33,18 @@ unset(HERMETIC_LLVM_RELEASE)
 
 # libc specs and triples.
 hermetic_llvm_load_runtime_sources()
-hermetic_llvm_parse_libc(gnu.2.28 fam ver)
-hermetic_llvm_libc_triple(x86_64 "${fam}" t1)
-hermetic_llvm_parse_libc(musl fam2 ver2)
-hermetic_llvm_libc_triple(armv7 "${fam2}" t2)
+hermetic_parse_libc(gnu.2.28 fam ver)
+hermetic_libc_triple(x86_64 "${fam}" t1)
+hermetic_parse_libc(musl fam2 ver2)
+hermetic_libc_triple(armv7 "${fam2}" t2)
 if(NOT t1 STREQUAL "x86_64-unknown-linux-gnu" OR NOT t2 STREQUAL "armv7-unknown-linux-musleabihf" OR NOT ver STREQUAL "2.28")
   message(SEND_ERROR "libc triple mapping broken: ${t1} ${t2} ${ver}")
   math(EXPR failures "${failures} + 1")
 endif()
 
 # Windows toolset / SDK selection.
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindows.cmake")
-hermetic_llvm_windows_versions(msvc msvc_default sdk sdk_default)
+include("${HERMETIC_DIR}/cmake/HermeticWindows.cmake")
+hermetic_windows_versions(msvc msvc_default sdk sdk_default)
 hermetic_llvm_select_version(sdk "10.0.22621" "${sdk_default}" "${sdk}" w1)
 hermetic_llvm_select_version(sdk "" "${sdk_default}" "${sdk}" w2)
 hermetic_llvm_select_version(msvc "latest" "${msvc_default}" "${msvc}" w3)

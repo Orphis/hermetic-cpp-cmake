@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Runs llvm-lib, or the "lib" subcommand of the multicall llvm driver, with
@@ -22,8 +22,8 @@ cmake_minimum_required(VERSION 3.25)
 if(NOT LIB)
   message(FATAL_ERROR "llvm_lib.cmake: LIB (path to llvm-lib or llvm) not set")
 endif()
-if(NOT DEFINED HERMETIC_LLVM_LIB_MAX_COMMAND)
-  set(HERMETIC_LLVM_LIB_MAX_COMMAND 30000)
+if(NOT DEFINED HERMETIC_LIB_MAX_COMMAND)
+  set(HERMETIC_LIB_MAX_COMMAND 30000)
 endif()
 
 set(_args "")
@@ -58,7 +58,7 @@ foreach(_arg IN LISTS _args)
 endforeach()
 
 set(_rsp "")
-if(_length GREATER HERMETIC_LLVM_LIB_MAX_COMMAND)
+if(_length GREATER HERMETIC_LIB_MAX_COMMAND)
   set(_out "")
   set(_kept "")
   foreach(_arg IN LISTS _slashed)

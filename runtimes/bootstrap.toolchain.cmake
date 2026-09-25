@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Toolchain file used while building the runtime sets themselves (libc,
@@ -44,9 +44,9 @@ if(HERMETIC_LLVM_BOOTSTRAP_SYSTEM_NAME STREQUAL "Windows" AND NOT HERMETIC_LLVM_
   # clang-cl assembles .S files too; CMake applies MSVC-style flags to ASM
   # whenever the C compiler is MSVC-like, which plain clang would reject.
   set(CMAKE_ASM_COMPILER "${HERMETIC_LLVM_BOOTSTRAP_BIN}/clang-cl${_hb_exe}")
-  set(HERMETIC_LLVM_WINDOWS_LINK_TAIL "${HERMETIC_LLVM_BOOTSTRAP_LINK_TAIL}")
-  set(HERMETIC_LLVM_WINDOWS_COMPILE_TAIL "${HERMETIC_LLVM_BOOTSTRAP_COMPILE_TAIL}")
-  set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../cmake/HermeticLLVMWindowsRules.cmake")
+  set(HERMETIC_WINDOWS_LINK_TAIL "${HERMETIC_LLVM_BOOTSTRAP_LINK_TAIL}")
+  set(HERMETIC_WINDOWS_COMPILE_TAIL "${HERMETIC_LLVM_BOOTSTRAP_COMPILE_TAIL}")
+  set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../cmake/HermeticWindowsRules.cmake")
 else()
   set(CMAKE_C_COMPILER "${HERMETIC_LLVM_BOOTSTRAP_BIN}/clang${_hb_exe}")
   set(CMAKE_CXX_COMPILER "${HERMETIC_LLVM_BOOTSTRAP_BIN}/clang++${_hb_exe}")

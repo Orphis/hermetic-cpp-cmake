@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Supported target platforms, keyed "<os>-<arch>" like hermetic-llvm's
@@ -6,20 +6,20 @@
 
 include_guard(GLOBAL)
 
-set(HERMETIC_LLVM_SUPPORTED_TARGETS
+set(HERMETIC_SUPPORTED_TARGETS
   linux-x86_64 linux-aarch64 linux-armv7 linux-riscv64 linux-s390x
   darwin-x86_64 darwin-aarch64
   windows-x86_64 windows-aarch64
   wasm32 wasm64)
 
 # Triple of a Windows target on the GNU ABI (MinGW-w64).
-function(hermetic_llvm_windows_gnu_triple ARCH OUT)
+function(hermetic_windows_gnu_triple ARCH OUT)
   set(${OUT} "${ARCH}-w64-windows-gnu" PARENT_SCOPE)
 endfunction()
 
 # Sets ${OUT}_OS, _ARCH, _TRIPLE (base triple; Linux gets the libc appended
-# by hermetic_llvm_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
-function(hermetic_llvm_target_info KEY OUT)
+# by hermetic_libc_triple), _SYSTEM_NAME, _SYSTEM_PROCESSOR.
+function(hermetic_target_info KEY OUT)
   if(KEY STREQUAL "linux-x86_64")
     set(os linux)
     set(arch x86_64)
@@ -90,8 +90,8 @@ function(hermetic_llvm_target_info KEY OUT)
     set(system_name Generic)
     set(processor wasm64)
   else()
-    string(REPLACE ";" ", " supported "${HERMETIC_LLVM_SUPPORTED_TARGETS}")
-    hermetic_llvm_fatal("Unsupported HERMETIC_LLVM_TARGET '${KEY}'; valid targets: ${supported}")
+    string(REPLACE ";" ", " supported "${HERMETIC_SUPPORTED_TARGETS}")
+    hermetic_fatal("Unsupported HERMETIC_TARGET '${KEY}'; valid targets: ${supported}")
   endif()
   set(${OUT}_OS "${os}" PARENT_SCOPE)
   set(${OUT}_ARCH "${arch}" PARENT_SCOPE)

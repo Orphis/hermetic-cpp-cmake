@@ -17,7 +17,7 @@ add_test(NAME hello_cxx COMMAND hello_cxx)
 set_tests_properties(hello_c hello_cxx PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
 # musl targets are fully static (like hermetic-llvm), so no shared libraries.
-if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
+if(NOT HERMETIC_EFFECTIVE_LIBC STREQUAL "musl")
   # Exports are explicit (GREETER_BUILDING + greeter.h): WINDOWS_EXPORT_ALL_SYMBOLS
   # picks the exported set from the CMake version doing the build, which made
   # greeter.dll differ between hosts running different CMake releases.
@@ -33,15 +33,15 @@ if(NOT HERMETIC_LLVM_EFFECTIVE_LIBC STREQUAL "musl")
 endif()
 
 # Windows hosts get the SDK tools; make sure the exported directory is real.
-if(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR)
+if(HERMETIC_WINDOWS_SDK_TOOLS_DIR)
   foreach(tool mt.exe rc.exe midl.exe mc.exe signtool.exe)
-    if(NOT EXISTS "${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}/${tool}")
-      message(FATAL_ERROR "SDK tool ${tool} missing from ${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}")
+    if(NOT EXISTS "${HERMETIC_WINDOWS_SDK_TOOLS_DIR}/${tool}")
+      message(FATAL_ERROR "SDK tool ${tool} missing from ${HERMETIC_WINDOWS_SDK_TOOLS_DIR}")
     endif()
   endforeach()
-  message(STATUS "hermetic-llvm: Windows SDK tools at ${HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR}")
-elseif(CMAKE_HOST_WIN32 AND WIN32 AND HERMETIC_LLVM_EFFECTIVE_WINDOWS_ABI STREQUAL "msvc")
-  message(FATAL_ERROR "HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR should be set on a Windows host")
+  message(STATUS "hermetic-llvm: Windows SDK tools at ${HERMETIC_WINDOWS_SDK_TOOLS_DIR}")
+elseif(CMAKE_HOST_WIN32 AND WIN32 AND HERMETIC_EFFECTIVE_WINDOWS_ABI STREQUAL "msvc")
+  message(FATAL_ERROR "HERMETIC_WINDOWS_SDK_TOOLS_DIR should be set on a Windows host")
 endif()
 
 # Windows ASan is a DLL runtime that must sit next to the executables.

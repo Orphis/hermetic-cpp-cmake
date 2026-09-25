@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Lists the macOS SDK packages (CLTools_macOS{N,L}MOS_SDK.pkg of the Command
@@ -7,7 +7,7 @@
 # package to learn its SDK version and SHA-256:
 #
 #   cmake -P scripts/update_macos_sdk.cmake                       # report
-#   cmake -DHERMETIC_LLVM_WRITE=ON -P scripts/update_macos_sdk.cmake   # add new SDK versions to the table
+#   cmake -DHERMETIC_WRITE=ON -P scripts/update_macos_sdk.cmake   # add new SDK versions to the table
 #
 # Another package for an SDK version the table already lists (the catalog
 # carries several Command Line Tools releases with the same SDK) is
@@ -16,45 +16,45 @@
 # makes a good "mirrors" entry for each one.
 
 cmake_minimum_required(VERSION 3.19)
-get_filename_component(HERMETIC_LLVM_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMCommon.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMRuntimes.cmake")
-include("${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDarwin.cmake")
+get_filename_component(HERMETIC_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+include("${HERMETIC_DIR}/cmake/HermeticCommon.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticLLVMRuntimes.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticDarwin.cmake")
 
 set(catalog_url "https://swscan.apple.com/content/catalogs/others/index-26-15-14-13-12-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog")
-set(table "${HERMETIC_LLVM_DIR}/cmake/distributions/macos_sdk.json")
+set(table "${HERMETIC_DIR}/cmake/distributions/macos_sdk.json")
 set(payload_prefix "Payload/Library/Developer/CommandLineTools/SDKs")
 
-hermetic_llvm_resolve_cache_dir()
+hermetic_resolve_cache_dir()
 hermetic_llvm_load_runtime_sources()
-hermetic_llvm_detect_host(HERMETIC_LLVM_HOST_OS HERMETIC_LLVM_HOST_ARCH)
-file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/downloads")
+hermetic_detect_host(HERMETIC_HOST_OS HERMETIC_HOST_ARCH)
+file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/downloads")
 
-set(catalog "${HERMETIC_LLVM_CACHE_DIR}/downloads/apple-sucatalog.xml")
-hermetic_llvm_log("Downloading ${catalog_url}")
+set(catalog "${HERMETIC_CACHE_DIR}/downloads/apple-sucatalog.xml")
+hermetic_log("Downloading ${catalog_url}")
 file(DOWNLOAD "${catalog_url}" "${catalog}" STATUS status TLS_VERIFY ON INACTIVITY_TIMEOUT 120)
 list(GET status 0 code)
 if(NOT code EQUAL 0)
-  hermetic_llvm_fatal("Could not download the catalog: ${status}")
+  hermetic_fatal("Could not download the catalog: ${status}")
 endif()
 file(READ "${catalog}" text)
 string(REGEX MATCHALL "https://swcdn\\.apple\\.com/content/downloads/[^<]*/CLTools_macOS[LN]MOS_SDK\\.pkg" urls "${text}")
 list(REMOVE_DUPLICATES urls)
 list(SORT urls)
 list(LENGTH urls n)
-hermetic_llvm_log("${n} SDK packages in the catalog")
+hermetic_log("${n} SDK packages in the catalog")
 
-hermetic_llvm_read_json("${table}" json)
+hermetic_read_json("${table}" json)
 string(JSON sdks GET "${json}" "sdks")
-hermetic_llvm_macos_sdk_versions(versions default)
+hermetic_macos_sdk_versions(versions default)
 set(known_urls "")
 foreach(v IN LISTS versions)
   string(JSON u GET "${sdks}" "${v}" "url")
   list(APPEND known_urls "${u}")
 endforeach()
 
-hermetic_llvm_fetch_extras(extras)
-hermetic_llvm_host_executable("${extras}/bin/pkgutil" pkgutil)
+hermetic_fetch_extras(extras)
+hermetic_host_executable("${extras}/bin/pkgutil" pkgutil)
 
 set(changed FALSE)
 foreach(url IN LISTS urls)
@@ -64,9 +64,9 @@ foreach(url IN LISTS urls)
   string(SHA1 key "${url}")
   string(SUBSTRING "${key}" 0 8 key)
   get_filename_component(base "${url}" NAME)
-  set(file "${HERMETIC_LLVM_CACHE_DIR}/downloads/${key}-${base}")
+  set(file "${HERMETIC_CACHE_DIR}/downloads/${key}-${base}")
   if(NOT EXISTS "${file}")
-    hermetic_llvm_log("Downloading ${url}")
+    hermetic_log("Downloading ${url}")
     file(DOWNLOAD "${url}" "${file}.part" STATUS status TLS_VERIFY ON INACTIVITY_TIMEOUT 120)
     list(GET status 0 code)
     if(NOT code EQUAL 0)
@@ -78,7 +78,7 @@ foreach(url IN LISTS urls)
   endif()
   file(SHA256 "${file}" sha)
   # The Bom lists every payload path; the SDK directory is MacOSX<X.Y>.sdk.
-  set(tmp "${HERMETIC_LLVM_CACHE_DIR}/downloads/${key}.expand")
+  set(tmp "${HERMETIC_CACHE_DIR}/downloads/${key}.expand")
   file(REMOVE_RECURSE "${tmp}")
   execute_process(COMMAND "${pkgutil}" --include Bom --expand "${file}" "${tmp}"
     RESULT_VARIABLE rc OUTPUT_QUIET ERROR_VARIABLE err)
@@ -95,21 +95,21 @@ foreach(url IN LISTS urls)
     continue()
   endif()
   if(version IN_LIST versions)
-    hermetic_llvm_log("SDK ${version}: another package ${url} (sha256 ${sha}); the table keeps its current one")
+    hermetic_log("SDK ${version}: another package ${url} (sha256 ${sha}); the table keeps its current one")
     continue()
   endif()
-  hermetic_llvm_log("SDK ${version}: new, ${url} (sha256 ${sha})")
+  hermetic_log("SDK ${version}: new, ${url} (sha256 ${sha})")
   string(JSON json SET "${json}" "sdks" "${version}"
     "{\"url\": \"${url}\", \"sha256\": \"${sha}\", \"prefix\": \"${payload_prefix}/MacOSX${version}.sdk\"}")
   list(APPEND versions "${version}")
   set(changed TRUE)
 endforeach()
 
-if(changed AND HERMETIC_LLVM_WRITE)
+if(changed AND HERMETIC_WRITE)
   file(WRITE "${table}" "${json}\n")
-  hermetic_llvm_log("Updated ${table}; review the default and add mirrors")
+  hermetic_log("Updated ${table}; review the default and add mirrors")
 elseif(changed)
-  hermetic_llvm_log("New SDK versions found; rerun with -DHERMETIC_LLVM_WRITE=ON to add them")
+  hermetic_log("New SDK versions found; rerun with -DHERMETIC_WRITE=ON to add them")
 else()
-  hermetic_llvm_log("The table lists every SDK version in the catalog (default ${default})")
+  hermetic_log("The table lists every SDK version in the catalog (default ${default})")
 endif()

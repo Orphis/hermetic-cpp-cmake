@@ -1,4 +1,4 @@
-# Hermetic LLVM toolchain for CMake
+# Hermetic C/C++ toolchain for CMake
 
 A CMake toolchain file that follows the model of
 [hermeticbuild/hermetic-llvm](https://github.com/hermeticbuild/hermetic-llvm):
@@ -15,8 +15,8 @@ target.
 
 ```sh
 cmake -S . -B build -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=/path/to/hermetic-llvm-cmake/toolchain.cmake \
-  -DHERMETIC_LLVM_VERSION=23.1.0 -DHERMETIC_LLVM_TARGET=linux-aarch64 -DHERMETIC_LLVM_LIBC=musl
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/hermetic-cpp-cmake/toolchain.cmake \
+  -DHERMETIC_LLVM_VERSION=23.1.0 -DHERMETIC_TARGET=linux-aarch64 -DHERMETIC_LIBC=musl
 cmake --build build
 ```
 
@@ -26,11 +26,11 @@ Or with a preset:
 {
   "name": "linux-aarch64-musl",
   "generator": "Ninja",
-  "toolchainFile": "${sourceDir}/third_party/hermetic-llvm-cmake/toolchain.cmake",
+  "toolchainFile": "${sourceDir}/third_party/hermetic-cpp-cmake/toolchain.cmake",
   "cacheVariables": {
     "HERMETIC_LLVM_VERSION": "23.1.0",
-    "HERMETIC_LLVM_TARGET": "linux-aarch64",
-    "HERMETIC_LLVM_LIBC": "musl"
+    "HERMETIC_TARGET": "linux-aarch64",
+    "HERMETIC_LIBC": "musl"
   }
 }
 ```
@@ -52,7 +52,7 @@ built the same way everywhere.
 
 ¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
 administrators or users with Developer Mode create; see
-[macOS targets](#macos-targets). `HERMETIC_LLVM_TARGET` defaults to the
+[macOS targets](#macos-targets). `HERMETIC_TARGET` defaults to the
 host's own platform. Which combinations CI exercises is listed under
 [Testing and CI](#testing-and-ci).
 
@@ -62,13 +62,13 @@ Host notes:
   runs on any distribution; no distribution packages are needed beyond
   CMake and Ninja. Docker with QEMU registered is only used by the test
   suite to run cross-compiled binaries.
-- **macOS**: nothing from Xcode is needed. `HERMETIC_LLVM_SYSROOT=host`
+- **macOS**: nothing from Xcode is needed. `HERMETIC_SYSROOT=host`
   uses the SDK of the installed Xcode or Command Line Tools
   (`xcrun --show-sdk-path`) instead of the downloaded one.
 - **Windows**: no Visual Studio, MSYS or WSL. The compiler prebuilt is
   hermetic-llvm's MinGW-built one, the MSVC toolset and Windows SDK are
   downloaded like on the other hosts, and the test scripts run under Git
-  Bash. Keep the cache directory short (`HERMETIC_LLVM_CACHE_DIR=C:/hl`) to
+  Bash. Keep the cache directory short (`HERMETIC_CACHE_DIR=C:/hl`) to
   stay clear of path length limits; a Windows libc++ runtime set builds
   libc++ four times, one per C runtime flavour, so it takes a few minutes
   longer than a Linux set.
@@ -103,12 +103,12 @@ Host notes:
      as the compiler. Links use `-rtlib=compiler-rt --unwindlib=libunwind`.
 3. **macOS targets** use the macOS SDK downloaded from Apple's Command
    Line Tools package (or the host's Xcode SDK, or any SDK directory, via
-   `HERMETIC_LLVM_SYSROOT`) with the SDK's libc++. See
+   `HERMETIC_SYSROOT`) with the SDK's libc++. See
    [macOS targets](#macos-targets).
 4. **Windows targets** on the MSVC ABI use `clang-cl` and `lld-link` with a MSVC
    toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
    default or a libc++ runtime set, and optionally the sanitizer runtimes.
-   On the GNU ABI (`HERMETIC_LLVM_WINDOWS_ABI=gnu`) they use the plain
+   On the GNU ABI (`HERMETIC_WINDOWS_ABI=gnu`) they use the plain
    `clang` driver with MinGW-w64 built from source into a runtime set, like
    hermetic-llvm's default Windows platforms, and nothing from Microsoft.
    See [Windows targets](#windows-targets).
@@ -124,7 +124,7 @@ Host notes:
    programs) so `find_package` and friends cannot pick up host headers or
    libraries; set them yourself before the toolchain runs to override.
 
-Everything lives in one cache directory (`~/.cache/hermetic-llvm` by
+Everything lives in one cache directory (`~/.cache/hermetic-cpp` by
 default). Downloads are SHA-256 checked, extraction and runtime set builds
 are atomic and lock-protected, and reconfigures only check stamp files.
 
@@ -150,46 +150,46 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_RELEASE` | | Pin a hermetic-llvm release id (`llvm-23.1.0-4`) instead of a version. |
 | `HERMETIC_LLVM_HERMETICBUILD_INDEX` | | Another copy of the compiler index (same schema). |
 | `HERMETIC_LLVM_DISTRIBUTION_URL` / `_SHA256` / `_STRIP_COMPONENTS` | | Bring your own compiler archive (`bin/clang` at the root, or set the strip count). |
-| `HERMETIC_LLVM_MIRROR_URLS` | | URL templates tried after the primary URL; `{version}`, `{release}` and `{basename}` are substituted. |
+| `HERMETIC_MIRROR_URLS` | | URL templates tried after the primary URL; `{version}`, `{release}` and `{basename}` are substituted. |
 
 ### Target, libc and runtimes
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HERMETIC_LLVM_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`, `wasm32`, `wasm64`; see [Hosts and targets](#hosts-and-targets). |
-| `HERMETIC_LLVM_WINDOWS_ABI` | `msvc` | Windows targets: `msvc` (clang-cl, the Microsoft runtime and SDK) or `gnu` (MinGW-w64 with UCRT, built from source into the runtime set `<target>-mingw`; no Microsoft download, libc++ only, no sanitizers). |
-| `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets on the MSVC ABI: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
-| `HERMETIC_LLVM_MSVC_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
-| `HERMETIC_LLVM_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
-| `HERMETIC_LLVM_LIBC` | `gnu.2.28` | Linux libc: `gnu.<version>` (2.28 to 2.44) or `musl`. The runtime set id is `<target>-<libc>`. |
-| `HERMETIC_LLVM_CXX_STDLIB` | `libc++` (Windows: `msvc`) | C++ standard library. Linux targets always use the runtime set's libc++, macOS the SDK's. Windows targets: `msvc` for the toolset's STL, or `libc++` for a static libc++ on the Microsoft ABI built into the runtime set `<target>-msvc.<toolset version>`. |
+| `HERMETIC_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`, `wasm32`, `wasm64`; see [Hosts and targets](#hosts-and-targets). |
+| `HERMETIC_WINDOWS_ABI` | `msvc` | Windows targets: `msvc` (clang-cl, the Microsoft runtime and SDK) or `gnu` (MinGW-w64 with UCRT, built from source into the runtime set `<target>-mingw`; no Microsoft download, libc++ only, no sanitizers). |
+| `HERMETIC_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets on the MSVC ABI: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
+| `HERMETIC_MSVC_TOOLSET_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
+| `HERMETIC_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
+| `HERMETIC_LIBC` | `gnu.2.28` | Linux libc: `gnu.<version>` (2.28 to 2.44) or `musl`. The runtime set id is `<target>-<libc>`. |
+| `HERMETIC_CXX_STDLIB` | `libc++` (Windows: `msvc`) | C++ standard library. Linux targets always use the runtime set's libc++, macOS the SDK's. Windows targets: `msvc` for the toolset's STL, or `libc++` for a static libc++ on the Microsoft ABI built into the runtime set `<target>-msvc.<toolset version>`. |
 | `HERMETIC_LLVM_RUNTIMES` | `auto` | `auto`: use a prebuilt runtime set when the index lists one, else build it; `download`: fail if none is listed; `build`: always build locally. |
 | `HERMETIC_LLVM_RUNTIME_SET_DIR` | | Use an existing runtime set directory (one produced by `runtimes/build_runtimes.cmake`). |
 | `HERMETIC_LLVM_RUNTIME_SETS_FILES` | | Extra JSON indexes of prebuilt runtime sets (`{"<llvm>": {"<id>": {"url": ..., "sha256": ...}}}`). |
 | `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. Windows: ASan, UBSan, libFuzzer and profile, see [Sanitizers](#sanitizers). |
-| `HERMETIC_LLVM_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
-| `HERMETIC_LLVM_SYSROOT` | `sdk` | macOS: `sdk` downloads the SDK (see the next two rows), `host` uses the SDK of the host's Xcode or Command Line Tools (macOS hosts only), or a directory names any SDK. Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_LLVM_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
-| `HERMETIC_LLVM_ACCEPT_APPLE_SDK_LICENSE` | | Must be `1` for macOS targets unless `HERMETIC_LLVM_SYSROOT` names an SDK: confirms you may use the macOS SDK (the Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf). Also read from the environment. |
-| `HERMETIC_LLVM_MACOS_SDK_VERSION` | `27.0` | macOS SDK for macOS targets: an exact version from the table (10.15 to 27.0), a major (`15` selects its newest listed version), or `latest`. The default and `latest` skip SDKs the compiler cannot link against (26.5 with prebuilts older than `llvm-23.1.0-4`). `cmake -DTOPIC=macos -P scripts/help.cmake` lists the table. |
-| `HERMETIC_LLVM_EMULATOR` | | Sets `CMAKE_CROSSCOMPILING_EMULATOR` (a list), so `ctest` and `try_run` work when cross-compiling. |
+| `HERMETIC_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
+| `HERMETIC_SYSROOT` | `sdk` | macOS: `sdk` downloads the SDK (see the next two rows), `host` uses the SDK of the host's Xcode or Command Line Tools (macOS hosts only), or a directory names any SDK. Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
+| `HERMETIC_ACCEPT_APPLE_SDK_LICENSE` | | Must be `1` for macOS targets unless `HERMETIC_SYSROOT` names an SDK: confirms you may use the macOS SDK (the Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf). Also read from the environment. |
+| `HERMETIC_MACOS_SDK_VERSION` | `27.0` | macOS SDK for macOS targets: an exact version from the table (10.15 to 27.0), a major (`15` selects its newest listed version), or `latest`. The default and `latest` skip SDKs the compiler cannot link against (26.5 with prebuilts older than `llvm-23.1.0-4`). `cmake -DTOPIC=macos -P scripts/help.cmake` lists the table. |
+| `HERMETIC_EMULATOR` | | Sets `CMAKE_CROSSCOMPILING_EMULATOR` (a list), so `ctest` and `try_run` work when cross-compiling. |
 
 ### Flags and behaviour
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `HERMETIC_LLVM_USE_LLD` | `ON` | Link with LLD. |
-| `HERMETIC_LLVM_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)). |
-| `HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
-| `HERMETIC_LLVM_CACHE_DIR` | `$HERMETIC_LLVM_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-llvm`, `~/.cache/hermetic-llvm`, `%LOCALAPPDATA%/hermetic-llvm` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
-| `HERMETIC_LLVM_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
-| `HERMETIC_LLVM_SHOW_PROGRESS`, `HERMETIC_LLVM_DOWNLOAD_ARGS`, `HERMETIC_LLVM_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
+| `HERMETIC_USE_LLD` | `ON` | Link with LLD. |
+| `HERMETIC_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)). |
+| `HERMETIC_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
+| `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
+| `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
+| `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
 After the toolchain file runs, projects can read `HERMETIC_LLVM_ROOT`,
 `HERMETIC_LLVM_BIN_DIR` (for `clang-tidy`, `clang-format`, `llvm-cov`, ...),
-`HERMETIC_LLVM_RUNTIME_SET`, `HERMETIC_LLVM_SYSROOT_PATH`,
-`HERMETIC_LLVM_TARGET_TRIPLE`, `HERMETIC_LLVM_EFFECTIVE_LIBC`,
-`HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB`, `HERMETIC_LLVM_CROSSCOMPILING` and, on
-Windows hosts building Windows targets, `HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR`.
+`HERMETIC_LLVM_RUNTIME_SET`, `HERMETIC_SYSROOT_PATH`,
+`HERMETIC_TARGET_TRIPLE`, `HERMETIC_EFFECTIVE_LIBC`,
+`HERMETIC_EFFECTIVE_CXX_STDLIB`, `HERMETIC_CROSSCOMPILING` and, on
+Windows hosts building Windows targets, `HERMETIC_WINDOWS_SDK_TOOLS_DIR`.
 
 ## macOS targets
 
@@ -205,7 +205,7 @@ Apple's catalog has carried since 2021 is listed in
 `cmake/distributions/macos_sdk.json` (10.15 through 27.0), and
 `scripts/update_macos_sdk.cmake` adds new ones as they appear.
 
-`HERMETIC_LLVM_SYSROOT=host` keeps the previous behaviour on a macOS host
+`HERMETIC_SYSROOT=host` keeps the previous behaviour on a macOS host
 (the SDK of the installed Xcode or Command Line Tools, via `xcrun`), which
 needs no license confirmation; a directory names any SDK. The sample
 project pins `CMAKE_OSX_DEPLOYMENT_TARGET`, since the default follows the
@@ -263,7 +263,7 @@ step and is not there yet, nor are wasm shared libraries.
 
 ## Windows targets
 
-Windows targets come in two ABIs. The GNU ABI (`HERMETIC_LLVM_WINDOWS_ABI=gnu`,
+Windows targets come in two ABIs. The GNU ABI (`HERMETIC_WINDOWS_ABI=gnu`,
 hermetic-llvm's default Windows platforms) builds
 [mingw-w64](https://www.mingw-w64.org/) 14.0.0 from source into the runtime
 set `<target>-mingw`: its headers, CRT libraries and start files, the
@@ -294,9 +294,9 @@ SDK from its public NuGet packages, both pinned by URL and hash in
 [`cmake/distributions/windows.json`](cmake/distributions/windows.json).
 Every toolset of the pinned manifest (14.29 through 14.51, Visual Studio
 2019 to 2026) and the newest NuGet package of each SDK build are listed;
-`HERMETIC_LLVM_MSVC_VERSION` and `HERMETIC_LLVM_WINDOWS_SDK_VERSION` select
+`HERMETIC_MSVC_TOOLSET_VERSION` and `HERMETIC_WINDOWS_SDK_VERSION` select
 them, and `cmake -DTOPIC=windows -P scripts/help.cmake` prints the tables.
-These packages carry Microsoft licenses, so `HERMETIC_LLVM_ACCEPT_MICROSOFT_EULA=1`
+These packages carry Microsoft licenses, so `HERMETIC_ACCEPT_MICROSOFT_EULA=1`
 (variable or environment) must confirm entitlement before anything is
 downloaded. The toolset and SDK are handed to the driver as `/vctoolsdir`,
 `/winsdkdir` and `/winsdkversion`, so it never looks for a Visual Studio
@@ -309,7 +309,7 @@ case-sensitive filesystems.
 WPP/ETW tracing tools, ...), Windows executables with no LLVM counterpart
 apart from `rc` and `mt`. On a Windows host the ones for the host
 architecture are extracted and their directory exported as
-`HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR` for custom commands; the toolchain
+`HERMETIC_WINDOWS_SDK_TOOLS_DIR` for custom commands; the toolchain
 itself keeps using `llvm-rc` and `llvm-mt` (and `lld-link`'s own manifest
 merging), so that outputs stay identical to those of Linux and macOS
 hosts. On those hosts the variable is empty; mingw-w64's `widl` and `wmc`
@@ -320,7 +320,7 @@ and signing or packaging belong outside the hermetic build.
 which runs `lld-link`, rather than through `lld-link` directly, so that
 sanitized links get everything the driver adds from the compile flags. The
 consequences for a project: `-fsanitize=...` belongs in the compile flags
-(`HERMETIC_LLVM_EXTRA_COMPILE_FLAGS` or `CMAKE_<LANG>_FLAGS`), which the
+(`HERMETIC_EXTRA_COMPILE_FLAGS` or `CMAKE_<LANG>_FLAGS`), which the
 link step receives as well, while `CMAKE_EXE_LINKER_FLAGS`, `LINK_OPTIONS`
 and friends keep CMake's usual MSVC-style linker spelling. Static libraries
 use `lib.exe` syntax through `llvm-lib` when the prebuilt ships it, else
@@ -334,7 +334,7 @@ the toolchain checks through `llvm-mt`; with older ones links get no
 manifest.
 
 **C++ library.** By default the MSVC STL from the toolset. With
-`HERMETIC_LLVM_CXX_STDLIB=libc++` a runtime set `<target>-msvc.<toolset>` is
+`HERMETIC_CXX_STDLIB=libc++` a runtime set `<target>-msvc.<toolset>` is
 built instead: libc++ as a static library on the Microsoft ABI (vcruntime
 is the C++ ABI library, no libc++abi or libunwind, win32 threads) plus
 compiler-rt builtins, compiled with `clang-cl` against the selected toolset
@@ -386,14 +386,14 @@ hold each object's absolute path on every host, is left blank everywhere.
 
 PDBs are deterministic too. lld-link records its own path, the path of
 every library it resolved and its whole command line in the PDB, and no
-option remaps them, so with `HERMETIC_LLVM_REPRODUCIBLE` the toolchain
+option remaps them, so with `HERMETIC_REPRODUCIBLE` the toolchain
 links through relative paths instead: every build directory (try-compile
-directories included) gets a link named `hermetic-llvm` to the cache
+directories included) gets a link named `hermetic-cpp` to the cache
 directory (a symbolic link, or a directory junction on Windows hosts),
 the cache gets a host-neutral `llvm/<version>` link to the compiler, and
 the link command names the toolset, SDK, runtime set and `lld-link` itself
 through them. With a project-chosen `/pdbsourcepath:` (the sample uses
-`/build`) the PDB then records `/build/hermetic-llvm/...` everywhere, and
+`/build`) the PDB then records `/build/hermetic-cpp/...` everywhere, and
 the executable, which embeds the PDB's GUID, matches too. Compilation keeps
 absolute paths; the prefix map covers those. The case-insensitive VFS
 overlay used for compilation names everything relative to its own location
@@ -419,7 +419,7 @@ toolchain keeps everything else about the command independent of the
 machine, and try_compile checks, which run locally, are left alone.
 
 - **Put the cache inside the source tree**
-  (`HERMETIC_LLVM_CACHE_DIR=<source>/.hermetic-llvm`), so that every input
+  (`HERMETIC_CACHE_DIR=<source>/.hermetic-cpp`), so that every input
   lies under the one root the wrapper uploads.
 - **Rewrite every absolute path under that root**, including inside joined
   options: `--sysroot=`, `-resource-dir=`, `-isysroot`, `-isystem<dir>`,
@@ -430,9 +430,9 @@ machine, and try_compile checks, which run locally, are left alone.
   case-insensitive VFS overlay names its directories relative to its own
   location, so it matches the toolset and SDK paths when both are spelled
   alike. MSVC-ABI links already name the toolset, SDK and runtime set
-  through the build directory's `hermetic-llvm` link (a relative symbolic
+  through the build directory's `hermetic-cpp` link (a relative symbolic
   link, which stays inside the tree when the cache does).
-- What the toolchain does for it with `HERMETIC_LLVM_REPRODUCIBLE`: debug
+- What the toolchain does for it with `HERMETIC_REPRODUCIBLE`: debug
   info records the working directory as `.` (`-ffile-compilation-dir=.`),
   the cache is mapped to a fixed name, and targets without a runtime set
   name the compiler's resource directory explicitly (the driver would
@@ -447,19 +447,19 @@ steps are not meant to run remotely.
 
 ### Debugging
 
-Debug info then names the cache as `/hermetic-llvm/cache`, the compiler as
-`/hermetic-llvm/llvm` and the working directory as `.` (sources a remote
+Debug info then names the cache as `/hermetic-cpp/cache`, the compiler as
+`/hermetic-cpp/llvm` and the working directory as `.` (sources a remote
 execution wrapper made relative stay relative to the build directory), so a
 debugger has to be told where those are. The toolchain writes the settings
 into every build directory:
 
 ```sh
-gdb -x build/hermetic-llvm.gdb build/app      # set substitute-path, directory
-lldb -s build/hermetic-llvm.lldb build/app    # settings append target.source-map
+gdb -x build/hermetic-cpp.gdb build/app      # set substitute-path, directory
+lldb -s build/hermetic-cpp.lldb build/app    # settings append target.source-map
 ```
 
 A project that maps its own paths with `-ffile-prefix-map` adds them with
-`hermetic_llvm_debugger_source_map(<from> <to>)` (the sample does for its
+`hermetic_debugger_source_map(<from> <to>)` (the sample does for its
 `/src`). On macOS the debug info stays in the object files, which the
 executable names relative to the build directory when linked with
 `-Wl,-oso_prefix,.`: LLDB finds them when started in the build directory,
@@ -470,7 +470,7 @@ which it loads from next to the binary.
 for checking a build, used as the compiler and linker launcher:
 
 ```sh
-cmake --preset linux-aarch64 -DHERMETIC_LLVM_CACHE_DIR=$PWD/.hermetic-llvm \
+cmake --preset linux-aarch64 -DHERMETIC_CACHE_DIR=$PWD/.hermetic-cpp \
   "-DCMAKE_CXX_COMPILER_LAUNCHER=python3;$PWD/scripts/rbe_wrapper.py;--root=$PWD;--log=$PWD/rbe.jsonl;--strict;--" \
   "-DCMAKE_CXX_LINKER_LAUNCHER=python3;$PWD/scripts/rbe_wrapper.py;--root=$PWD;--log=$PWD/rbe.jsonl;--strict;--"
 ```
@@ -522,8 +522,8 @@ A Windows (libc++) runtime set, `<target>-msvc.<toolset version>`, holds:
 Build and package one explicitly, for example to publish it for CI:
 
 ```sh
-cmake -DHERMETIC_LLVM_VERSION=23.1.0 -DHERMETIC_LLVM_TARGET=linux-aarch64 \
-      -DHERMETIC_LLVM_LIBC=gnu.2.34 -DHERMETIC_LLVM_PACKAGE=ON -P runtimes/build_runtimes.cmake
+cmake -DHERMETIC_LLVM_VERSION=23.1.0 -DHERMETIC_TARGET=linux-aarch64 \
+      -DHERMETIC_LIBC=gnu.2.34 -DHERMETIC_LLVM_PACKAGE=ON -P runtimes/build_runtimes.cmake
 ```
 
 This writes `<cache>/packages/runtimes-23.1.0-linux-aarch64-gnu.2.34.tar.zst`
@@ -554,8 +554,8 @@ The inputs and recipes come from hermetic-llvm:
 
 ## Testing and CI
 
-[![Tests](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/tests.yml/badge.svg)](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/tests.yml)
-[![Nightly](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/nightly.yml/badge.svg)](https://github.com/Orphis/hermetic-llvm-cmake/actions/workflows/nightly.yml)
+[![Tests](https://github.com/Orphis/hermetic-cpp-cmake/actions/workflows/tests.yml/badge.svg)](https://github.com/Orphis/hermetic-cpp-cmake/actions/workflows/tests.yml)
+[![Nightly](https://github.com/Orphis/hermetic-cpp-cmake/actions/workflows/nightly.yml/badge.svg)](https://github.com/Orphis/hermetic-cpp-cmake/actions/workflows/nightly.yml)
 
 `tests/run_tests.sh` drives the sample project in [`tests/hello`](tests/hello)
 through the presets in
@@ -607,7 +607,7 @@ combination has no runner at all: `darwin-aarch64` cross-built from a macOS
 x86_64 host. Everything a job builds is executed on a runner, or under
 Docker/QEMU, of the target platform.
 
-Both workflows cache only `~/.cache/hermetic-llvm/downloads` (about 300 MB,
+Both workflows cache only `~/.cache/hermetic-cpp/downloads` (about 300 MB,
 mostly the LLVM source archive and the macOS SDK package) and rebuild runtime sets every time, which
 keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
@@ -616,8 +616,8 @@ minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 remote execution (see [Remote execution](#remote-execution)): it builds
 each preset through the reference wrapper in the checkout and in a copy at
 another path, and requires the same actions and byte-identical outputs.
-It uses `<repo>/.hermetic-llvm` as the cache, or links it to
-`HERMETIC_LLVM_CACHE_DIR` when that points elsewhere. Every build job runs
+It uses `<repo>/.hermetic-cpp` as the cache, or links it to
+`HERMETIC_CACHE_DIR` when that points elsewhere. Every build job runs
 it after building, on a subset of its presets (the `rbe` list of the job,
 built already, so nothing is downloaded or built again), on every host
 including Windows; the nightly jobs add sanitizer, Windows runtime set and
@@ -638,7 +638,7 @@ object-name record and builds libunwind and libc++abi without assertions
 which no prefix map covers). The `-dbg` presets build the sample with debug
 information, mapping its source directory to a fixed name (the toolchain
 records the build directory as `.` and maps the cache directory for every
-build when `HERMETIC_LLVM_REPRODUCIBLE` is on), so debug info is measured
+build when `HERMETIC_REPRODUCIBLE` is on), so debug info is measured
 too.
 
 Result: release and debug binaries built on Linux x86_64, Linux arm64,
@@ -646,7 +646,7 @@ macOS and Windows hosts are byte-identical, PDBs included (see
 Reproducibility under Windows targets). Three kinds of difference are
 reported but not enforced: sanitized program binaries (ASan and UBSan
 embed source paths that no prefix map covers); macOS binaries built
-against different SDK versions (only with `HERMETIC_LLVM_SYSROOT=host`,
+against different SDK versions (only with `HERMETIC_SYSROOT=host`,
 where the SDK is the host's Xcode; the sample records the version so the
 check can tell); and debug info or PDBs built on a Windows host (the
 backslash-joined include paths), where only the Windows builds may deviate

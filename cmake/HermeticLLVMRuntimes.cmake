@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Runtime sets: per-target directories holding everything needed to compile
@@ -23,14 +23,14 @@ include_guard(GLOBAL)
 set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 16)
 
 function(hermetic_llvm_load_runtime_sources)
-  hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/runtime_sources.json" json)
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/runtime_sources.json" json)
   set(_HERMETIC_LLVM_RUNTIME_SOURCES "${json}" PARENT_SCOPE)
   string(JSON default_libc GET "${json}" "default_libc")
-  set(HERMETIC_LLVM_DEFAULT_LIBC "${default_libc}" PARENT_SCOPE)
+  set(HERMETIC_DEFAULT_LIBC "${default_libc}" PARENT_SCOPE)
 endfunction()
 
 # Lists the glibc versions the tables know about.
-function(hermetic_llvm_glibc_versions OUT)
+function(hermetic_glibc_versions OUT)
   if(NOT _HERMETIC_LLVM_RUNTIME_SOURCES)
     hermetic_llvm_load_runtime_sources()
   endif()
@@ -46,25 +46,25 @@ function(hermetic_llvm_glibc_versions OUT)
 endfunction()
 
 # Validates a libc spec ("gnu.2.28" or "musl") and splits it.
-function(hermetic_llvm_parse_libc LIBC OUT_FAMILY OUT_VERSION)
+function(hermetic_parse_libc LIBC OUT_FAMILY OUT_VERSION)
   if(LIBC STREQUAL "musl")
     set(${OUT_FAMILY} musl PARENT_SCOPE)
     set(${OUT_VERSION} "" PARENT_SCOPE)
   elseif(LIBC MATCHES "^gnu\\.([0-9]+\\.[0-9]+)$")
-    hermetic_llvm_glibc_versions(versions)
+    hermetic_glibc_versions(versions)
     if(NOT CMAKE_MATCH_1 IN_LIST versions)
       string(REPLACE ";" ", " known "${versions}")
-      hermetic_llvm_fatal("Unknown glibc version ${CMAKE_MATCH_1}; known versions: ${known}")
+      hermetic_fatal("Unknown glibc version ${CMAKE_MATCH_1}; known versions: ${known}")
     endif()
     set(${OUT_FAMILY} gnu PARENT_SCOPE)
     set(${OUT_VERSION} "${CMAKE_MATCH_1}" PARENT_SCOPE)
   else()
-    hermetic_llvm_fatal("HERMETIC_LLVM_LIBC must be 'musl' or 'gnu.<version>' (e.g. gnu.2.28), not '${LIBC}'")
+    hermetic_fatal("HERMETIC_LIBC must be 'musl' or 'gnu.<version>' (e.g. gnu.2.28), not '${LIBC}'")
   endif()
 endfunction()
 
 # Target triple for a Linux arch and libc family.
-function(hermetic_llvm_libc_triple ARCH FAMILY OUT)
+function(hermetic_libc_triple ARCH FAMILY OUT)
   if(ARCH STREQUAL "armv7")
     set(triple "armv7-unknown-linux-${FAMILY}eabihf")
   else()
@@ -73,7 +73,7 @@ function(hermetic_llvm_libc_triple ARCH FAMILY OUT)
   set(${OUT} "${triple}" PARENT_SCOPE)
 endfunction()
 
-function(hermetic_llvm_kernel_arch ARCH OUT)
+function(hermetic_kernel_arch ARCH OUT)
   if(ARCH STREQUAL "x86_64")
     set(${OUT} x86 PARENT_SCOPE)
   elseif(ARCH STREQUAL "aarch64")
@@ -85,11 +85,11 @@ function(hermetic_llvm_kernel_arch ARCH OUT)
   elseif(ARCH STREQUAL "armv7")
     set(${OUT} arm PARENT_SCOPE)
   else()
-    hermetic_llvm_fatal("No kernel headers architecture for ${ARCH}")
+    hermetic_fatal("No kernel headers architecture for ${ARCH}")
   endif()
 endfunction()
 
-function(hermetic_llvm_glibc_headers_triple ARCH OUT)
+function(hermetic_glibc_headers_triple ARCH OUT)
   if(ARCH STREQUAL "armv7")
     set(${OUT} arm-linux-gnueabihf PARENT_SCOPE)
   else()
@@ -100,14 +100,14 @@ endfunction()
 # ---- Fetching inputs ------------------------------------------------------------
 
 function(hermetic_llvm_fetch_llvm_source VERSION OUT_DIR)
-  hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/llvm_sources.json" json)
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/llvm_sources.json" json)
   string(JSON entry ERROR_VARIABLE err GET "${json}" "${VERSION}")
   if(err)
-    hermetic_llvm_fatal("No LLVM source archive is known for ${VERSION} (cmake/distributions/llvm_sources.json)")
+    hermetic_fatal("No LLVM source archive is known for ${VERSION} (cmake/distributions/llvm_sources.json)")
   endif()
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
-  hermetic_llvm_fetch_archive(NAME "llvm-project-${VERSION}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
+  hermetic_fetch_archive(NAME "llvm-project-${VERSION}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
   hermetic_llvm_patch_llvm_source("${dir}")
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
 endfunction()
@@ -127,7 +127,7 @@ function(hermetic_llvm_patch_llvm_source DIR)
   if(pos EQUAL -1)
     string(FIND "${content}" "${before}" pos)
     if(pos EQUAL -1)
-      hermetic_llvm_fatal("${file} does not contain the expected std::nothrow definition; update hermetic_llvm_patch_llvm_source")
+      hermetic_fatal("${file} does not contain the expected std::nothrow definition; update hermetic_llvm_patch_llvm_source")
     endif()
     string(REPLACE "${before}" "${after}" content "${content}")
     file(WRITE "${file}" "${content}")
@@ -135,9 +135,9 @@ function(hermetic_llvm_patch_llvm_source DIR)
 endfunction()
 
 # The hermetic-llvm "extras" tool prebuilts (glibc-stubs-generator, pkgutil, ...).
-function(hermetic_llvm_fetch_extras OUT_DIR)
-  set(os "${HERMETIC_LLVM_HOST_OS}")
-  set(arch "${HERMETIC_LLVM_HOST_ARCH}")
+function(hermetic_fetch_extras OUT_DIR)
+  set(os "${HERMETIC_HOST_OS}")
+  set(arch "${HERMETIC_HOST_ARCH}")
   if(arch STREQUAL "aarch64")
     set(arch arm64)
   elseif(arch STREQUAL "x86_64")
@@ -154,55 +154,55 @@ function(hermetic_llvm_fetch_extras OUT_DIR)
   string(JSON version GET "${extras}" "version")
   string(JSON entry ERROR_VARIABLE err GET "${extras}" "hosts" "${key}")
   if(err)
-    hermetic_llvm_fatal("No hermetic-llvm extras prebuilt for host ${key}")
+    hermetic_fatal("No hermetic-llvm extras prebuilt for host ${key}")
   endif()
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
-  hermetic_llvm_fetch_archive(NAME "extras-${version}-${key}" KIND tools SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 0 OUT_DIR dir)
+  hermetic_fetch_archive(NAME "extras-${version}-${key}" KIND tools SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 0 OUT_DIR dir)
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
 endfunction()
 
 # The mingw-w64 source tree (headers, CRT, winpthreads). Sets ${OUT_DIR}, ${OUT_VERSION}.
-function(hermetic_llvm_fetch_mingw_source OUT_DIR OUT_VERSION)
+function(hermetic_fetch_mingw_source OUT_DIR OUT_VERSION)
   string(JSON entry GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "mingw")
   string(JSON version GET "${entry}" "version")
   string(JSON sha GET "${entry}" "sha256")
   string(JSON strip GET "${entry}" "strip_components")
   string(JSON urls GET "${entry}" "urls")
   string(JSON url GET "${urls}" 0)
-  hermetic_llvm_fetch_archive(NAME "mingw-w64-${version}" KIND src SHA256 "${sha}" URLS "${url}"
+  hermetic_fetch_archive(NAME "mingw-w64-${version}" KIND src SHA256 "${sha}" URLS "${url}"
     STRIP_COMPONENTS "${strip}" OUT_DIR dir)
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
   set(${OUT_VERSION} "${version}" PARENT_SCOPE)
 endfunction()
 
-function(hermetic_llvm_fetch_kernel_headers VERSION ARCH OUT_DIR)
-  hermetic_llvm_kernel_arch("${ARCH}" karch)
-  hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/kernel_headers.json" json)
+function(hermetic_fetch_kernel_headers VERSION ARCH OUT_DIR)
+  hermetic_kernel_arch("${ARCH}" karch)
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/kernel_headers.json" json)
   string(JSON entry ERROR_VARIABLE err GET "${json}" "${VERSION}" "${karch}")
   if(err)
-    hermetic_llvm_fatal("No Linux ${VERSION} UAPI headers for ${karch} in cmake/distributions/kernel_headers.json")
+    hermetic_fatal("No Linux ${VERSION} UAPI headers for ${karch} in cmake/distributions/kernel_headers.json")
   endif()
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
-  hermetic_llvm_fetch_archive(NAME "linux-${VERSION}-${karch}" KIND headers SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
+  hermetic_fetch_archive(NAME "linux-${VERSION}-${karch}" KIND headers SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
   set(${OUT_DIR} "${dir}/include" PARENT_SCOPE)
 endfunction()
 
-function(hermetic_llvm_fetch_glibc_headers VERSION ARCH OUT_DIR)
-  hermetic_llvm_glibc_headers_triple("${ARCH}" triple)
-  hermetic_llvm_read_json("${HERMETIC_LLVM_DIR}/cmake/distributions/glibc_headers.json" json)
+function(hermetic_fetch_glibc_headers VERSION ARCH OUT_DIR)
+  hermetic_glibc_headers_triple("${ARCH}" triple)
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/glibc_headers.json" json)
   string(JSON entry ERROR_VARIABLE err GET "${json}" "${VERSION}" "${triple}")
   if(err)
-    hermetic_llvm_fatal("No glibc ${VERSION} headers for ${triple} in cmake/distributions/glibc_headers.json")
+    hermetic_fatal("No glibc ${VERSION} headers for ${triple} in cmake/distributions/glibc_headers.json")
   endif()
   string(JSON url GET "${entry}" "url")
   string(JSON sha GET "${entry}" "sha256")
-  hermetic_llvm_fetch_archive(NAME "glibc-headers-${triple}-${VERSION}" KIND headers SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
+  hermetic_fetch_archive(NAME "glibc-headers-${triple}-${VERSION}" KIND headers SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS 1 OUT_DIR dir)
   set(${OUT_DIR} "${dir}/include" PARENT_SCOPE)
 endfunction()
 
-function(hermetic_llvm_fetch_glibc_source VERSION OUT_DIR)
+function(hermetic_fetch_glibc_source VERSION OUT_DIR)
   string(JSON entry GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "glibc" "${VERSION}")
   string(JSON urls_json GET "${entry}" "urls")
   string(JSON sha GET "${entry}" "sha256")
@@ -214,17 +214,17 @@ function(hermetic_llvm_fetch_glibc_source VERSION OUT_DIR)
     string(JSON u GET "${urls_json}" ${i})
     list(APPEND urls "${u}")
   endforeach()
-  hermetic_llvm_fetch_archive(NAME "glibc-${VERSION}" KIND src SHA256 "${sha}" URLS ${urls} STRIP_COMPONENTS ${strip} OUT_DIR dir)
+  hermetic_fetch_archive(NAME "glibc-${VERSION}" KIND src SHA256 "${sha}" URLS ${urls} STRIP_COMPONENTS ${strip} OUT_DIR dir)
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
 endfunction()
 
-function(hermetic_llvm_fetch_musl_source OUT_DIR OUT_VERSION)
+function(hermetic_fetch_musl_source OUT_DIR OUT_VERSION)
   string(JSON entry GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "musl")
   string(JSON version GET "${entry}" "version")
   string(JSON url GET "${entry}" "urls" 0)
   string(JSON sha GET "${entry}" "sha256")
   string(JSON strip GET "${entry}" "strip_components")
-  hermetic_llvm_fetch_archive(NAME "musl-${version}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS ${strip} OUT_DIR dir)
+  hermetic_fetch_archive(NAME "musl-${version}" KIND src SHA256 "${sha}" URLS "${url}" STRIP_COMPONENTS ${strip} OUT_DIR dir)
   set(${OUT_DIR} "${dir}" PARENT_SCOPE)
   set(${OUT_VERSION} "${version}" PARENT_SCOPE)
 endfunction()
@@ -239,9 +239,9 @@ function(hermetic_llvm_build_stage)
   file(MAKE_DIRECTORY "${A_LOG_DIR}")
   set(log "${A_LOG_DIR}/${A_NAME}.log")
   set(generator "")
-  find_program(HERMETIC_LLVM_NINJA ninja ninja-build)
-  if(HERMETIC_LLVM_NINJA)
-    set(generator -G Ninja "-DCMAKE_MAKE_PROGRAM=${HERMETIC_LLVM_NINJA}")
+  find_program(HERMETIC_NINJA ninja ninja-build)
+  if(HERMETIC_NINJA)
+    set(generator -G Ninja "-DCMAKE_MAKE_PROGRAM=${HERMETIC_NINJA}")
   endif()
   set(bootstrap "")
   foreach(kv IN LISTS A_BOOTSTRAP)
@@ -261,28 +261,28 @@ function(hermetic_llvm_build_stage)
     file(WRITE "${A_LOG_DIR}/${A_NAME}.cache.cmake" "${cache_content}")
     set(cache_args -C "${A_LOG_DIR}/${A_NAME}.cache.cmake")
   endif()
-  hermetic_llvm_log("  ${A_NAME}: configuring (log: ${log})")
+  hermetic_log("  ${A_NAME}: configuring (log: ${log})")
   execute_process(
     COMMAND "${CMAKE_COMMAND}" -S "${A_SOURCE}" -B "${A_BUILD}" ${generator} ${cache_args}
-      "-DCMAKE_TOOLCHAIN_FILE=${HERMETIC_LLVM_DIR}/runtimes/bootstrap.toolchain.cmake"
+      "-DCMAKE_TOOLCHAIN_FILE=${HERMETIC_DIR}/runtimes/bootstrap.toolchain.cmake"
       "-DCMAKE_INSTALL_PREFIX=${A_INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE=Release
       ${bootstrap} ${A_ARGS}
     OUTPUT_FILE "${log}" ERROR_FILE "${log}" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
-    hermetic_llvm_fatal("${A_NAME}: configure failed, see ${log}")
+    hermetic_fatal("${A_NAME}: configure failed, see ${log}")
   endif()
-  hermetic_llvm_log("  ${A_NAME}: building")
+  hermetic_log("  ${A_NAME}: building")
   execute_process(COMMAND "${CMAKE_COMMAND}" --build "${A_BUILD}"
     OUTPUT_FILE "${log}.build" ERROR_FILE "${log}.build" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
-    hermetic_llvm_fatal("${A_NAME}: build failed, see ${log}.build")
+    hermetic_fatal("${A_NAME}: build failed, see ${log}.build")
   endif()
   execute_process(COMMAND "${CMAKE_COMMAND}" --install "${A_BUILD}"
     OUTPUT_FILE "${log}.install" ERROR_FILE "${log}.install" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
-    hermetic_llvm_fatal("${A_NAME}: install failed, see ${log}.install")
+    hermetic_fatal("${A_NAME}: install failed, see ${log}.install")
   endif()
-  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+  if(NOT HERMETIC_KEEP_BUILD_DIRS)
     file(REMOVE_RECURSE "${A_BUILD}")
   endif()
 endfunction()
@@ -316,12 +316,12 @@ endfunction()
 # Builds (or reuses) the runtime set for TARGET (e.g. linux-x86_64) and LIBC
 # (gnu.2.28 / musl) with the compiler at LLVM_ROOT. Sets ${OUT_DIR}.
 function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_DIR)
-  hermetic_llvm_target_info("${TARGET}" tgt)
+  hermetic_target_info("${TARGET}" tgt)
   if(NOT tgt_OS STREQUAL "linux")
-    hermetic_llvm_fatal("Runtime sets are only built for Linux targets, not ${TARGET}")
+    hermetic_fatal("Runtime sets are only built for Linux targets, not ${TARGET}")
   endif()
-  hermetic_llvm_parse_libc("${LIBC}" family libc_version)
-  hermetic_llvm_libc_triple("${tgt_ARCH}" "${family}" triple)
+  hermetic_parse_libc("${LIBC}" family libc_version)
+  hermetic_libc_triple("${tgt_ARCH}" "${family}" triple)
   set(id "${TARGET}-${LIBC}")
   set(components builtins libcxx)
   if(HERMETIC_LLVM_RUNTIME_SANITIZERS)
@@ -330,27 +330,27 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   string(REPLACE ";" "," components_str "${components}")
   set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
 
-  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
-  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-cpp.stamp")
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
-  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
-  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
 
-  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}); this takes a few minutes")
+  hermetic_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}); this takes a few minutes")
   hermetic_llvm_load_runtime_sources()
   hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
   set(tmp "${set_dir}.tmp")
-  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
-  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  set(build_root "${HERMETIC_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
   file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
   file(MAKE_DIRECTORY "${tmp}/usr/include" "${tmp}/usr/lib" "${tmp}/resource")
 
@@ -365,11 +365,11 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
     # uses __builtin_FILE() in C++ instead, which this cannot intercept;
     # the runtimes are therefore built with assertions off (below).
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
-    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
-    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
-    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
-    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+    "-ffile-prefix-map=${build_root}=/hermetic-cpp/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-cpp/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-cpp/llvm-project"
+    "-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+    "-ffile-prefix-map=${HERMETIC_DIR}=/hermetic-cpp/repo")
   string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
   set(bootstrap
     "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
@@ -380,31 +380,31 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
 
   # 1. libc: headers, crt objects and libraries into <set>/usr.
   if(family STREQUAL "musl")
-    hermetic_llvm_fetch_musl_source(musl_src musl_version)
+    hermetic_fetch_musl_source(musl_src musl_version)
     string(JSON kernel_version GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "musl" "kernel")
-    hermetic_llvm_fetch_kernel_headers("${kernel_version}" "${tgt_ARCH}" kernel_headers)
+    hermetic_fetch_kernel_headers("${kernel_version}" "${tgt_ARCH}" kernel_headers)
     set(musl_arch "${tgt_ARCH}")
     if(musl_arch STREQUAL "armv7")
       set(musl_arch arm)
     endif()
-    hermetic_llvm_build_stage(NAME libc SOURCE "${HERMETIC_LLVM_DIR}/runtimes/musl" BUILD "${build_root}/libc"
+    hermetic_llvm_build_stage(NAME libc SOURCE "${HERMETIC_DIR}/runtimes/musl" BUILD "${build_root}/libc"
       INSTALL_PREFIX "${tmp}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
       ARGS "-DMUSL_SOURCE_DIR=${musl_src}" "-DMUSL_ARCH=${musl_arch}")
     file(COPY "${kernel_headers}/" DESTINATION "${tmp}/usr/include")
     set(libc_description "musl ${musl_version}")
   else()
     string(JSON kernel_version GET "${_HERMETIC_LLVM_RUNTIME_SOURCES}" "glibc" "${libc_version}" "kernel")
-    hermetic_llvm_fetch_glibc_source("${libc_version}" glibc_src)
-    hermetic_llvm_fetch_glibc_headers("${libc_version}" "${tgt_ARCH}" glibc_headers)
-    hermetic_llvm_fetch_kernel_headers("${kernel_version}" "${tgt_ARCH}" kernel_headers)
-    hermetic_llvm_fetch_extras(extras)
-    hermetic_llvm_host_executable("${extras}/bin/glibc-stubs-generator" stubs_generator)
-    hermetic_llvm_build_stage(NAME libc SOURCE "${HERMETIC_LLVM_DIR}/runtimes/glibc" BUILD "${build_root}/libc"
+    hermetic_fetch_glibc_source("${libc_version}" glibc_src)
+    hermetic_fetch_glibc_headers("${libc_version}" "${tgt_ARCH}" glibc_headers)
+    hermetic_fetch_kernel_headers("${kernel_version}" "${tgt_ARCH}" kernel_headers)
+    hermetic_fetch_extras(extras)
+    hermetic_host_executable("${extras}/bin/glibc-stubs-generator" stubs_generator)
+    hermetic_llvm_build_stage(NAME libc SOURCE "${HERMETIC_DIR}/runtimes/glibc" BUILD "${build_root}/libc"
       INSTALL_PREFIX "${tmp}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
       ARGS "-DGLIBC_SOURCE_DIR=${glibc_src}" "-DGLIBC_VERSION=${libc_version}" "-DGLIBC_ARCH=${tgt_ARCH}"
            "-DGLIBC_HEADERS_DIR=${glibc_headers}" "-DKERNEL_HEADERS_DIR=${kernel_headers}"
            "-DGLIBC_STUBS_GENERATOR=${stubs_generator}"
-           "-DGLIBC_ABILISTS=${HERMETIC_LLVM_DIR}/runtimes/glibc/abilists")
+           "-DGLIBC_ABILISTS=${HERMETIC_DIR}/runtimes/glibc/abilists")
     set(libc_description "glibc ${libc_version}")
   endif()
 
@@ -489,12 +489,12 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   \"built\": \"${now}\"
 }
 ")
-  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(WRITE "${tmp}/.hermetic-cpp.stamp" "${stamp_content}\n")
   file(RENAME "${tmp}" "${set_dir}")
-  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+  if(NOT HERMETIC_KEEP_BUILD_DIRS)
     file(REMOVE_RECURSE "${build_root}")
   endif()
-  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  hermetic_log("Runtime set ${id} ready at ${set_dir}")
   set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
 endfunction()
 
@@ -503,13 +503,13 @@ endfunction()
 # no libc++abi or libunwind, like hermetic-llvm's windows_msvc route), once
 # per C runtime flavour (/MD /MDd /MT /MTd, the values of CMake's
 # MSVC_RUNTIME_LIBRARY), and compiler-rt builtins, all built with clang-cl
-# against the toolset and SDK in HERMETIC_LLVM_RESOLVED_WINSDK. Sets ${OUT_DIR}.
+# against the toolset and SDK in HERMETIC_RESOLVED_WINSDK. Sets ${OUT_DIR}.
 function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
-  hermetic_llvm_target_info("${TARGET}" tgt)
+  hermetic_target_info("${TARGET}" tgt)
   if(NOT tgt_OS STREQUAL "windows")
-    hermetic_llvm_fatal("hermetic_llvm_build_windows_runtime_set: ${TARGET} is not a Windows target")
+    hermetic_fatal("hermetic_llvm_build_windows_runtime_set: ${TARGET} is not a Windows target")
   endif()
-  set(winsdk "${HERMETIC_LLVM_RESOLVED_WINSDK}")
+  set(winsdk "${HERMETIC_RESOLVED_WINSDK}")
   list(GET winsdk 0 msvc_version)
   list(GET winsdk 4 sdk_version)
   set(triple "${tgt_TRIPLE}")
@@ -521,27 +521,27 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   string(REPLACE ";" "," components_str "${components}")
   set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
 
-  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
-  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-cpp.stamp")
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
-  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
-  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
 
-  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, libc++ on the Microsoft ABI); this takes a few minutes")
+  hermetic_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, libc++ on the Microsoft ABI); this takes a few minutes")
   hermetic_llvm_load_runtime_sources()
   hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
   set(tmp "${set_dir}.tmp")
-  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
-  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  set(build_root "${HERMETIC_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
   file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
   file(MAKE_DIRECTORY "${tmp}/include" "${tmp}/lib" "${tmp}/resource")
 
@@ -552,13 +552,13 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   set(prefix_map
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
     -Xclang -object-file-name=-
-    "/clang:-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
-    "/clang:-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
-    "/clang:-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
-    "/clang:-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-    "/clang:-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+    "/clang:-ffile-prefix-map=${build_root}=/hermetic-cpp/build"
+    "/clang:-ffile-prefix-map=${tmp}=/hermetic-cpp/runtime-set"
+    "/clang:-ffile-prefix-map=${llvm_src}=/hermetic-cpp/llvm-project"
+    "/clang:-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+    "/clang:-ffile-prefix-map=${HERMETIC_DIR}=/hermetic-cpp/repo")
   string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
-  hermetic_llvm_windows_flags("${winsdk}" "${tgt_ARCH}" win_compile win_link)
+  hermetic_windows_flags("${winsdk}" "${tgt_ARCH}" win_compile win_link)
   string(REPLACE ";" " " win_compile_flags "${win_compile}")
   string(REPLACE ";" " " win_link_flags "${win_link}")
   set(bootstrap
@@ -610,7 +610,7 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
         -DLIBCXX_INSTALL_MODULES=OFF -DLIBCXX_USE_COMPILER_RT=ON
         -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)
     if(NOT EXISTS "${install}/lib/libc++.lib")
-      hermetic_llvm_fatal("libc++ (${crt}) build did not produce ${install}/lib/libc++.lib")
+      hermetic_fatal("libc++ (${crt}) build did not produce ${install}/lib/libc++.lib")
     endif()
     file(RENAME "${install}/lib/libc++.lib" "${tmp}/lib/libc++-${short}.lib")
     if(short STREQUAL "md")
@@ -623,7 +623,7 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   # flavour through a default-library directive, as the MSVC STL's
   # yvals_core.h does, so CMake's MSVC_RUNTIME_LIBRARY is honoured per target.
   file(WRITE "${tmp}/include/__hermetic_llvm_libcxx_link.h" [=[
-// Generated by hermetic-llvm-cmake: selects the libc++ archive matching the
+// Generated by hermetic-cpp-cmake: selects the libc++ archive matching the
 // C runtime flavour of this translation unit (/MD /MDd /MT /MTd).
 #pragma once
 #if defined(_DLL)
@@ -697,12 +697,12 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   \"built\": \"${now}\"
 }
 ")
-  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(WRITE "${tmp}/.hermetic-cpp.stamp" "${stamp_content}\n")
   file(RENAME "${tmp}" "${set_dir}")
-  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+  if(NOT HERMETIC_KEEP_BUILD_DIRS)
     file(REMOVE_RECURSE "${build_root}")
   endif()
-  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  hermetic_log("Runtime set ${id} ready at ${set_dir}")
   set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
 endfunction()
 
@@ -714,39 +714,39 @@ endfunction()
 # and libc++ (win32 threads). The set is identified by "<target>-mingw".
 # Sets ${OUT_DIR}.
 function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
-  hermetic_llvm_target_info("${TARGET}" tgt)
+  hermetic_target_info("${TARGET}" tgt)
   if(NOT tgt_OS STREQUAL "windows")
-    hermetic_llvm_fatal("hermetic_llvm_build_mingw_runtime_set: ${TARGET} is not a Windows target")
+    hermetic_fatal("hermetic_llvm_build_mingw_runtime_set: ${TARGET} is not a Windows target")
   endif()
-  hermetic_llvm_windows_gnu_triple("${tgt_ARCH}" triple)
+  hermetic_windows_gnu_triple("${tgt_ARCH}" triple)
   set(subdir "${tgt_ARCH}-w64-mingw32")
   set(id "${TARGET}-mingw")
   set(components builtins libcxx)
   string(REPLACE ";" "," components_str "${components}")
   set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
 
-  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
-  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-cpp.stamp")
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
-  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
-  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
 
-  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, mingw-w64 with UCRT, libc++); this takes a few minutes")
+  hermetic_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, mingw-w64 with UCRT, libc++); this takes a few minutes")
   hermetic_llvm_load_runtime_sources()
   hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
-  hermetic_llvm_fetch_mingw_source(mingw_src mingw_version)
+  hermetic_fetch_mingw_source(mingw_src mingw_version)
   set(tmp "${set_dir}.tmp")
-  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
-  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  set(build_root "${HERMETIC_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
   file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
   file(MAKE_DIRECTORY "${tmp}/${subdir}" "${tmp}/resource")
 
@@ -754,12 +754,12 @@ function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT
   # timestamp unless told otherwise (the MSVC route gets that from /Brepro).
   set(prefix_map
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__" -mno-incremental-linker-compatible
-    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
-    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
-    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
-    "-ffile-prefix-map=${mingw_src}=/hermetic-llvm/mingw-w64"
-    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+    "-ffile-prefix-map=${build_root}=/hermetic-cpp/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-cpp/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-cpp/llvm-project"
+    "-ffile-prefix-map=${mingw_src}=/hermetic-cpp/mingw-w64"
+    "-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+    "-ffile-prefix-map=${HERMETIC_DIR}=/hermetic-cpp/repo")
   string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
   set(bootstrap
     "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
@@ -770,7 +770,7 @@ function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT
     "HERMETIC_LLVM_BOOTSTRAP_PREFIX_MAP=${prefix_map_flags}")
 
   # 1. mingw-w64: headers, CRT, start files, import libraries, winpthreads.
-  hermetic_llvm_build_stage(NAME mingw-w64 SOURCE "${HERMETIC_LLVM_DIR}/runtimes/mingw" BUILD "${build_root}/mingw-w64"
+  hermetic_llvm_build_stage(NAME mingw-w64 SOURCE "${HERMETIC_DIR}/runtimes/mingw" BUILD "${build_root}/mingw-w64"
     INSTALL_PREFIX "${tmp}/${subdir}" LOG_DIR "${log_dir}" BOOTSTRAP ${bootstrap}
     ARGS "-DMINGW_SOURCE_DIR=${mingw_src}" "-DMINGW_ARCH=${tgt_ARCH}" "-DMINGW_TRIPLE=${triple}"
       "-DMINGW_LLVM_BIN=${LLVM_ROOT}/bin")
@@ -824,12 +824,12 @@ function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT
   \"built\": \"${now}\"
 }
 ")
-  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(WRITE "${tmp}/.hermetic-cpp.stamp" "${stamp_content}\n")
   file(RENAME "${tmp}" "${set_dir}")
-  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+  if(NOT HERMETIC_KEEP_BUILD_DIRS)
     file(REMOVE_RECURSE "${build_root}")
   endif()
-  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  hermetic_log("Runtime set ${id} ready at ${set_dir}")
   set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
 endfunction()
 
@@ -840,9 +840,9 @@ endfunction()
 # only has what it brings along, and the toolchain links with -nostdlib.
 # The set is identified by "<target>-none". Sets ${OUT_DIR}.
 function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_DIR)
-  hermetic_llvm_target_info("${TARGET}" tgt)
+  hermetic_target_info("${TARGET}" tgt)
   if(NOT tgt_OS STREQUAL "wasm")
-    hermetic_llvm_fatal("hermetic_llvm_build_wasm_runtime_set: ${TARGET} is not a WebAssembly target")
+    hermetic_fatal("hermetic_llvm_build_wasm_runtime_set: ${TARGET} is not a WebAssembly target")
   endif()
   set(triple "${tgt_TRIPLE}")
   set(id "${TARGET}-none")
@@ -850,37 +850,37 @@ function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_
   string(REPLACE ";" "," components_str "${components}")
   set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
 
-  set(set_dir "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
-  set(stamp "${set_dir}/.hermetic-llvm.stamp")
+  set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
+  set(stamp "${set_dir}/.hermetic-cpp.stamp")
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
-  file(MAKE_DIRECTORY "${HERMETIC_LLVM_CACHE_DIR}/locks" "${HERMETIC_LLVM_CACHE_DIR}/runtimes/${LLVM_VERSION}")
-  file(LOCK "${HERMETIC_LLVM_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
+  file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
+  file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
   hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
 
-  hermetic_llvm_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, compiler-rt builtins); this takes a minute")
+  hermetic_log("Building runtime set ${id} for LLVM ${LLVM_VERSION} (${triple}, compiler-rt builtins); this takes a minute")
   hermetic_llvm_load_runtime_sources()
   hermetic_llvm_fetch_llvm_source("${LLVM_VERSION}" llvm_src)
   set(tmp "${set_dir}.tmp")
-  set(build_root "${HERMETIC_LLVM_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
-  set(log_dir "${HERMETIC_LLVM_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
+  set(build_root "${HERMETIC_CACHE_DIR}/build/${LLVM_VERSION}/${id}")
+  set(log_dir "${HERMETIC_CACHE_DIR}/logs/${LLVM_VERSION}/${id}")
   file(REMOVE_RECURSE "${tmp}" "${set_dir}" "${build_root}")
   file(MAKE_DIRECTORY "${tmp}/resource")
 
   set(prefix_map
     -Wno-builtin-macro-redefined "-D__FILE__=__FILE_NAME__"
-    "-ffile-prefix-map=${build_root}=/hermetic-llvm/build"
-    "-ffile-prefix-map=${tmp}=/hermetic-llvm/runtime-set"
-    "-ffile-prefix-map=${llvm_src}=/hermetic-llvm/llvm-project"
-    "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-    "-ffile-prefix-map=${HERMETIC_LLVM_DIR}=/hermetic-llvm/repo")
+    "-ffile-prefix-map=${build_root}=/hermetic-cpp/build"
+    "-ffile-prefix-map=${tmp}=/hermetic-cpp/runtime-set"
+    "-ffile-prefix-map=${llvm_src}=/hermetic-cpp/llvm-project"
+    "-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+    "-ffile-prefix-map=${HERMETIC_DIR}=/hermetic-cpp/repo")
   string(REPLACE ";" " " prefix_map_flags "${prefix_map}")
   set(bootstrap
     "HERMETIC_LLVM_BOOTSTRAP_BIN=${LLVM_ROOT}/bin"
@@ -909,7 +909,7 @@ function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_
       -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
       -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF)
   if(NOT EXISTS "${tmp}/resource/lib/${triple}/libclang_rt.builtins.a")
-    hermetic_llvm_fatal("compiler-rt did not produce lib/${triple}/libclang_rt.builtins.a under ${tmp}/resource")
+    hermetic_fatal("compiler-rt did not produce lib/${triple}/libclang_rt.builtins.a under ${tmp}/resource")
   endif()
 
   string(TIMESTAMP now UTC)
@@ -925,32 +925,32 @@ function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_
   \"built\": \"${now}\"
 }
 ")
-  file(WRITE "${tmp}/.hermetic-llvm.stamp" "${stamp_content}\n")
+  file(WRITE "${tmp}/.hermetic-cpp.stamp" "${stamp_content}\n")
   file(RENAME "${tmp}" "${set_dir}")
-  if(NOT HERMETIC_LLVM_KEEP_BUILD_DIRS)
+  if(NOT HERMETIC_KEEP_BUILD_DIRS)
     file(REMOVE_RECURSE "${build_root}")
   endif()
-  hermetic_llvm_log("Runtime set ${id} ready at ${set_dir}")
+  hermetic_log("Runtime set ${id} ready at ${set_dir}")
   set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
 endfunction()
 
 # Packs a runtime set into <cache>/packages/runtimes-<llvm>-<id>.tar.zst and
 # prints the index entry for cmake/distributions/runtime_sets.json.
 function(hermetic_llvm_package_runtime_set SET_DIR OUT_ARCHIVE)
-  hermetic_llvm_read_json("${SET_DIR}/runtime-set.json" manifest)
+  hermetic_read_json("${SET_DIR}/runtime-set.json" manifest)
   string(JSON id GET "${manifest}" "id")
   string(JSON llvm GET "${manifest}" "llvm_version")
-  set(dir "${HERMETIC_LLVM_CACHE_DIR}/packages")
+  set(dir "${HERMETIC_CACHE_DIR}/packages")
   file(MAKE_DIRECTORY "${dir}")
   set(archive "${dir}/runtimes-${llvm}-${id}.tar.zst")
   file(REMOVE "${archive}")
   execute_process(COMMAND "${CMAKE_COMMAND}" -E tar cf "${archive}" --zstd -- .
     WORKING_DIRECTORY "${SET_DIR}" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
-    hermetic_llvm_fatal("Packaging ${SET_DIR} failed")
+    hermetic_fatal("Packaging ${SET_DIR} failed")
   endif()
   file(SHA256 "${archive}" sha)
-  hermetic_llvm_log("Packaged ${archive}")
-  hermetic_llvm_log("Index entry: \"${llvm}\": { \"${id}\": { \"url\": \"<upload url>/runtimes-${llvm}-${id}.tar.zst\", \"sha256\": \"${sha}\" } }")
+  hermetic_log("Packaged ${archive}")
+  hermetic_log("Index entry: \"${llvm}\": { \"${id}\": { \"url\": \"<upload url>/runtimes-${llvm}-${id}.tar.zst\", \"sha256\": \"${sha}\" } }")
   set(${OUT_ARCHIVE} "${archive}" PARENT_SCOPE)
 endfunction()
