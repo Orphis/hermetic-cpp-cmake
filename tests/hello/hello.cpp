@@ -20,6 +20,24 @@
 #define HELLO_COMPILER "unknown compiler"
 #endif
 
+#ifdef HELLO_MALLOC
+// HERMETIC_MALLOC: blocks come from the backend, the greeter library's too
+// (on Windows a DLL keeps its own C runtime heap, which the executable's free
+// returns its blocks to).
+extern "C" int hermetic_malloc_backend_owns(const void* ptr);
+static bool allocator_ok() {
+  auto n = std::make_unique<int>(1);
+  std::string s = greet(std::string(64, 'x'));
+  bool ok = hermetic_malloc_backend_owns(n.get());
+#if !defined(_WIN32) || defined(GREETER_STATIC)
+  ok = ok && hermetic_malloc_backend_owns(s.data());
+#endif
+  return ok;
+}
+#else
+static bool allocator_ok() { return true; }
+#endif
+
 namespace {
 int throwing(int x) {
   if (x > 2) throw std::runtime_error("too big");
@@ -50,7 +68,8 @@ int main() {
     }
   }
   auto p = std::make_unique<std::string>(greet("world"));
-  bool ok = counter == 6 + 0 + 2 + 4 && caught == 2 && seen.size() == 4 && *p == "hello, world";
+  bool ok = counter == 6 + 0 + 2 + 4 && caught == 2 && seen.size() == 4 && *p == "hello, world" &&
+            allocator_ok();
   std::cout << *p << " (" << HELLO_COMPILER << "): " << (ok ? "OK" : "FAIL") << std::endl;
   return ok ? 0 : 1;
 }

@@ -34,25 +34,25 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg
-            rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-musl-mimalloc linux-x86_64-mimalloc-dbg windows-x86_64-mimalloc darwin-aarch64-mimalloc
+            rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-mimalloc-dbg
           - host: linux-aarch64
             os: ubuntu-24.04-arm
-            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg
-            rbe: host linux-x86_64-dbg windows-x86_64
+            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg linux-aarch64-mimalloc linux-aarch64-musl-mimalloc linux-x86_64-musl-mimalloc
+            rbe: host linux-x86_64-dbg windows-x86_64 linux-aarch64-mimalloc
           - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu wasm32 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg
-            rbe: host linux-aarch64 windows-x86_64-dbg windows-x86_64-libcxx darwin-aarch64-dbg wasm32-dbg
+            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu wasm32 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc windows-x86_64-mimalloc-dbg
+            rbe: host linux-aarch64 windows-x86_64-dbg windows-x86_64-libcxx darwin-aarch64-dbg wasm32-dbg darwin-aarch64-mimalloc
           - host: windows-x86_64
             os: windows-latest
-            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg
-            rbe: host linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu
+            presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-mimalloc windows-x86_64-mimalloc-dbg linux-x86_64-mimalloc-dbg
+            rbe: host linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu windows-x86_64-mimalloc-dbg
           # cl.exe builds in a job of their own: they download the compiler
           # packages and keep the main Windows job's duration in line.
           - host: windows-x86_64-msvc
             os: windows-latest
-            presets: windows-x86_64-msvc windows-x86_64-msvc-dbg
+            presets: windows-x86_64-msvc windows-x86_64-msvc-dbg windows-x86_64-msvc-mimalloc
             rbe: windows-x86_64-msvc-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60

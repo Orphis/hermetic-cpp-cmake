@@ -11,6 +11,11 @@ add_executable(hello_c hello.c)
 add_executable(hello_cxx hello.cpp)
 target_link_libraries(hello_cxx PRIVATE greeter_static Threads::Threads)
 
+# HERMETIC_MALLOC: the programs check where their blocks come from.
+if(HERMETIC_MALLOC_BACKEND)
+  add_compile_definitions(HELLO_MALLOC)
+endif()
+
 enable_testing()
 add_test(NAME hello_c COMMAND hello_c)
 add_test(NAME hello_cxx COMMAND hello_cxx)
