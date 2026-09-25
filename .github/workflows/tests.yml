@@ -68,6 +68,17 @@ jobs:
             C:/hl/downloads
           key: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'cmake/HermeticLLVMRuntimes.cmake') }}
           restore-keys: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-
+      # Runtime sets built by an earlier run of this job with the same recipe
+      # (everything under runtimes/ and cmake/): an exact match or nothing,
+      # so a change to the recipe always rebuilds them. Nightly still builds
+      # every set from source.
+      - name: Cache runtime sets
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/hermetic-cpp/runtimes
+            C:/hl/runtimes
+          key: hermetic-cpp-runtimes-${{ matrix.host }}-${{ hashFiles('runtimes/**', 'cmake/**') }}
       - name: Install Ninja
         shell: bash
         run: |
