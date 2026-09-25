@@ -309,11 +309,22 @@ def run(argv, root, log, strict):
                 env[k] = os.environ[k]
     if any(a.lower() in ("/showincludes", "-showincludes") for a in new_argv):
         proc = subprocess.run(new_argv, env=env, stdout=subprocess.PIPE)
-        sys.stdout.buffer.write(proc.stdout)
-        sys.stdout.flush()
         rc = proc.returncode
-        deps = [l.split(":", 2)[-1].strip() for l in proc.stdout.decode(errors="replace").splitlines()
-                if l.startswith("Note: including file:")]
+        # cl.exe names every included file by its resolved absolute path,
+        # relative /I directories or not; a remote execution client rewrites
+        # the ones inside the exec root to relative before handing them to
+        # the build system, and so does the wrapper (others stay and are
+        # reported below). clang-cl prints them as it was given them.
+        rel = norm(os.path.relpath(os.path.realpath(roots[0]), os.path.realpath(os.getcwd())))
+        out = []
+        deps = []
+        for line in proc.stdout.decode(errors="replace").splitlines(keepends=True):
+            if line.startswith("Note: including file:"):
+                line = relativize(line, roots, rel)
+                deps.append(line.split(":", 2)[-1].strip())
+            out.append(line)
+        sys.stdout.write("".join(out))
+        sys.stdout.flush()
     else:
         rc = subprocess.call(new_argv, env=env)
         deps = []
