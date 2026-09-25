@@ -244,8 +244,14 @@ macro(hermetic_configure)
     # the paths CodeView records, as the prefix maps do for clang.
     hermetic_append_flags(_hl_c_flags /Brepro)
     if(_hl_msvc_version VERSION_GREATER_EQUAL 14.40)
+      # Each object also records its own absolute path (the CodeView
+      # object-name record, which clang-cl leaves blank), so the build
+      # directory is mapped too; that record is only matched when <from> is
+      # spelled with backslashes, as cl.exe writes it.
+      string(REPLACE "/" "\\" _hl_build_native "${CMAKE_BINARY_DIR}")
       hermetic_append_flags(_hl_c_flags /experimental:deterministic
-        "/pathmap:${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache")
+        "/pathmap:${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+        "/pathmap:${_hl_build_native}=/hermetic-cpp/build")
     else()
       message(WARNING "[hermetic-cpp] MSVC toolset ${_hl_msvc_version} has no /experimental:deterministic or /pathmap (14.40 and newer): objects will record host paths")
     endif()
@@ -485,6 +491,9 @@ macro(hermetic_configure)
       set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_BUILD_DIR "${CMAKE_BINARY_DIR}")
       set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_MAPS
         "/hermetic-cpp/cache=${HERMETIC_CACHE_DIR}" "/hermetic-cpp/llvm=${_hl_root}")
+      if(_hl_msvc)
+        set_property(GLOBAL APPEND PROPERTY HERMETIC_DEBUGGER_MAPS "/hermetic-cpp/build=${CMAKE_BINARY_DIR}")
+      endif()
       _hermetic_write_debugger_files()
     endif()
   endif()

@@ -377,7 +377,7 @@ link step is unchanged, `lld-link` through CMake's MSVC rules
 `lib.exe` from the package are never run. The toolset and SDK headers are
 plain include directories (`/X` keeps the host's `INCLUDE` out), and with
 `HERMETIC_REPRODUCIBLE` the objects get `/Brepro`,
-`/experimental:deterministic` and a `/pathmap:` of the cache directory
+`/experimental:deterministic` and a `/pathmap:` of the cache and build directories (the latter spelled with backslashes, the only spelling cl.exe matches against the path each object records as its own name)
 (toolset 14.40, Visual Studio 17.10, and newer). Debug info goes into the
 objects (`/Z7`, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` unless the
 project sets it). Only Windows hosts, Windows targets on the MSVC ABI and the
