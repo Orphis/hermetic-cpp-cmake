@@ -125,14 +125,18 @@ jobs:
       - name: Build presets (and run native ctest)
         shell: bash
         run: tests/run_tests.sh ${{ github.event.inputs.presets || matrix.presets }}
+      # Even when a preset failed: the run stage checks whatever built.
       - name: Stage binaries
+        if: always()
         shell: bash
         run: tests/stage_artifacts.sh ${{ matrix.host }}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: bin-${{ matrix.host }}
           path: artifacts
           retention-days: 3
+          if-no-files-found: ignore
       # Remote execution readiness (see tests.yml), on the presets built above.
       - name: Check commands for remote execution
         if: matrix.rbe && !github.event.inputs.presets

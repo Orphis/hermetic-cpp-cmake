@@ -70,7 +70,11 @@ expect_glibc_mismatch() {
   fi
 }
 
-for preset in "${presets[@]}"; do
+# One preset: configure, build, and run what the host can run. Runs in a
+# subshell so that a failure ends this preset only; a failed preset is
+# marked so that stage_artifacts.sh leaves it out.
+build_preset() {
+  local preset="$1" dir
   echo "=== preset ${preset}"
   rm -rf "build/${preset}"
   cmake --preset "${preset}"
@@ -110,5 +114,24 @@ for preset in "${presets[@]}"; do
       fi
       ;;
   esac
+}
+
+failed=()
+for preset in "${presets[@]}"; do
+  # Not "if ! ( ... )": bash ignores errexit inside a tested command, subshell
+  # included, so the subshell sets it itself and the status is read after.
+  set +e
+  ( set -e; build_preset "${preset}" )
+  status=$?
+  set -e
+  if [[ ${status} -ne 0 ]]; then
+    echo "=== preset ${preset} FAILED"
+    mkdir -p "build/${preset}" && touch "build/${preset}/.failed"
+    failed+=("${preset}")
+  fi
 done
+if [[ ${#failed[@]} -gt 0 ]]; then
+  echo "failed presets: ${failed[*]}"
+  exit 1
+fi
 echo "all presets passed"
