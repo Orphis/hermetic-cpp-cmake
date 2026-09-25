@@ -12,8 +12,8 @@
 #   tests/run_rbe_check.sh linux-aarch64 windows-x86_64-libcxx-dbg
 #
 # The toolchain cache must be reachable from inside the workspace for the
-# wrapper to rewrite it: by default it is <repo>/.hermetic-llvm. When
-# HERMETIC_LLVM_CACHE_DIR names a cache elsewhere (such as CI's), the
+# wrapper to rewrite it: by default it is <repo>/.hermetic-cpp. When
+# HERMETIC_CACHE_DIR names a cache elsewhere (such as CI's), the
 # checkout gets a link to it under that name, so the presets built there
 # are reused. The copy links to the same cache; HERMETIC_RBE_CHECK_KEEP=1
 # keeps it for inspection.
@@ -52,15 +52,15 @@ else
   python="$(command -v python3)"
 fi
 
-in_tree="${repo}/.hermetic-llvm"
-cache="$(native "${HERMETIC_LLVM_CACHE_DIR:-${in_tree}}")"
+in_tree="${repo}/.hermetic-cpp"
+cache="$(native "${HERMETIC_CACHE_DIR:-${in_tree}}")"
 mkdir -p "${cache}"
 case "${cache}/" in
   "${repo}/"*) ;;
   *)
     if [[ -e "${in_tree}" || -L "${in_tree}" ]]; then
       if [[ "$(cd "${in_tree}" && pwd -P)" != "$(cd "${cache}" && pwd -P)" ]]; then
-        echo "${in_tree} exists and is not ${cache}; remove it or unset HERMETIC_LLVM_CACHE_DIR"; exit 1
+        echo "${in_tree} exists and is not ${cache}; remove it or unset HERMETIC_CACHE_DIR"; exit 1
       fi
     else
       link_dir "${cache}" "${in_tree}"
@@ -92,7 +92,7 @@ build() {  # build <checkout> <preset>
   for lang in C CXX OBJC OBJCXX; do launchers+=("-DCMAKE_${lang}_LINKER_LAUNCHER=${launcher}"); done
   rm -rf "${dir}"; mkdir -p "$(dirname "${dir}")"
   (cd "${root}/tests/hello" && cmake --preset "${preset}" -B "${dir}" \
-      -DHERMETIC_LLVM_CACHE_DIR="${root}/${cache_rel}" "${launchers[@]}" > "${dir}.log" 2>&1) \
+      -DHERMETIC_CACHE_DIR="${root}/${cache_rel}" "${launchers[@]}" > "${dir}.log" 2>&1) \
     || { echo "configure failed (${root}, ${preset}):"; tail -20 "${dir}.log"; return 1; }
   cmake --build "${dir}" >> "${dir}.log" 2>&1 \
     || { echo "build failed (${root}, ${preset}):"; grep -A3 'rbe_wrapper\|error' "${dir}.log" | head -30; return 1; }
@@ -101,7 +101,7 @@ build() {  # build <checkout> <preset>
 }
 
 outputs() {  # outputs <build dir>: the files a build produces
-  (cd "$1" && find . \( -path ./CMakeFiles/CMakeScratch -o -path './CMakeFiles/[0-9]*' -o -path ./CMakeFiles/ShowIncludes -o -path ./hermetic-llvm \) -prune \
+  (cd "$1" && find . \( -path ./CMakeFiles/CMakeScratch -o -path './CMakeFiles/[0-9]*' -o -path ./CMakeFiles/ShowIncludes -o -path ./hermetic-cpp \) -prune \
     -o -type f \( -name '*.o' -o -name '*.obj' -o -name '*.a' -o -name '*.lib' -o -name '*.so' -o -name '*.dylib' -o -name '*.dll' \
       -o -name '*.exe' -o -name '*.pdb' -o -name '*.wasm' -o -name 'hello_*' \) -print | sort)
 }

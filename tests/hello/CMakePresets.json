@@ -27,54 +27,54 @@
       "name": "linux-x86_64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64"
+        "HERMETIC_TARGET": "linux-x86_64"
       }
     },
     {
       "name": "linux-x86_64-musl",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
-        "HERMETIC_LLVM_LIBC": "musl"
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl"
       }
     },
     {
       "name": "linux-x86_64-gnu.2.34",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
-        "HERMETIC_LLVM_LIBC": "gnu.2.34"
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "gnu.2.34"
       }
     },
     {
       "name": "linux-aarch64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-aarch64"
+        "HERMETIC_TARGET": "linux-aarch64"
       }
     },
     {
       "name": "linux-aarch64-musl",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-aarch64",
-        "HERMETIC_LLVM_LIBC": "musl"
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LIBC": "musl"
       }
     },
     {
       "name": "linux-armv7-musl",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-armv7",
-        "HERMETIC_LLVM_LIBC": "musl"
+        "HERMETIC_TARGET": "linux-armv7",
+        "HERMETIC_LIBC": "musl"
       }
     },
     {
       "name": "linux-riscv64-musl",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-riscv64",
-        "HERMETIC_LLVM_LIBC": "musl"
+        "HERMETIC_TARGET": "linux-riscv64",
+        "HERMETIC_LIBC": "musl"
       }
     },
     {
@@ -102,119 +102,119 @@
       "name": "linux-x86_64-gnu.2.44",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
-        "HERMETIC_LLVM_LIBC": "gnu.2.44"
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "gnu.2.44"
       }
     },
     {
       "name": "linux-x86_64-asan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_TARGET": "linux-x86_64",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
-        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=address"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=address"
       }
     },
     {
       "name": "linux-x86_64-ubsan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_TARGET": "linux-x86_64",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined",
-        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=undefined"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=undefined"
       }
     },
     {
       "name": "linux-aarch64-asan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-aarch64",
+        "HERMETIC_TARGET": "linux-aarch64",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
-        "HERMETIC_LLVM_EXTRA_LINK_FLAGS": "-fsanitize=address"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=address"
       }
     },
     {
       "name": "linux-armv7",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-armv7"
+        "HERMETIC_TARGET": "linux-armv7"
       }
     },
     {
       "name": "linux-riscv64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-riscv64"
+        "HERMETIC_TARGET": "linux-riscv64"
       }
     },
     {
       "name": "linux-s390x",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-s390x"
+        "HERMETIC_TARGET": "linux-s390x"
       }
     },
     {
       "name": "linux-s390x-musl",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-s390x",
-        "HERMETIC_LLVM_LIBC": "musl"
+        "HERMETIC_TARGET": "linux-s390x",
+        "HERMETIC_LIBC": "musl"
       }
     },
     {
       "name": "darwin-x86_64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "darwin-x86_64"
+        "HERMETIC_TARGET": "darwin-x86_64"
       }
     },
     {
       "name": "darwin-aarch64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "darwin-aarch64"
+        "HERMETIC_TARGET": "darwin-aarch64"
       }
     },
     {
       "name": "windows-x86_64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64"
+        "HERMETIC_TARGET": "windows-x86_64"
       }
     },
     {
       "name": "windows-aarch64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-aarch64"
+        "HERMETIC_TARGET": "windows-aarch64"
       }
     },
     {
       "name": "windows-x86_64-libcxx",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++"
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++"
       }
     },
     {
       "name": "windows-aarch64-libcxx",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-aarch64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++"
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_CXX_STDLIB": "libc++"
       }
     },
     {
       "name": "windows-x86_64-libcxx-mt",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
       }
     },
@@ -222,36 +222,36 @@
       "name": "windows-x86_64-libcxx-asan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
       }
     },
     {
       "name": "windows-x86_64-libcxx-ubsan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined"
       }
     },
     {
       "name": "windows-x86_64-asan",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_TARGET": "windows-x86_64",
         "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
-        "HERMETIC_LLVM_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;/Oy-"
       }
     },
     {
       "name": "linux-x86_64-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
+        "HERMETIC_TARGET": "linux-x86_64",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -259,8 +259,8 @@
       "name": "linux-x86_64-musl-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "linux-x86_64",
-        "HERMETIC_LLVM_LIBC": "musl",
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -268,7 +268,7 @@
       "name": "windows-x86_64-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
+        "HERMETIC_TARGET": "windows-x86_64",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -276,8 +276,8 @@
       "name": "windows-x86_64-libcxx-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_CXX_STDLIB": "libc++",
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -285,7 +285,7 @@
       "name": "darwin-aarch64-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "darwin-aarch64",
+        "HERMETIC_TARGET": "darwin-aarch64",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -293,7 +293,7 @@
       "name": "darwin-x86_64-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "darwin-x86_64",
+        "HERMETIC_TARGET": "darwin-x86_64",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -301,32 +301,32 @@
       "name": "darwin-aarch64-hostsdk",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "darwin-aarch64",
-        "HERMETIC_LLVM_SYSROOT": "host"
+        "HERMETIC_TARGET": "darwin-aarch64",
+        "HERMETIC_SYSROOT": "host"
       }
     },
     {
       "name": "windows-x86_64-gnu",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_WINDOWS_ABI": "gnu"
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_WINDOWS_ABI": "gnu"
       }
     },
     {
       "name": "windows-aarch64-gnu",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-aarch64",
-        "HERMETIC_LLVM_WINDOWS_ABI": "gnu"
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_WINDOWS_ABI": "gnu"
       }
     },
     {
       "name": "windows-x86_64-gnu-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_WINDOWS_ABI": "gnu",
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -334,21 +334,21 @@
       "name": "wasm32",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "wasm32"
+        "HERMETIC_TARGET": "wasm32"
       }
     },
     {
       "name": "wasm64",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "wasm64"
+        "HERMETIC_TARGET": "wasm64"
       }
     },
     {
       "name": "wasm32-dbg",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "wasm32",
+        "HERMETIC_TARGET": "wasm32",
         "HERMETIC_TESTS_DEBUG_INFO": "ON"
       }
     },
@@ -356,9 +356,9 @@
       "name": "windows-x86_64-vs2022",
       "inherits": "base",
       "cacheVariables": {
-        "HERMETIC_LLVM_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_MSVC_VERSION": "14.44",
-        "HERMETIC_LLVM_WINDOWS_SDK_VERSION": "10.0.22621"
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_MSVC_TOOLSET_VERSION": "14.44",
+        "HERMETIC_WINDOWS_SDK_VERSION": "10.0.22621"
       }
     }
   ],

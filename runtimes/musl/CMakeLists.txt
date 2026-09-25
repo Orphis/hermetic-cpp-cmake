@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Builds musl libc with the hermetic Clang, following musl's Makefile and the
@@ -13,7 +13,7 @@
 # directory that already contains compiler-rt builtins (libc.so needs them).
 
 cmake_minimum_required(VERSION 3.19)
-project(hermetic_llvm_musl C ASM)
+project(hermetic_musl C ASM)
 
 set(MUSL_SOURCE_DIR "" CACHE PATH "musl source tree")
 set(MUSL_ARCH "" CACHE STRING "musl architecture name")

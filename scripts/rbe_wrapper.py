@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 """Reference remote build execution (RBE) wrapper, for checking a build.
 
@@ -8,7 +8,7 @@ link command what an RBE client has to do before sending it to a worker,
 runs it locally the way a worker would, and checks that nothing
 machine-specific is left:
 
-    cmake ... -DHERMETIC_LLVM_CACHE_DIR=<root>/.hermetic-llvm \\
+    cmake ... -DHERMETIC_CACHE_DIR=<root>/.hermetic-cpp \\
       "-DCMAKE_<LANG>_COMPILER_LAUNCHER=python3;<repo>/scripts/rbe_wrapper.py;--root=<root>;--log=<file>;--strict;--" \\
       "-DCMAKE_<LANG>_LINKER_LAUNCHER=<the same>"
 

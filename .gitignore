@@ -2,4 +2,4 @@ build/
 tests/hello/build/
 .cache/
 artifacts/
-.hermetic-llvm
+.hermetic-cpp

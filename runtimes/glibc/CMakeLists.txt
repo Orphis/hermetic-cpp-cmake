@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Builds the pieces needed to link against a given glibc version without a
@@ -17,7 +17,7 @@
 #   CMAKE_INSTALL_PREFIX (runtime set root)
 
 cmake_minimum_required(VERSION 3.19)
-project(hermetic_llvm_glibc C ASM)
+project(hermetic_glibc C ASM)
 
 foreach(v GLIBC_SOURCE_DIR GLIBC_VERSION GLIBC_ARCH GLIBC_HEADERS_DIR KERNEL_HEADERS_DIR GLIBC_STUBS_GENERATOR GLIBC_ABILISTS)
   if(NOT ${v})

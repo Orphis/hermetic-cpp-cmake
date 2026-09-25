@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # CMAKE_USER_MAKE_RULES_OVERRIDE for WebAssembly targets: loaded after

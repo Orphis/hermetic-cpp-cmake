@@ -34,7 +34,7 @@ NUGET = "https://api.nuget.org"
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "hermetic-llvm-cmake", "Accept-Encoding": "gzip"})
+    req = urllib.request.Request(url, headers={"User-Agent": "hermetic-cpp-cmake", "Accept-Encoding": "gzip"})
     with urllib.request.urlopen(req) as r:
         data = r.read()
         if r.headers.get("Content-Encoding") == "gzip":

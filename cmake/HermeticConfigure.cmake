@@ -1,4 +1,4 @@
-# Copyright 2026 The hermetic-llvm-cmake Authors.
+# Copyright 2026 The hermetic-cpp-cmake Authors.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Turns the resolved compiler / runtime set / SDK into CMake toolchain
@@ -20,33 +20,33 @@ function(hermetic_llvm_resource_dir ROOT OUT)
     endif()
   endforeach()
   if(NOT found)
-    hermetic_llvm_fatal("No clang resource directory (lib/clang/<version>) under ${ROOT}")
+    hermetic_fatal("No clang resource directory (lib/clang/<version>) under ${ROOT}")
   endif()
   set(${OUT} "${found}" PARENT_SCOPE)
 endfunction()
 
 # Debugger settings for a build directory. Reproducible builds record fixed
-# or relative paths in debug info: the cache as /hermetic-llvm/cache, the
-# compiler as /hermetic-llvm/llvm, the working directory as "." (and, when a
+# or relative paths in debug info: the cache as /hermetic-cpp/cache, the
+# compiler as /hermetic-cpp/llvm, the working directory as "." (and, when a
 # remote execution wrapper made a compile's paths relative, the sources
-# relative to the build directory). hermetic-llvm.gdb and hermetic-llvm.lldb
+# relative to the build directory). hermetic-cpp.gdb and hermetic-cpp.lldb
 # in the build directory map them back for GDB (gdb -x <file>) and LLDB
 # (lldb -s <file>); projects add the maps of their own -ffile-prefix-map
-# options with hermetic_llvm_debugger_source_map.
-function(hermetic_llvm_debugger_source_map FROM TO)
-  set_property(GLOBAL APPEND PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS "${FROM}=${TO}")
-  _hermetic_llvm_write_debugger_files()
+# options with hermetic_debugger_source_map.
+function(hermetic_debugger_source_map FROM TO)
+  set_property(GLOBAL APPEND PROPERTY HERMETIC_DEBUGGER_MAPS "${FROM}=${TO}")
+  _hermetic_write_debugger_files()
 endfunction()
 
-function(_hermetic_llvm_write_debugger_files)
-  get_property(dir GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_BUILD_DIR)
+function(_hermetic_write_debugger_files)
+  get_property(dir GLOBAL PROPERTY HERMETIC_DEBUGGER_BUILD_DIR)
   if(NOT dir)
     return()
   endif()
-  get_property(maps GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS)
+  get_property(maps GLOBAL PROPERTY HERMETIC_DEBUGGER_MAPS)
   get_filename_component(parent "${dir}" DIRECTORY)
-  set(gdb "# Written by the hermetic-llvm toolchain: where the sources of this build\n# directory's binaries are. gdb -x <this file> <program>\n")
-  set(lldb "# Written by the hermetic-llvm toolchain: where the sources of this build\n# directory's binaries are. lldb -s <this file> <program>\n")
+  set(gdb "# Written by the hermetic-cpp toolchain: where the sources of this build\n# directory's binaries are. gdb -x <this file> <program>\n")
+  set(lldb "# Written by the hermetic-cpp toolchain: where the sources of this build\n# directory's binaries are. lldb -s <this file> <program>\n")
   foreach(map IN LISTS maps)
     string(FIND "${map}" "=" eq)
     string(SUBSTRING "${map}" 0 ${eq} from)
@@ -58,43 +58,43 @@ function(_hermetic_llvm_write_debugger_files)
   # The working directory ("."), for paths relative to it.
   string(APPEND gdb "directory \"${dir}\"\n")
   string(APPEND lldb "settings append target.source-map .. \"${parent}\"\n")
-  file(CONFIGURE OUTPUT "${dir}/hermetic-llvm.gdb" CONTENT "${gdb}" @ONLY)
-  file(CONFIGURE OUTPUT "${dir}/hermetic-llvm.lldb" CONTENT "${lldb}" @ONLY)
+  file(CONFIGURE OUTPUT "${dir}/hermetic-cpp.gdb" CONTENT "${gdb}" @ONLY)
+  file(CONFIGURE OUTPUT "${dir}/hermetic-cpp.lldb" CONTENT "${lldb}" @ONLY)
 endfunction()
 
-macro(hermetic_llvm_configure)
-  set(_hl_root "${HERMETIC_LLVM_RESOLVED_ROOT}")
-  set(_hl_set "${HERMETIC_LLVM_RESOLVED_RUNTIME_SET}")
-  set(_hl_sysroot "${HERMETIC_LLVM_RESOLVED_SYSROOT}")
+macro(hermetic_configure)
+  set(_hl_root "${HERMETIC_RESOLVED_LLVM_ROOT}")
+  set(_hl_set "${HERMETIC_RESOLVED_LLVM_RUNTIME_SET}")
+  set(_hl_sysroot "${HERMETIC_RESOLVED_SYSROOT}")
   set(_hl_bin "${_hl_root}/bin")
-  set(_hl_exe "${HERMETIC_LLVM_HOST_EXE}")
-  hermetic_llvm_target_info("${HERMETIC_LLVM_TARGET}" _hl_tgt)
+  set(_hl_exe "${HERMETIC_HOST_EXE}")
+  hermetic_target_info("${HERMETIC_TARGET}" _hl_tgt)
   set(_hl_native FALSE)
-  if("${_hl_tgt_OS}-${_hl_tgt_ARCH}" STREQUAL "${HERMETIC_LLVM_RESOLVED_HOST_OS}-${HERMETIC_LLVM_RESOLVED_HOST_ARCH}")
+  if("${_hl_tgt_OS}-${_hl_tgt_ARCH}" STREQUAL "${HERMETIC_RESOLVED_HOST_OS}-${HERMETIC_RESOLVED_HOST_ARCH}")
     set(_hl_native TRUE)
   endif()
   set(_hl_triple "${_hl_tgt_TRIPLE}")
   set(_hl_libc_family "")
-  if(HERMETIC_LLVM_RESOLVED_LIBC)
-    hermetic_llvm_parse_libc("${HERMETIC_LLVM_RESOLVED_LIBC}" _hl_libc_family _hl_libc_version)
-    hermetic_llvm_libc_triple("${_hl_tgt_ARCH}" "${_hl_libc_family}" _hl_triple)
+  if(HERMETIC_RESOLVED_LIBC)
+    hermetic_parse_libc("${HERMETIC_RESOLVED_LIBC}" _hl_libc_family _hl_libc_version)
+    hermetic_libc_triple("${_hl_tgt_ARCH}" "${_hl_libc_family}" _hl_triple)
   endif()
 
   set(_hl_windows FALSE)
   set(_hl_mingw FALSE)
-  if(_hl_tgt_OS STREQUAL "windows" AND HERMETIC_LLVM_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
+  if(_hl_tgt_OS STREQUAL "windows" AND HERMETIC_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
     # GNU ABI: the plain clang driver with MinGW-w64 from the runtime set.
     set(_hl_mingw TRUE)
-    hermetic_llvm_windows_gnu_triple("${_hl_tgt_ARCH}" _hl_triple)
+    hermetic_windows_gnu_triple("${_hl_tgt_ARCH}" _hl_triple)
   elseif(_hl_tgt_OS STREQUAL "windows")
     set(_hl_windows TRUE)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 2 _hl_msvc_include)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 3 _hl_msvc_lib)
+    list(GET HERMETIC_RESOLVED_WINSDK 2 _hl_msvc_include)
+    list(GET HERMETIC_RESOLVED_WINSDK 3 _hl_msvc_lib)
     string(REPLACE "|" ";" _hl_msvc_lib "${_hl_msvc_lib}")
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 6 _hl_sdk_include)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 7 _hl_sdk_ucrt_lib)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 8 _hl_sdk_um_lib)
-    list(GET HERMETIC_LLVM_RESOLVED_WINSDK 10 _hl_sdk_tools)
+    list(GET HERMETIC_RESOLVED_WINSDK 6 _hl_sdk_include)
+    list(GET HERMETIC_RESOLVED_WINSDK 7 _hl_sdk_ucrt_lib)
+    list(GET HERMETIC_RESOLVED_WINSDK 8 _hl_sdk_um_lib)
+    list(GET HERMETIC_RESOLVED_WINSDK 10 _hl_sdk_tools)
   endif()
 
   # ---- Tools -------------------------------------------------------------
@@ -108,7 +108,7 @@ macro(hermetic_llvm_configure)
     # clang-cl assembles .S files too; CMake applies MSVC-style flags to ASM
     # whenever the C compiler is MSVC-like, which plain clang would reject.
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
-    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWindowsRules.cmake")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticWindowsRules.cmake")
   else()
     set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
     set(CMAKE_CXX_COMPILER "${_hl_bin}/clang++${_hl_exe}")
@@ -139,7 +139,7 @@ macro(hermetic_llvm_configure)
   elseif(_hl_tgt_OS STREQUAL "wasm")
     set(CMAKE_LINKER "${_hl_bin}/wasm-ld${_hl_exe}" CACHE FILEPATH "Linker")
     # Modules are named *.wasm (see the file).
-    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMWasmRules.cmake")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticWasmRules.cmake")
   else()
     set(CMAKE_LINKER "${_hl_bin}/ld.lld${_hl_exe}" CACHE FILEPATH "Linker")
   endif()
@@ -165,7 +165,7 @@ macro(hermetic_llvm_configure)
       set(CMAKE_OSX_ARCHITECTURES "${_hl_tgt_SYSTEM_PROCESSOR}")
     endif()
     # Makes every host behave alike for shared libraries (see the file).
-    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_LLVM_DIR}/cmake/HermeticLLVMDarwinRules.cmake")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticDarwinRules.cmake")
   elseif(_hl_set AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
     set(CMAKE_SYSROOT "${_hl_set}")
   elseif(_hl_sysroot)
@@ -197,8 +197,8 @@ macro(hermetic_llvm_configure)
       endif()
     endforeach()
   endif()
-  if(NOT _hl_native AND HERMETIC_LLVM_EMULATOR)
-    set(CMAKE_CROSSCOMPILING_EMULATOR "${HERMETIC_LLVM_EMULATOR}")
+  if(NOT _hl_native AND HERMETIC_EMULATOR)
+    set(CMAKE_CROSSCOMPILING_EMULATOR "${HERMETIC_EMULATOR}")
   endif()
 
   # ---- Flags -------------------------------------------------------------
@@ -209,9 +209,9 @@ macro(hermetic_llvm_configure)
   set(_hl_exe_link_flags "")
   set(_hl_cxx_libs "")
 
-  if(HERMETIC_LLVM_REPRODUCIBLE)
+  if(HERMETIC_REPRODUCIBLE)
     # hermetic-llvm's deterministic_compile_flags.
-    hermetic_llvm_append_flags(_hl_c_flags -Wno-builtin-macro-redefined "-D__DATE__=\\\"redacted\\\"" "-D__TIMESTAMP__=\\\"redacted\\\"" "-D__TIME__=\\\"redacted\\\"")
+    hermetic_append_flags(_hl_c_flags -Wno-builtin-macro-redefined "-D__DATE__=\\\"redacted\\\"" "-D__TIMESTAMP__=\\\"redacted\\\"" "-D__TIME__=\\\"redacted\\\"")
     # Debug info and assertion strings name the runtime set, toolset and SDK
     # headers, which live in the cache directory: map it to a fixed name as
     # the runtime set builds do, so debug builds do not depend on the machine.
@@ -223,35 +223,35 @@ macro(hermetic_llvm_configure)
     # record "." instead, leaving relative paths relative to the build
     # directory.
     set(_hl_prefix_maps "-ffile-compilation-dir=."
-      "-ffile-prefix-map=${HERMETIC_LLVM_CACHE_DIR}=/hermetic-llvm/cache"
-      "-ffile-prefix-map=${_hl_root}=/hermetic-llvm/llvm")
+      "-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
+      "-ffile-prefix-map=${_hl_root}=/hermetic-cpp/llvm")
     if(_hl_windows)
       # CodeView also records each object file's absolute path (S_OBJNAME),
       # which no prefix map covers; an empty name leaves that record blank.
       foreach(_hl_map IN LISTS _hl_prefix_maps)
-        hermetic_llvm_append_flags(_hl_c_flags "/clang:${_hl_map}")
+        hermetic_append_flags(_hl_c_flags "/clang:${_hl_map}")
       endforeach()
-      hermetic_llvm_append_flags(_hl_c_flags -Xclang -object-file-name=-)
+      hermetic_append_flags(_hl_c_flags -Xclang -object-file-name=-)
     else()
-      hermetic_llvm_append_flags(_hl_c_flags ${_hl_prefix_maps})
+      hermetic_append_flags(_hl_c_flags ${_hl_prefix_maps})
     endif()
     if(_hl_mingw)
       # COFF objects for the GNU environment carry the current time as their
       # timestamp unless told otherwise (clang-cl's /Brepro does the same).
-      hermetic_llvm_append_flags(_hl_c_flags -mno-incremental-linker-compatible)
+      hermetic_append_flags(_hl_c_flags -mno-incremental-linker-compatible)
     endif()
   endif()
-  if(HERMETIC_LLVM_USE_LLD AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
-    hermetic_llvm_append_flags(_hl_link_flags -fuse-ld=lld)
+  if(HERMETIC_USE_LLD AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")
+    hermetic_append_flags(_hl_link_flags -fuse-ld=lld)
   endif()
-  if(_hl_mingw AND HERMETIC_LLVM_REPRODUCIBLE)
+  if(_hl_mingw AND HERMETIC_REPRODUCIBLE)
     # lld stamps PE headers with the current time unless told otherwise.
-    hermetic_llvm_append_flags(_hl_link_flags -Wl,--no-insert-timestamp)
+    hermetic_append_flags(_hl_link_flags -Wl,--no-insert-timestamp)
   endif()
 
-  set(HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "")
+  set(HERMETIC_WINDOWS_LINK_DRIVER_FLAGS "")
   if(_hl_windows)
-    # MSVC ABI: the toolset and SDK environment (see hermetic_llvm_windows_flags).
+    # MSVC ABI: the toolset and SDK environment (see hermetic_windows_flags).
     #
     # Reproducible links address everything in the cache through a link to
     # it in the build directory (and the compiler through a host-neutral
@@ -262,15 +262,15 @@ macro(hermetic_llvm_configure)
     # absolute paths (prefix maps cover them, and the compiler identification
     # step runs where no link exists).
     set(_hl_link_root "")
-    if(HERMETIC_LLVM_REPRODUCIBLE)
-      hermetic_llvm_link_directory("${HERMETIC_LLVM_CACHE_DIR}"
-        "${CMAKE_BINARY_DIR}/${HERMETIC_LLVM_CACHE_LINK_NAME}" _hl_link_ok)
-      hermetic_llvm_link_directory("${_hl_root}"
-        "${HERMETIC_LLVM_CACHE_DIR}/llvm/${HERMETIC_LLVM_RESOLVED_VERSION}" _hl_llvm_link_ok)
+    if(HERMETIC_REPRODUCIBLE)
+      hermetic_link_directory("${HERMETIC_CACHE_DIR}"
+        "${CMAKE_BINARY_DIR}/${HERMETIC_CACHE_LINK_NAME}" _hl_link_ok)
+      hermetic_link_directory("${_hl_root}"
+        "${HERMETIC_CACHE_DIR}/llvm/${HERMETIC_RESOLVED_LLVM_VERSION}" _hl_llvm_link_ok)
       if(_hl_link_ok AND _hl_llvm_link_ok)
-        set(_hl_link_root "${HERMETIC_LLVM_CACHE_LINK_NAME}")
+        set(_hl_link_root "${HERMETIC_CACHE_LINK_NAME}")
       else()
-        message(WARNING "[hermetic-llvm] Linking without the build directory link: PDBs will depend on the cache directory")
+        message(WARNING "[hermetic-cpp] Linking without the build directory link: PDBs will depend on the cache directory")
       endif()
     endif()
     set(_hl_link_set "${_hl_set}")
@@ -279,24 +279,24 @@ macro(hermetic_llvm_configure)
     set(_hl_win_manifest "")
     get_property(_hl_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
     if(NOT _hl_in_try_compile)
-      hermetic_llvm_manifest_merging_works("${CMAKE_MT}" "${CMAKE_BINARY_DIR}/CMakeFiles/hermetic-llvm" _hl_mt_ok)
+      hermetic_manifest_merging_works("${CMAKE_MT}" "${CMAKE_BINARY_DIR}/CMakeFiles/hermetic-cpp" _hl_mt_ok)
       if(_hl_mt_ok)
         set(_hl_win_manifest EMBED_MANIFEST)
       endif()
     endif()
     if(_hl_link_root)
-      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest}
-        RELATIVE_ROOT "${_hl_link_root}" OUT_LINK_DRIVER HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS)
+      hermetic_windows_flags("${HERMETIC_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest}
+        RELATIVE_ROOT "${_hl_link_root}" OUT_LINK_DRIVER HERMETIC_WINDOWS_LINK_DRIVER_FLAGS)
       # lld-link found through a prefix directory keeps the relative path it
       # was found by as its own name (--ld-path is not a clang-cl option).
-      list(APPEND HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "/clang:-B${_hl_link_root}/llvm/${HERMETIC_LLVM_RESOLVED_VERSION}/bin/")
-      string(REPLACE "${HERMETIC_LLVM_CACHE_DIR}" "${_hl_link_root}" _hl_link_set "${_hl_link_set}")
+      list(APPEND HERMETIC_WINDOWS_LINK_DRIVER_FLAGS "/clang:-B${_hl_link_root}/llvm/${HERMETIC_RESOLVED_LLVM_VERSION}/bin/")
+      string(REPLACE "${HERMETIC_CACHE_DIR}" "${_hl_link_root}" _hl_link_set "${_hl_link_set}")
       if(_hl_set AND NOT _hl_link_set STREQUAL _hl_set)
-        list(APPEND HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "-resource-dir=${_hl_link_set}/resource")
+        list(APPEND HERMETIC_WINDOWS_LINK_DRIVER_FLAGS "-resource-dir=${_hl_link_set}/resource")
       endif()
-      string(REPLACE ";" " " HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS "${HERMETIC_LLVM_WINDOWS_LINK_DRIVER_FLAGS}")
+      string(REPLACE ";" " " HERMETIC_WINDOWS_LINK_DRIVER_FLAGS "${HERMETIC_WINDOWS_LINK_DRIVER_FLAGS}")
     else()
-      hermetic_llvm_windows_flags("${HERMETIC_LLVM_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest})
+      hermetic_windows_flags("${HERMETIC_RESOLVED_WINSDK}" "${_hl_tgt_ARCH}" _hl_win_compile _hl_win_link ${_hl_win_manifest})
     endif()
     if(_hl_set)
       # Runtime set (libc++ and/or sanitizers). Its resource directory gives
@@ -309,39 +309,39 @@ macro(hermetic_llvm_configure)
       # The set's runtimes are built with the ISO wide printf/scanf
       # conversions, and the UCRT headers make the linker reject objects that
       # disagree; hermetic-llvm defines this for every MSVC consumer too.
-      hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource" /D_CRT_STDIO_ISO_WIDE_SPECIFIERS)
-      hermetic_llvm_append_flags(_hl_cxx_first_flags
+      hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource" /D_CRT_STDIO_ISO_WIDE_SPECIFIERS)
+      hermetic_append_flags(_hl_cxx_first_flags
         "/FI${_hl_set}/include/__hermetic_llvm_libcxx_link.h" /D_LIBCPP_NO_AUTO_LINK)
-      if(HERMETIC_LLVM_RESOLVED_CXX_STDLIB STREQUAL "libc++")
+      if(HERMETIC_RESOLVED_CXX_STDLIB STREQUAL "libc++")
         # libc++ instead of the MSVC STL. clang-cl searches its builtin
         # headers before any /imsvc directory, which would shadow libc++'s
         # <stddef.h> and friends; so the builtin directory is dropped and the
         # order is spelled out as on Linux: libc++, compiler builtins, then
         # the toolset and SDK (added by the driver).
-        hermetic_llvm_append_flags(_hl_cxx_first_flags "/imsvc${_hl_set}/include/c++/v1")
-        hermetic_llvm_append_flags(_hl_c_flags -nobuiltininc "/imsvc${_hl_set}/resource/include")
+        hermetic_append_flags(_hl_cxx_first_flags "/imsvc${_hl_set}/include/c++/v1")
+        hermetic_append_flags(_hl_c_flags -nobuiltininc "/imsvc${_hl_set}/resource/include")
       else()
         # Under ASan the MSVC STL annotates std::string and std::vector and
         # links stl_asan.lib, which only ships in Visual Studio's own ASan
         # package; opt out as Microsoft documents (container overflow checks
         # inside those two types are lost, everything else is checked).
-        hermetic_llvm_append_flags(_hl_cxx_first_flags /D_DISABLE_STL_ANNOTATION)
+        hermetic_append_flags(_hl_cxx_first_flags /D_DISABLE_STL_ANNOTATION)
       endif()
     else()
       # The compiler's own resource directory (builtin headers), named
       # explicitly (see hermetic_llvm_resource_dir).
       hermetic_llvm_resource_dir("${_hl_root}" _hl_resource)
-      hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
+      hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
     endif()
-    hermetic_llvm_append_flags(_hl_c_flags ${_hl_win_compile})
-    hermetic_llvm_append_flags(_hl_link_flags ${_hl_win_link})
+    hermetic_append_flags(_hl_c_flags ${_hl_win_compile})
+    hermetic_append_flags(_hl_link_flags ${_hl_win_link})
     if(_hl_set)
       if(_hl_tgt_ARCH STREQUAL "aarch64")
         set(_hl_builtins "clang_rt.builtins-aarch64.lib")
       else()
         set(_hl_builtins "clang_rt.builtins-x86_64.lib")
       endif()
-      hermetic_llvm_append_flags(_hl_link_flags "/LIBPATH:${_hl_link_set}/lib" "/LIBPATH:${_hl_link_set}/resource/lib/windows"
+      hermetic_append_flags(_hl_link_flags "/LIBPATH:${_hl_link_set}/lib" "/LIBPATH:${_hl_link_set}/resource/lib/windows"
         "${_hl_builtins}")
     endif()
   elseif(_hl_mingw)
@@ -349,63 +349,63 @@ macro(hermetic_llvm_configure)
     # compiler-rt builtins and libunwind from its resource directory, static
     # libc++; CMake's GNU-style Windows rules do the rest (lld's MinGW
     # driver, .dll.a import libraries, llvm-windres).
-    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
-    hermetic_llvm_append_flags(_hl_link_flags "-resource-dir=${_hl_set}/resource" -rtlib=compiler-rt --unwindlib=libunwind)
-    hermetic_llvm_append_flags(_hl_cxx_flags -stdlib=libc++)
+    hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
+    hermetic_append_flags(_hl_link_flags "-resource-dir=${_hl_set}/resource" -rtlib=compiler-rt --unwindlib=libunwind)
+    hermetic_append_flags(_hl_cxx_flags -stdlib=libc++)
   elseif(_hl_tgt_OS STREQUAL "wasm")
     # Freestanding WebAssembly: the driver would otherwise ask for a libc
     # and an entry point (_start), which a module exporting functions has
     # neither of; the builtins come from the set. Exported functions are
     # marked with __attribute__((export_name("..."))) or named with
     # -Wl,--export=...; imports need -Wl,--allow-undefined.
-    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
-    hermetic_llvm_append_flags(_hl_link_flags -nostdlib -Wl,--no-entry)
-    hermetic_llvm_append_flags(_hl_cxx_libs "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
-    hermetic_llvm_append_flags(CMAKE_C_STANDARD_LIBRARIES_INIT "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
+    hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
+    hermetic_append_flags(_hl_link_flags -nostdlib -Wl,--no-entry)
+    hermetic_append_flags(_hl_cxx_libs "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
+    hermetic_append_flags(CMAKE_C_STANDARD_LIBRARIES_INIT "${_hl_set}/resource/lib/${_hl_triple}/libclang_rt.builtins.a")
   elseif(_hl_set)
     # Linux with a runtime set: resource directory with compiler-rt, static
     # libc++ / libc++abi / libunwind, default libs, link mode.
-    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
+    hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_set}/resource")
     # compiler-rt builtins and the static libunwind from the set are used for
     # C and C++ alike (sanitizer runtimes need the unwinder too).
-    hermetic_llvm_append_flags(_hl_link_flags "-resource-dir=${_hl_set}/resource" -rtlib=compiler-rt --unwindlib=libunwind
+    hermetic_append_flags(_hl_link_flags "-resource-dir=${_hl_set}/resource" -rtlib=compiler-rt --unwindlib=libunwind
       -Wl,-z,relro,-z,now)
-    hermetic_llvm_append_flags(_hl_cxx_flags -stdlib=libc++)
-    hermetic_llvm_append_flags(_hl_link_flags -nostdlib++)
-    hermetic_llvm_append_flags(_hl_cxx_libs -lc++ -lc++abi)
+    hermetic_append_flags(_hl_cxx_flags -stdlib=libc++)
+    hermetic_append_flags(_hl_link_flags -nostdlib++)
+    hermetic_append_flags(_hl_cxx_libs -lc++ -lc++abi)
     if(_hl_libc_family STREQUAL "musl")
       # Fully static, like hermetic-llvm: no dynamic loader at all.
-      if(NOT DEFINED HERMETIC_LLVM_PIE OR HERMETIC_LLVM_PIE)
-        hermetic_llvm_append_flags(_hl_exe_link_flags -static-pie)
+      if(NOT DEFINED HERMETIC_PIE OR HERMETIC_PIE)
+        hermetic_append_flags(_hl_exe_link_flags -static-pie)
       else()
-        hermetic_llvm_append_flags(_hl_exe_link_flags -static)
+        hermetic_append_flags(_hl_exe_link_flags -static)
       endif()
     else()
-      hermetic_llvm_append_flags(_hl_cxx_libs -Wl,--push-state,--as-needed -lpthread -ldl -Wl,--pop-state)
-      if(DEFINED HERMETIC_LLVM_PIE AND NOT HERMETIC_LLVM_PIE)
-        hermetic_llvm_append_flags(_hl_exe_link_flags -no-pie)
+      hermetic_append_flags(_hl_cxx_libs -Wl,--push-state,--as-needed -lpthread -ldl -Wl,--pop-state)
+      if(DEFINED HERMETIC_PIE AND NOT HERMETIC_PIE)
+        hermetic_append_flags(_hl_exe_link_flags -no-pie)
       endif()
     endif()
   elseif(_hl_tgt_OS STREQUAL "darwin")
     # The SDK's libc++ (headers and dylib), for ABI compatibility with the
     # system libraries that link it dynamically.
     if(_hl_sysroot AND IS_DIRECTORY "${_hl_sysroot}/usr/include/c++/v1")
-      hermetic_llvm_append_flags(_hl_cxx_flags -nostdinc++ "-isystem${_hl_sysroot}/usr/include/c++/v1")
+      hermetic_append_flags(_hl_cxx_flags -nostdinc++ "-isystem${_hl_sysroot}/usr/include/c++/v1")
     endif()
     # The compiler's own resource directory (builtin headers, compiler-rt),
     # named explicitly (see hermetic_llvm_resource_dir).
     hermetic_llvm_resource_dir("${_hl_root}" _hl_resource)
-    hermetic_llvm_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
-    hermetic_llvm_append_flags(_hl_link_flags "-resource-dir=${_hl_resource}")
+    hermetic_append_flags(_hl_c_flags "-resource-dir=${_hl_resource}")
+    hermetic_append_flags(_hl_link_flags "-resource-dir=${_hl_resource}")
   endif()
 
-  hermetic_llvm_append_flags(_hl_c_flags ${HERMETIC_LLVM_EXTRA_COMPILE_FLAGS})
-  hermetic_llvm_append_flags(_hl_cxx_flags ${HERMETIC_LLVM_EXTRA_CXX_FLAGS})
-  hermetic_llvm_append_flags(_hl_link_flags ${HERMETIC_LLVM_EXTRA_LINK_FLAGS})
-  hermetic_llvm_append_flags(_hl_cxx_libs ${HERMETIC_LLVM_EXTRA_LINK_LIBS})
+  hermetic_append_flags(_hl_c_flags ${HERMETIC_EXTRA_COMPILE_FLAGS})
+  hermetic_append_flags(_hl_cxx_flags ${HERMETIC_EXTRA_CXX_FLAGS})
+  hermetic_append_flags(_hl_link_flags ${HERMETIC_EXTRA_LINK_FLAGS})
+  hermetic_append_flags(_hl_cxx_libs ${HERMETIC_EXTRA_LINK_LIBS})
 
   foreach(_hl_lang C CXX ASM OBJC OBJCXX)
-    hermetic_llvm_append_flags(CMAKE_${_hl_lang}_FLAGS_INIT ${_hl_c_flags})
+    hermetic_append_flags(CMAKE_${_hl_lang}_FLAGS_INIT ${_hl_c_flags})
   endforeach()
   if(_hl_windows)
     # The overlay and MSVC paths are compile-only; keep them off the RC flags.
@@ -414,49 +414,49 @@ macro(hermetic_llvm_configure)
   if(_hl_cxx_first_flags)
     set(CMAKE_CXX_FLAGS_INIT "")
     set(CMAKE_OBJCXX_FLAGS_INIT "")
-    hermetic_llvm_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
-    hermetic_llvm_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
+    hermetic_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
+    hermetic_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_first_flags} ${_hl_c_flags})
   endif()
-  hermetic_llvm_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_flags})
-  hermetic_llvm_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_flags})
+  hermetic_append_flags(CMAKE_CXX_FLAGS_INIT ${_hl_cxx_flags})
+  hermetic_append_flags(CMAKE_OBJCXX_FLAGS_INIT ${_hl_cxx_flags})
   foreach(_hl_kind EXE SHARED MODULE)
-    hermetic_llvm_append_flags(CMAKE_${_hl_kind}_LINKER_FLAGS_INIT ${_hl_link_flags})
+    hermetic_append_flags(CMAKE_${_hl_kind}_LINKER_FLAGS_INIT ${_hl_link_flags})
   endforeach()
-  hermetic_llvm_append_flags(CMAKE_EXE_LINKER_FLAGS_INIT ${_hl_exe_link_flags})
-  hermetic_llvm_append_flags(CMAKE_CXX_STANDARD_LIBRARIES_INIT ${_hl_cxx_libs})
-  hermetic_llvm_append_flags(CMAKE_OBJCXX_STANDARD_LIBRARIES_INIT ${_hl_cxx_libs})
+  hermetic_append_flags(CMAKE_EXE_LINKER_FLAGS_INIT ${_hl_exe_link_flags})
+  hermetic_append_flags(CMAKE_CXX_STANDARD_LIBRARIES_INIT ${_hl_cxx_libs})
+  hermetic_append_flags(CMAKE_OBJCXX_STANDARD_LIBRARIES_INIT ${_hl_cxx_libs})
 
   # Exported for consumers (e.g. to find clang-tidy / clang-format).
-  if(HERMETIC_LLVM_REPRODUCIBLE)
+  if(HERMETIC_REPRODUCIBLE)
     get_property(_hl_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
     if(NOT _hl_in_try_compile)
-      set_property(GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_BUILD_DIR "${CMAKE_BINARY_DIR}")
-      set_property(GLOBAL PROPERTY HERMETIC_LLVM_DEBUGGER_MAPS
-        "/hermetic-llvm/cache=${HERMETIC_LLVM_CACHE_DIR}" "/hermetic-llvm/llvm=${_hl_root}")
-      _hermetic_llvm_write_debugger_files()
+      set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_BUILD_DIR "${CMAKE_BINARY_DIR}")
+      set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_MAPS
+        "/hermetic-cpp/cache=${HERMETIC_CACHE_DIR}" "/hermetic-cpp/llvm=${_hl_root}")
+      _hermetic_write_debugger_files()
     endif()
   endif()
 
   set(HERMETIC_LLVM_ROOT "${_hl_root}")
   set(HERMETIC_LLVM_BIN_DIR "${_hl_bin}")
   set(HERMETIC_LLVM_RUNTIME_SET "${_hl_set}")
-  set(HERMETIC_LLVM_SYSROOT_PATH "${_hl_sysroot}")
-  set(HERMETIC_LLVM_TARGET_TRIPLE "${_hl_triple}")
-  set(HERMETIC_LLVM_EFFECTIVE_LIBC "${HERMETIC_LLVM_RESOLVED_LIBC}")
+  set(HERMETIC_SYSROOT_PATH "${_hl_sysroot}")
+  set(HERMETIC_TARGET_TRIPLE "${_hl_triple}")
+  set(HERMETIC_EFFECTIVE_LIBC "${HERMETIC_RESOLVED_LIBC}")
   if(_hl_mingw)
-    set(HERMETIC_LLVM_EFFECTIVE_LIBC "ucrt")
+    set(HERMETIC_EFFECTIVE_LIBC "ucrt")
   endif()
-  set(HERMETIC_LLVM_EFFECTIVE_WINDOWS_ABI "${HERMETIC_LLVM_RESOLVED_WINDOWS_ABI}")
-  set(HERMETIC_LLVM_EFFECTIVE_CXX_STDLIB "${HERMETIC_LLVM_RESOLVED_CXX_STDLIB}")
+  set(HERMETIC_EFFECTIVE_WINDOWS_ABI "${HERMETIC_RESOLVED_WINDOWS_ABI}")
+  set(HERMETIC_EFFECTIVE_CXX_STDLIB "${HERMETIC_RESOLVED_CXX_STDLIB}")
   # Windows hosts building Windows targets: the SDK's own tools (midl, mc,
   # signtool, makeappx, dxc, ...) for custom commands; empty elsewhere.
-  set(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR "")
+  set(HERMETIC_WINDOWS_SDK_TOOLS_DIR "")
   if(_hl_windows)
-    set(HERMETIC_LLVM_WINDOWS_SDK_TOOLS_DIR "${_hl_sdk_tools}")
+    set(HERMETIC_WINDOWS_SDK_TOOLS_DIR "${_hl_sdk_tools}")
   endif()
   if(_hl_native)
-    set(HERMETIC_LLVM_CROSSCOMPILING FALSE)
+    set(HERMETIC_CROSSCOMPILING FALSE)
   else()
-    set(HERMETIC_LLVM_CROSSCOMPILING TRUE)
+    set(HERMETIC_CROSSCOMPILING TRUE)
   endif()
 endmacro()
