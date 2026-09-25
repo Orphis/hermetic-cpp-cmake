@@ -796,12 +796,19 @@ Docker/QEMU, of the target platform.
 
 Both workflows cache `~/.cache/hermetic-cpp/downloads` (400 to 600 MB per
 host: the LLVM source archive, the macOS SDK package, the MSVC and Windows
-SDK packages). `tests.yml` also caches each job's runtime sets (20 to 50 MB
-compressed), keyed by everything under `runtimes/` and `cmake/`, so they are
-only rebuilt when the recipe or the toolchain changes: a run then takes
-about four minutes instead of twenty; `nightly.yml` builds every set from source, which keeps the
-from-source path and the cross-host identity of the sets honest. A set
-takes one to three minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
+SDK packages), keyed by the distribution tables. Every run restores
+master's copy, and only runs on master save one, so that branches and pull
+requests do not store copies of their own against GitHub's 10 GB cache
+limit; an archive master does not have yet is simply downloaded.
+`tests.yml` also caches each job's runtime sets (20 to 50 MB compressed),
+keyed by everything under `runtimes/` and `cmake/`, so they are only
+rebuilt when the recipe or the toolchain changes: a run then takes about
+four minutes instead of twenty; `nightly.yml` builds every set from source,
+which keeps the from-source path and the cross-host identity of the sets
+honest. A set takes one to three minutes on GitHub's runners. When a pull
+request closes, [`cache-cleanup.yml`](.github/workflows/cache-cleanup.yml)
+deletes the caches of its branch and merge ref. Build logs are uploaded as
+artifacts on failure.
 A preset that fails to build does not stop its job's other presets, and the
 run stage still checks whatever was built, so one failure costs its own
 checks only.
