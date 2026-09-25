@@ -714,11 +714,12 @@ combination has no runner at all: `darwin-aarch64` cross-built from a macOS
 x86_64 host. Everything a job builds is executed on a runner, or under
 Docker/QEMU, of the target platform.
 
-Both workflows cache `~/.cache/hermetic-cpp/downloads` (about 300 MB,
-mostly the LLVM source archive and the macOS SDK package). `tests.yml` also
-caches each job's runtime sets, keyed by everything under `runtimes/` and
-`cmake/`, so they are only rebuilt when the recipe or the toolchain
-changes; `nightly.yml` builds every set from source, which keeps the
+Both workflows cache `~/.cache/hermetic-cpp/downloads` (400 to 600 MB per
+host: the LLVM source archive, the macOS SDK package, the MSVC and Windows
+SDK packages). `tests.yml` also caches each job's runtime sets (20 to 50 MB
+compressed), keyed by everything under `runtimes/` and `cmake/`, so they are
+only rebuilt when the recipe or the toolchain changes: a run then takes
+about four minutes instead of twenty; `nightly.yml` builds every set from source, which keeps the
 from-source path and the cross-host identity of the sets honest. A set
 takes one to three minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
 A preset that fails to build does not stop its job's other presets, and the
