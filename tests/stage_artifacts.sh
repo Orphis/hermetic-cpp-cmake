@@ -14,7 +14,10 @@ if [[ ${#presets[@]} -eq 0 ]]; then
 fi
 for preset in "${presets[@]}"; do
   src="${here}/hello/build/${preset}"
-  [[ -f "${src}/target.txt" ]] || { echo "no build for preset ${preset}"; exit 1; }
+  # Presets that did not build (or failed, see run_tests.sh) are left out,
+  # so that the run stage still checks the others.
+  [[ -f "${src}/target.txt" ]] || { echo "no build for preset ${preset}, skipping"; continue; }
+  [[ -e "${src}/.failed" ]] && { echo "preset ${preset} failed to build, skipping"; continue; }
   mkdir -p "${out}/${preset}"
   cp "${src}/target.txt" "${out}/${preset}/"
   for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll libgreeter.dll hello_wasm.wasm \
