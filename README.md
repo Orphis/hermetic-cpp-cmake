@@ -45,6 +45,53 @@ Or with a preset:
 }
 ```
 
+More configurations, each a single `cmake -S . -B build -G Ninja
+-DCMAKE_TOOLCHAIN_FILE=... ` line with these options (the sample's
+[`CMakePresets.json`](tests/hello/CMakePresets.json) has all of them as
+presets):
+
+```sh
+# The host itself, whatever it is: a native build with the hermetic compiler.
+-DHERMETIC_LLVM_VERSION=23.1.0
+
+# Linux, linking against glibc 2.28, so the binary runs on any distribution
+# from that era on (the default libc).
+-DHERMETIC_TARGET=linux-x86_64 -DHERMETIC_LIBC=gnu.2.28
+
+# Linux, fully static musl binaries, with AddressSanitizer.
+-DHERMETIC_TARGET=linux-aarch64 -DHERMETIC_LIBC=musl \
+  -DHERMETIC_LLVM_RUNTIME_SANITIZERS=ON -DHERMETIC_EXTRA_COMPILE_FLAGS=-fsanitize=address
+
+# Windows from any host: clang-cl, the MSVC STL, toolset and SDK from Microsoft.
+HERMETIC_ACCEPT_MICROSOFT_EULA=1 ... -DHERMETIC_TARGET=windows-x86_64
+
+# Windows with libc++ instead of the MSVC STL, and ASan (a DLL runtime).
+... -DHERMETIC_TARGET=windows-x86_64 -DHERMETIC_CXX_STDLIB=libc++ \
+  -DHERMETIC_LLVM_RUNTIME_SANITIZERS=ON "-DHERMETIC_EXTRA_COMPILE_FLAGS=-fsanitize=address;/Oy-"
+
+# Windows with Microsoft's cl.exe (Windows hosts only); lld-link still links.
+... -DHERMETIC_TARGET=windows-x86_64 -DHERMETIC_COMPILER=msvc
+
+# Windows on the GNU ABI: MinGW-w64 built from source, nothing from Microsoft.
+-DHERMETIC_TARGET=windows-x86_64 -DHERMETIC_WINDOWS_ABI=gnu
+
+# Windows on ARM64, from any host, with a pinned toolset and SDK.
+... -DHERMETIC_TARGET=windows-aarch64 \
+  -DHERMETIC_MSVC_TOOLSET_VERSION=14.44.35207 -DHERMETIC_WINDOWS_SDK_VERSION=10.0.22621
+
+# macOS from any host, with the SDK downloaded from Apple.
+HERMETIC_ACCEPT_APPLE_SDK_LICENSE=1 ... -DHERMETIC_TARGET=darwin-aarch64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+
+# macOS on a Mac, with the SDK of the installed Xcode instead.
+-DHERMETIC_TARGET=darwin-aarch64 -DHERMETIC_SYSROOT=host
+
+# A freestanding WebAssembly module (run it with Node.js or any runtime).
+-DHERMETIC_TARGET=wasm32
+
+# Everything inside the source tree, for remote execution (see Remote execution).
+-DHERMETIC_TARGET=linux-x86_64 -DHERMETIC_CACHE_DIR=$PWD/.hermetic-cpp
+```
+
 ## Hosts and targets
 
 The compiler prebuilt exists for six hosts; every host can build for every
