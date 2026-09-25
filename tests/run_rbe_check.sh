@@ -150,6 +150,24 @@ for preset in "${presets[@]}"; do
     echo "$(echo "${files}" | wc -l | tr -d ' ') outputs, byte-identical in both checkouts"
   else
     echo "outputs differ between the checkouts: ${differing[*]}"; status=1
+    # What differs, for the first few: the printable strings only one side
+    # has (paths, command lines), which is what usually leaks.
+    for f in "${differing[@]:0:3}"; do
+      echo "--- strings only in one checkout's ${f} (a: ${a##*/}, b: ${b##*/}):"
+      python3 - "${a}/${f}" "${b}/${f}" <<'PY'
+import re, sys
+def strings(path):
+    return set(m.decode("ascii") for m in re.findall(rb"[ -~]{6,}", open(path, "rb").read()))
+sa, sb = strings(sys.argv[1]), strings(sys.argv[2])
+for label, only in (("a", sorted(sa - sb)), ("b", sorted(sb - sa))):
+    for s in only[:8]:
+        print(f"    {label}: {s[:200]}")
+    if len(only) > 8:
+        print(f"    {label}: ... {len(only) - 8} more")
+if sa == sb:
+    print("    no difference in printable strings (binary content differs)")
+PY
+    done
   fi
 done
 exit ${status}
