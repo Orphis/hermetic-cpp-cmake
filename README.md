@@ -55,10 +55,13 @@ Windows targets with Microsoft's `cl.exe` (`HERMETIC_COMPILER=msvc`).
 ¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
 administrators or users with Developer Mode create; see
 [macOS targets](#macos-targets).
+
 ² With clang-cl, or with `cl.exe` (`HERMETIC_COMPILER=msvc`) for either
 Windows target on the MSVC ABI with the MSVC STL; lld-link and the LLVM
 tools link, archive and handle resources either way. See
-[Windows targets](#windows-targets). `HERMETIC_TARGET` defaults to the
+[Windows targets](#windows-targets).
+
+`HERMETIC_TARGET` defaults to the
 host's own platform. Which combinations CI exercises is listed under
 [Testing and CI](#testing-and-ci).
 
