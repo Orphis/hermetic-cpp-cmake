@@ -19,8 +19,54 @@
 
 include_guard(GLOBAL)
 
-# Bump when the build recipe changes incompatibly, to invalidate cached sets.
-set(HERMETIC_LLVM_RUNTIME_RECIPE_VERSION 16)
+# What a runtime set is built from besides the LLVM sources: the recipes
+# (runtimes/, the modules that drive them) and the source pins. Their
+# digest is part of every set's stamp, so a set built by another version
+# of any of them is built again; no version number to bump.
+set(HERMETIC_LLVM_RUNTIME_RECIPE_FILES
+  cmake/HermeticLLVMRuntimes.cmake cmake/HermeticCommon.cmake cmake/HermeticTargets.cmake
+  cmake/HermeticWindows.cmake cmake/HermeticWindowsRules.cmake
+  cmake/distributions/runtime_sources.json)
+
+# The digest of a file's content; text files with LF line endings, which
+# Windows checkouts turn into CRLF, so that every host agrees.
+function(_hermetic_recipe_file_digest PATH OUT)
+  file(READ "${PATH}" head LIMIT 4096 HEX)
+  if(head MATCHES "^(..)*00")
+    file(SHA256 "${PATH}" digest)
+  else()
+    file(READ "${PATH}" text)
+    string(REPLACE "\r\n" "\n" text "${text}")
+    string(SHA256 digest "${text}")
+  endif()
+  set(${OUT} "${digest}" PARENT_SCOPE)
+endfunction()
+
+# Sets ${OUT} to the recipe of a runtime set: 16 hex digits of the digest of
+# the recipe files, the LLVM source archive of LLVM_VERSION and EXTRA (what
+# else a kind of set depends on without naming it in its id).
+function(hermetic_llvm_runtime_recipe LLVM_VERSION EXTRA OUT)
+  get_property(files_digest GLOBAL PROPERTY _HERMETIC_LLVM_RUNTIME_RECIPE_FILES_DIGEST)
+  if(NOT files_digest)
+    file(GLOB_RECURSE files RELATIVE "${HERMETIC_DIR}" "${HERMETIC_DIR}/runtimes/*")
+    # Not what a checkout's host may leave there (.DS_Store, __pycache__).
+    list(FILTER files EXCLUDE REGEX "(^|/)(\\.[^/]*|__pycache__)(/|$)")
+    list(APPEND files ${HERMETIC_LLVM_RUNTIME_RECIPE_FILES})
+    list(SORT files)
+    set(lines "")
+    foreach(f IN LISTS files)
+      _hermetic_recipe_file_digest("${HERMETIC_DIR}/${f}" digest)
+      string(APPEND lines "${f} ${digest}\n")
+    endforeach()
+    string(SHA256 files_digest "${lines}")
+    set_property(GLOBAL PROPERTY _HERMETIC_LLVM_RUNTIME_RECIPE_FILES_DIGEST "${files_digest}")
+  endif()
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/llvm_sources.json" json)
+  string(JSON llvm_sha ERROR_VARIABLE err GET "${json}" "${LLVM_VERSION}" "sha256")
+  string(SHA256 recipe "files=${files_digest};llvm-source=${llvm_sha};${EXTRA}")
+  string(SUBSTRING "${recipe}" 0 16 recipe)
+  set(${OUT} "${recipe}" PARENT_SCOPE)
+endfunction()
 
 function(hermetic_llvm_load_runtime_sources)
   hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/runtime_sources.json" json)
@@ -329,7 +375,7 @@ function(hermetic_llvm_runtime_set_satisfies STAMP_FILE RECIPE LLVM COMPONENTS O
   endif()
   file(READ "${STAMP_FILE}" existing)
   string(STRIP "${existing}" existing)
-  if(NOT existing MATCHES "^recipe=([0-9]+);llvm=([^;]+);components=(.*)$")
+  if(NOT existing MATCHES "^recipe=([^;]+);llvm=([^;]+);components=(.*)$")
     return()
   endif()
   if(NOT CMAKE_MATCH_1 STREQUAL RECIPE OR NOT CMAKE_MATCH_2 STREQUAL LLVM)
@@ -359,18 +405,19 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
     list(APPEND components sanitizers)
   endif()
   string(REPLACE ";" "," components_str "${components}")
-  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+  hermetic_llvm_runtime_recipe("${LLVM_VERSION}" "" recipe)
+  set(stamp_content "recipe=${recipe};llvm=${LLVM_VERSION};components=${components_str}")
 
   set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-cpp.stamp")
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
@@ -516,7 +563,7 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   \"triple\": \"${triple}\",
   \"kernel_headers\": \"${kernel_version}\",
   \"components\": [\"builtins\", \"libcxx\"${sanitizer_json}],
-  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"recipe\": \"${recipe}\",
   \"built\": \"${now}\"
 }
 ")
@@ -550,18 +597,19 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
     list(APPEND components sanitizers)
   endif()
   string(REPLACE ";" "," components_str "${components}")
-  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+  hermetic_llvm_runtime_recipe("${LLVM_VERSION}" "sdk=${sdk_version}" recipe)
+  set(stamp_content "recipe=${recipe};llvm=${LLVM_VERSION};components=${components_str}")
 
   set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-cpp.stamp")
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
@@ -724,7 +772,7 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
   \"windows_sdk_version\": \"${sdk_version}\",
   \"triple\": \"${triple}\",
   \"components\": [\"builtins\", \"libcxx\"${sanitizer_json}],
-  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"recipe\": \"${recipe}\",
   \"built\": \"${now}\"
 }
 ")
@@ -754,18 +802,19 @@ function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT
   set(id "${TARGET}-mingw")
   set(components builtins libcxx)
   string(REPLACE ";" "," components_str "${components}")
-  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+  hermetic_llvm_runtime_recipe("${LLVM_VERSION}" "" recipe)
+  set(stamp_content "recipe=${recipe};llvm=${LLVM_VERSION};components=${components_str}")
 
   set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-cpp.stamp")
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
@@ -851,7 +900,7 @@ function(hermetic_llvm_build_mingw_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT
   \"libc_description\": \"mingw-w64 ${mingw_version} (UCRT)\",
   \"triple\": \"${triple}\",
   \"components\": [\"builtins\", \"libcxx\"],
-  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"recipe\": \"${recipe}\",
   \"built\": \"${now}\"
 }
 ")
@@ -879,18 +928,19 @@ function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_
   set(id "${TARGET}-none")
   set(components builtins)
   string(REPLACE ";" "," components_str "${components}")
-  set(stamp_content "recipe=${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION};llvm=${LLVM_VERSION};components=${components_str}")
+  hermetic_llvm_runtime_recipe("${LLVM_VERSION}" "" recipe)
+  set(stamp_content "recipe=${recipe};llvm=${LLVM_VERSION};components=${components_str}")
 
   set(set_dir "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}/${id}")
   set(stamp "${set_dir}/.hermetic-cpp.stamp")
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
   endif()
   file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks" "${HERMETIC_CACHE_DIR}/runtimes/${LLVM_VERSION}")
   file(LOCK "${HERMETIC_CACHE_DIR}/locks/runtimes-${LLVM_VERSION}-${id}.lock" GUARD FUNCTION TIMEOUT 7200)
-  hermetic_llvm_runtime_set_satisfies("${stamp}" "${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION}" "${LLVM_VERSION}" "${components}" ok)
+  hermetic_llvm_runtime_set_satisfies("${stamp}" "${recipe}" "${LLVM_VERSION}" "${components}" ok)
   if(ok)
     set(${OUT_DIR} "${set_dir}" PARENT_SCOPE)
     return()
@@ -952,7 +1002,7 @@ function(hermetic_llvm_build_wasm_runtime_set LLVM_ROOT LLVM_VERSION TARGET OUT_
   \"libc_description\": \"freestanding\",
   \"triple\": \"${triple}\",
   \"components\": [\"builtins\"],
-  \"recipe_version\": ${HERMETIC_LLVM_RUNTIME_RECIPE_VERSION},
+  \"recipe\": \"${recipe}\",
   \"built\": \"${now}\"
 }
 ")

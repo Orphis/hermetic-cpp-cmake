@@ -864,9 +864,13 @@ into the binary. Publishing prebuilt runtime sets is still to come.
 - `cmake -P tests/select_test.cmake` unit-tests version selection and libc
   parsing; `cmake -P scripts/help.cmake` lists what the tables contain;
   `scripts/prefetch.cmake` fetches and builds ahead of time.
-- Bump `HERMETIC_LLVM_RUNTIME_RECIPE_VERSION` in
-  `cmake/HermeticLLVMRuntimes.cmake` when the runtime recipes change, so
-  cached sets are rebuilt.
+- Cached runtime sets are rebuilt by themselves when their recipe
+  changes: each set's stamp (and its `runtime-set.json`) records a digest of
+  everything under `runtimes/`, the modules that drive the builds
+  (`HERMETIC_LLVM_RUNTIME_RECIPE_FILES` in
+  `cmake/HermeticLLVMRuntimes.cmake`, which lists them), the source pins, the
+  LLVM source archive and, for Windows libc++ sets, the Windows SDK version.
+  A module that starts shaping sets belongs in that list.
 
 ## Differences from hermetic-llvm
 
