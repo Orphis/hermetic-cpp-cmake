@@ -255,6 +255,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_MALLOC` | | Replace the C library's allocator in every executable: `mimalloc`, or the name of a library target of the project implementing [`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h). See [Replacing malloc](#replacing-malloc). |
+| `HERMETIC_MALLOC_DEFINITIONS` | | mimalloc's compile-time settings, a list such as `MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0` (`MI_SECURE`, `MI_GUARDED`, `MI_STATS`, `MI_PADDING`, `MI_DEBUG`, the `MI_DEFAULT_*` option defaults, ...). |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
 | `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
@@ -526,17 +527,27 @@ toolchain option: what has to be replaced depends on the C runtime.
   whatever the executable defines, so the allocator becomes the default
   malloc zone before `main`; blocks allocated before that still go back to
   the system zone.
-- **Windows (MSVC ABI)**: the UCRT allocates internally through
-  `_malloc_base` and its siblings, which are replaced together with the
-  public functions. This needs the static release C runtime
-  (`CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`): the DLL runtime
-  (ucrtbase.dll) keeps its own heap, so an executable built with `/MD` fails
-  to compile with a message saying so, and the debug runtime (`/MTd`) keeps
-  its debug heap. DLLs keep their C runtime: blocks they hand to the
-  executable go back to the process heap when freed, but blocks the
-  executable hands to a DLL must not be freed there, as usual with `/MT`.
-- Not available on Windows targets on the GNU ABI (MinGW-w64 uses
-  ucrtbase.dll) nor on WebAssembly (freestanding, no allocator to replace).
+- **Windows (MSVC ABI), DLL runtime** (`/MD`, `/MDd`, CMake's default):
+  the allocator is ucrtbase.dll's, which nothing linked into the executable
+  replaces. mimalloc is built as `mimalloc.dll` as well, which every
+  executable imports first; the redirection DLL that ships with mimalloc's
+  sources (`mimalloc-redirect.dll`, a prebuilt from Microsoft, which only
+  imports from ntdll.dll) patches ucrtbase.dll's allocation functions when
+  it loads, so every module of the process, DLLs and the C++ library
+  (MSVC STL or libc++) included, allocates with mimalloc. Both DLLs are
+  copied next to the executables; ship them with them.
+  `MIMALLOC_VERBOSE=1` in the environment reports the redirection.
+- **Windows (MSVC ABI), static runtime** (`/MT`,
+  `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`): the UCRT allocates
+  internally through `_malloc_base` and its siblings, which are replaced
+  together with the public functions, in the executable. DLLs keep their C
+  runtime: blocks they hand to the executable go back to the process heap
+  when freed, but blocks the executable hands to a DLL must not be freed
+  there, as usual with `/MT`. The debug runtime (`/MTd`) keeps its debug
+  heap. A backend of the project (see below) needs this runtime; with `/MD`
+  its executables fail to compile with a message saying so.
+- Not available yet on Windows targets on the GNU ABI, nor on WebAssembly
+  (freestanding, no allocator to replace).
 
 The toolchain does it with a small shim per platform in [`malloc/`](malloc),
 added as a source to every executable target at the end of the top-level
@@ -548,6 +559,12 @@ bring their own allocator (ASan, HWASan, MSan, TSan) and under the Windows
 debug runtime. An executable opts out with the target property
 `HERMETIC_MALLOC` set to `OFF`. Shared libraries are not given the shim;
 they use the executable's allocator (ELF interposition, the macOS zone).
+
+mimalloc's compile-time settings are passed with
+`HERMETIC_MALLOC_DEFINITIONS` (for instance `MI_SECURE=4` for guard pages
+and encoded free lists, `MI_GUARDED=1` for sampled guard pages); those that
+decide how it overrides the C library are the toolchain's and refused. Its
+run-time options work as usual through `MIMALLOC_*` environment variables.
 
 Another allocator plugs in as a library target named by `HERMETIC_MALLOC`
 that implements the backend interface of
@@ -746,7 +763,7 @@ them:
   with ASan, MinGW-w64 Windows targets, macOS targets from Linux, the
   WebAssembly targets, the `cl.exe` presets in a Windows job of their own,
   and `HERMETIC_MALLOC=mimalloc` on musl, glibc, macOS
-  and Windows (`clang-cl` and `cl.exe`), whose programs check that their
+  and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`), whose programs check that their
   blocks, the C library's and a shared library's included, come from
   mimalloc. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand

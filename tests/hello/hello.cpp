@@ -22,15 +22,21 @@
 
 #ifdef HELLO_MALLOC
 // HERMETIC_MALLOC: blocks come from the backend, the greeter library's too
-// (on Windows a DLL keeps its own C runtime heap, which the executable's free
-// returns its blocks to).
+// (with the static runtime on Windows a DLL keeps its own C runtime heap,
+// which the executable's free returns its blocks to).
+#if defined(_WIN32) && defined(_DLL)
+extern "C" __declspec(dllimport) bool mi_is_in_heap_region(const void* ptr);
+static bool owned(const void* ptr) { return mi_is_in_heap_region(ptr); }
+#else
 extern "C" int hermetic_malloc_backend_owns(const void* ptr);
+static bool owned(const void* ptr) { return hermetic_malloc_backend_owns(ptr); }
+#endif
 static bool allocator_ok() {
   auto n = std::make_unique<int>(1);
   std::string s = greet(std::string(64, 'x'));
-  bool ok = hermetic_malloc_backend_owns(n.get());
-#if !defined(_WIN32) || defined(GREETER_STATIC)
-  ok = ok && hermetic_malloc_backend_owns(s.data());
+  bool ok = owned(n.get());
+#if !defined(_WIN32) || defined(_DLL) || defined(GREETER_STATIC)
+  ok = ok && owned(s.data());
 #endif
   return ok;
 }

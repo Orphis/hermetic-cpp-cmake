@@ -81,7 +81,7 @@ jobs:
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest
-            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-msvc windows-aarch64-mimalloc
+            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-msvc windows-aarch64-mimalloc windows-aarch64-mimalloc-md
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm

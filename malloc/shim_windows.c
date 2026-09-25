@@ -1,10 +1,10 @@
 /* Copyright 2026 The hermetic-cpp-cmake Authors.
  * SPDX-License-Identifier: Apache-2.0
  *
- * HERMETIC_MALLOC for Windows targets on the MSVC ABI with the static
- * release C runtime (/MT, CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded).
+ * HERMETIC_MALLOC for Windows targets on the MSVC ABI.
  *
- * The UCRT's own allocations (_strdup, stdio buffers, getcwd, ...) do not go
+ * Static release runtime (/MT, CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded):
+ * the UCRT's own allocations (_strdup, stdio buffers, getcwd, ...) do not go
  * through malloc but through _malloc_base and its siblings, each in an object
  * of its own in libucrt.lib; defining malloc alone would leave them on the
  * CRT heap and hand the program blocks that the backend's free would then
@@ -19,12 +19,16 @@
  * returned there; blocks the executable hands to it must not be freed by it,
  * which is the rule of the static runtime anyway.
  *
- * - The DLL runtime (/MD) cannot be overridden by linking: ucrtbase.dll
- *   allocates from its own heap whatever the executable defines, and
- *   defining malloc next to its import library fails the link anyway.
- * - The debug runtime (/MTd) keeps its debug heap: its malloc family lives in
- *   one object together with the _Crt* debugging interface that programs
- *   built with it rely on. The shim is empty there.
+ * DLL runtime (/MD, /MDd, CMake's default): the allocator is ucrtbase.dll's,
+ * which no definition in the executable replaces. With mimalloc, the
+ * executable imports mimalloc.dll instead, first in its import table, whose
+ * redirection DLL (mimalloc-redirect.dll) patches ucrtbase.dll's allocation
+ * functions when it loads: every module of the process then allocates with
+ * mimalloc. Other backends need the static runtime.
+ *
+ * The debug static runtime (/MTd) keeps its debug heap: its malloc family
+ * lives in one object together with the _Crt* debugging interface that
+ * programs built with it rely on. The shim is empty there.
  */
 /* The project's warning flags (-Werror included) are not this file's concern. */
 #if defined(__clang__)
@@ -33,7 +37,12 @@
 #pragma warning(push, 0)
 #endif
 
+#if !defined(_WIN32)
+#error "shim_windows.c is for Windows targets"
+#endif
+
 #include "hermetic_malloc.h"
+#include "hermetic_malloc_config.h"
 
 #include <errno.h>
 #include <stddef.h>
@@ -43,17 +52,19 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#if !defined(_WIN32)
-#error "shim_windows.c is for Windows targets"
-#endif
-
 #if !HERMETIC_MALLOC_SANITIZED
 
 #if defined(_DLL)
-#error "HERMETIC_MALLOC needs the static C runtime on Windows targets: set CMAKE_MSVC_RUNTIME_LIBRARY (or the MSVC_RUNTIME_LIBRARY property) to MultiThreaded, or set the HERMETIC_MALLOC target property to OFF for this executable. The DLL runtime (ucrtbase.dll) keeps its own heap."
+
+#if HERMETIC_MALLOC_WINDOWS_REDIRECT
+/* The import itself, not the static library's mi_version: mimalloc.dll's
+ * import library comes right after the static library on the link line. */
+#pragma comment(linker, "/include:__imp_mi_version")
+#else
+#error "HERMETIC_MALLOC with a backend of the project needs the static C runtime on Windows targets: set CMAKE_MSVC_RUNTIME_LIBRARY (or the MSVC_RUNTIME_LIBRARY property) to MultiThreaded, or set the HERMETIC_MALLOC target property to OFF for this executable. The DLL runtime (ucrtbase.dll) keeps its own heap; only mimalloc redirects it."
 #endif
 
-#if !defined(_DEBUG)
+#elif !defined(_DEBUG)
 
 static void *enomem(void *p) {
   if (!p) errno = ENOMEM;

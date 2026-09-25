@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#ifdef HELLO_MALLOC
+#if defined(HELLO_MALLOC) && defined(_WIN32) && defined(_DLL)
+/* HERMETIC_MALLOC on the DLL runtime: mimalloc.dll, which ucrtbase.dll's
+ * allocation functions were redirected to. */
+__declspec(dllimport) _Bool mi_is_in_heap_region(const void* ptr);
+#define OWNED(p) mi_is_in_heap_region(p)
+#elif defined(HELLO_MALLOC)
 /* HERMETIC_MALLOC: the program's and the C library's blocks are the backend's. */
 int hermetic_malloc_backend_owns(const void* ptr);
 #define OWNED(p) hermetic_malloc_backend_owns(p)

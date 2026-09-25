@@ -493,6 +493,41 @@
         "HERMETIC_LIBC": "musl",
         "HERMETIC_MALLOC": "mimalloc"
       }
+    },
+    {
+      "name": "windows-x86_64-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-aarch64-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc-secure",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc",
+        "HERMETIC_MALLOC_DEFINITIONS": "MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0"
+      }
     }
   ],
   "buildPresets": [
@@ -727,6 +762,22 @@
     {
       "name": "linux-s390x-musl-mimalloc",
       "configurePreset": "linux-s390x-musl-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-mimalloc-md",
+      "configurePreset": "windows-x86_64-mimalloc-md"
+    },
+    {
+      "name": "windows-aarch64-mimalloc-md",
+      "configurePreset": "windows-aarch64-mimalloc-md"
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc-md",
+      "configurePreset": "windows-x86_64-msvc-mimalloc-md"
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc-secure",
+      "configurePreset": "linux-x86_64-musl-mimalloc-secure"
     }
   ],
   "testPresets": [
