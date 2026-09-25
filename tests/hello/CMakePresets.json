@@ -290,6 +290,14 @@
       }
     },
     {
+      "name": "windows-aarch64-msvc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_COMPILER": "msvc"
+      }
+    },
+    {
       "name": "windows-x86_64-libcxx-dbg",
       "inherits": "base",
       "cacheVariables": {

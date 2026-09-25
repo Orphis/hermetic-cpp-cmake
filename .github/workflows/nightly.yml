@@ -76,11 +76,11 @@ jobs:
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest
-            presets: windows-aarch64 windows-aarch64-libcxx
+            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-msvc
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32
+            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc
             rbe: host windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows

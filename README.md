@@ -294,7 +294,11 @@ Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the
 host and target architecture come from the same Visual Studio installer
 manifest as the toolset (about 28 MB, with the English message resources
 `cl.exe` needs), so a Windows host builds with the exact MSVC release the
-toolset version names, and nothing from a Visual Studio installation. The
+toolset version names, and nothing from a Visual Studio installation. Both
+host architectures are served and each can build both targets: an x86_64
+host gets the `HostX64` compilers for `windows-x86_64` and
+`windows-aarch64`, an ARM64 host the native `HostARM64` ones (toolsets
+14.32 and newer ship them; the three older ones are x86_64-host only). The
 link step is unchanged, `lld-link` through CMake's MSVC rules
 (`cmake/HermeticMSVCRules.cmake`), `llvm-lib` creates static libraries and
 `llvm-rc` and `llvm-mt` handle resources and manifests, so `link.exe` and
