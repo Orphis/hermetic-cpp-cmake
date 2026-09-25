@@ -37,7 +37,7 @@ jobs:
           - name: sanitizers (linux-x86_64)
             host: linux-x86_64-san
             os: ubuntu-latest
-            presets: linux-x86_64-asan linux-x86_64-ubsan
+            presets: linux-x86_64-asan linux-x86_64-ubsan linux-x86_64-asan-mimalloc
             rbe: linux-x86_64-asan linux-x86_64-ubsan
           - name: sanitizers (linux-aarch64)
             host: linux-aarch64-san
@@ -46,7 +46,7 @@ jobs:
           - name: armv7 / riscv64 / s390x
             host: linux-x86_64-exotic
             os: ubuntu-latest
-            presets: linux-armv7 linux-armv7-musl linux-riscv64 linux-riscv64-musl linux-s390x linux-s390x-musl
+            presets: linux-armv7 linux-armv7-musl linux-riscv64 linux-riscv64-musl linux-s390x linux-s390x-musl linux-armv7-musl-mimalloc linux-riscv64-musl-mimalloc linux-s390x-musl-mimalloc
           - name: compiler versions (linux)
             host: linux-x86_64-versions
             os: ubuntu-latest
@@ -58,7 +58,7 @@ jobs:
           - name: macos-x86_64
             host: macos-x86_64
             os: macos-15-intel
-            presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg
+            presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg darwin-x86_64-mimalloc
             rbe: host darwin-x86_64-dbg
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
@@ -81,11 +81,11 @@ jobs:
           - name: windows-x86_64 (windows-aarch64 targets)
             host: windows-x86_64-arm64
             os: windows-latest
-            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-msvc
+            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-msvc windows-aarch64-mimalloc windows-aarch64-mimalloc-md
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc
+            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc windows-aarch64-mimalloc-md windows-x86_64-mimalloc-md windows-aarch64-gnu-mimalloc
             rbe: host windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
@@ -95,11 +95,11 @@ jobs:
           - name: windows-aarch64 targets from linux
             host: linux-x86_64-windows-arm64
             os: ubuntu-latest
-            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-gnu
+            presets: windows-aarch64 windows-aarch64-libcxx windows-aarch64-gnu windows-aarch64-gnu-mimalloc
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest
-            presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg
+            presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg darwin-x86_64-mimalloc
             rbe: darwin-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90

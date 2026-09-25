@@ -254,6 +254,8 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)); with `cl.exe`, `/Brepro`, `/experimental:deterministic` and a `/pathmap:` of the cache instead. |
 | `HERMETIC_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
+| `HERMETIC_MALLOC` | | Replace the C library's allocator in every executable: `mimalloc`, or the name of a library target of the project implementing [`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h). See [Replacing malloc](#replacing-malloc). |
+| `HERMETIC_MALLOC_DEFINITIONS` | | mimalloc's compile-time settings, a list such as `MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0` (`MI_SECURE`, `MI_GUARDED`, `MI_STATS`, `MI_PADDING`, `MI_DEBUG`, the `MI_DEFAULT_*` option defaults, ...). |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
 | `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
@@ -504,6 +506,80 @@ run from the build directory.
 Not ported from hermetic-llvm: the static-CRT variants of its Windows
 sanitizer route beyond what is described above.
 
+## Replacing malloc
+
+`HERMETIC_MALLOC=mimalloc` makes every executable of the project allocate
+with [mimalloc](https://github.com/microsoft/mimalloc) (3.5.3, pinned in
+[`cmake/distributions/malloc_sources.json`](cmake/distributions/malloc_sources.json)),
+C library and C++ library allocations included. It matters most for musl,
+whose own allocator serializes threads: an allocation benchmark with four
+threads on Linux arm64 went from 12.9 s to 0.3 s (0.43 s with glibc's).
+
+Linking an allocator library is not enough for this, which is why it is a
+toolchain option: what has to be replaced depends on the C runtime.
+
+- **glibc**: the executable defines the malloc family, which interposes
+  libc.so.6's for every shared library and for glibc itself.
+- **musl**: the same definitions, statically linked; all the aligned entry
+  points too, since musl's would hand out blocks of its own heap. musl keeps
+  its own heap for a few internal objects it frees itself (locales, `atexit`).
+- **macOS**: libSystem and the SDK's libc++ bind to the system allocator
+  whatever the executable defines, so the allocator becomes the default
+  malloc zone before `main`; blocks allocated before that still go back to
+  the system zone.
+- **Windows, ucrtbase.dll**: the DLL runtime of the MSVC ABI (`/MD`,
+  `/MDd`, CMake's default) and every MinGW-w64 program (GNU ABI). The
+  allocator is ucrtbase.dll's, which nothing linked into the executable
+  replaces. mimalloc is built as `mimalloc.dll` as well, which every
+  executable imports first; the redirection DLL that ships with mimalloc's
+  sources (`mimalloc-redirect.dll`, a prebuilt from Microsoft, which only
+  imports from ntdll.dll) patches ucrtbase.dll's allocation functions when
+  it loads, so every module of the process, DLLs and the C++ library
+  (MSVC STL or libc++) included, allocates with mimalloc. Both DLLs are
+  copied next to the executables; ship them with them.
+  `MIMALLOC_VERBOSE=1` in the environment reports the redirection.
+- **Windows (MSVC ABI), static runtime** (`/MT`,
+  `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`): the UCRT allocates
+  internally through `_malloc_base` and its siblings, which are replaced
+  together with the public functions, in the executable. DLLs keep their C
+  runtime: blocks they hand to the executable go back to the process heap
+  when freed, but blocks the executable hands to a DLL must not be freed
+  there, as usual with `/MT`. The debug runtime (`/MTd`) keeps its debug
+  heap. A backend of the project (see below) needs this runtime; with `/MD`
+  its executables fail to compile with a message saying so, and it is not
+  available with MinGW-w64.
+- Not available on WebAssembly (freestanding, no allocator to replace).
+
+The toolchain does it with a small shim per platform in [`malloc/`](malloc),
+added as a source to every executable target at the end of the top-level
+`CMakeLists.txt` (through `CMAKE_PROJECT_INCLUDE`, chained with a
+project's own), and what the executables' C runtimes need built from the
+mimalloc sources: a static library `hermetic_malloc` for the shims that
+define the allocation functions, `mimalloc.dll` for those on
+ucrtbase.dll, or both; try_compile checks are left alone. The shim is compiled
+with each executable's own flags, so it stays empty under sanitizers that
+bring their own allocator (ASan, HWASan, MSan, TSan) and under the Windows
+debug runtime. An executable opts out with the target property
+`HERMETIC_MALLOC` set to `OFF`. Shared libraries are not given the shim;
+they use the executable's allocator (ELF interposition, the macOS zone).
+
+mimalloc's compile-time settings are passed with
+`HERMETIC_MALLOC_DEFINITIONS` (for instance `MI_SECURE=4` for guard pages
+and encoded free lists, `MI_GUARDED=1` for sampled guard pages); those that
+decide how it overrides the C library are the toolchain's and refused. Its
+run-time options work as usual through `MIMALLOC_*` environment variables.
+
+Another allocator plugs in as a library target named by `HERMETIC_MALLOC`
+that implements the backend interface of
+[`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h) (malloc, calloc,
+realloc, aligned allocation, free, usable size, and an ownership test)
+without overriding anything itself; the shims stay the toolchain's.
+
+The sources are compiled from copies in `<build>/hermetic-cpp-malloc`, mapped
+to `/hermetic-cpp/malloc` in debug information like the cache, so builds with
+the allocator stay reproducible across hosts and checkouts and ready for
+remote execution.
+
 ## Remote execution
 
 Remote build execution (RBE) caches an action by its command line and
@@ -687,14 +763,18 @@ them:
   (about 15 minutes end to end): tables and selection checks, then native
   and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
   x86_64, covering glibc, musl, the MSVC STL and libc++ Windows targets
-  with ASan, MinGW-w64 Windows targets, macOS targets from Linux and the
-  WebAssembly targets, plus the `cl.exe` presets in a Windows job of their
-  own. Each job builds at most a few runtime sets from source.
+  with ASan, MinGW-w64 Windows targets, macOS targets from Linux, the
+  WebAssembly targets, the `cl.exe` presets in a Windows job of their own,
+  and `HERMETIC_MALLOC=mimalloc` on musl, glibc, macOS
+  and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
+  blocks, the C library's and a shared library's included, come from
+  mimalloc. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
   on x86_64 and aarch64 with the negative check, ASan and UBSan on Linux
-  and Windows, armv7, riscv64 and s390x (glibc and musl) under QEMU,
+  and Windows, armv7, riscv64 and s390x (glibc, musl, and musl with
+  mimalloc) under QEMU,
   compiler version selection (`latest`, `21.1.8`, `first:>=22`), macOS
   x86_64 native and `darwin-x86_64` cross, every Windows preset from the
   Windows x86_64 host (one job per runtime set), from a Windows arm64 host

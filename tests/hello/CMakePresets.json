@@ -385,6 +385,186 @@
         "HERMETIC_MSVC_TOOLSET_VERSION": "14.44",
         "HERMETIC_WINDOWS_SDK_VERSION": "10.0.22621"
       }
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-aarch64-musl-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-aarch64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-x86_64-mimalloc-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_MALLOC": "mimalloc",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "darwin-aarch64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "darwin-aarch64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-x86_64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_MALLOC": "mimalloc",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
+      "name": "windows-x86_64-mimalloc-dbg",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_MALLOC": "mimalloc",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded",
+        "HERMETIC_TESTS_DEBUG_INFO": "ON"
+      }
+    },
+    {
+      "name": "windows-aarch64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_MALLOC": "mimalloc",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc",
+        "HERMETIC_MALLOC": "mimalloc",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
+      "name": "linux-armv7-musl-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-armv7",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-riscv64-musl-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-riscv64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-s390x-musl-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-s390x",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-x86_64-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-aarch64-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc-md",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc-secure",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_MALLOC": "mimalloc",
+        "HERMETIC_MALLOC_DEFINITIONS": "MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0"
+      }
+    },
+    {
+      "name": "darwin-x86_64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "darwin-x86_64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-x86_64-asan-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=address",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-x86_64-gnu-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "windows-aarch64-gnu-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-aarch64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
     }
   ],
   "buildPresets": [
@@ -571,6 +751,86 @@
     {
       "name": "windows-aarch64-msvc",
       "configurePreset": "windows-aarch64-msvc"
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc",
+      "configurePreset": "linux-x86_64-musl-mimalloc"
+    },
+    {
+      "name": "linux-aarch64-musl-mimalloc",
+      "configurePreset": "linux-aarch64-musl-mimalloc"
+    },
+    {
+      "name": "linux-aarch64-mimalloc",
+      "configurePreset": "linux-aarch64-mimalloc"
+    },
+    {
+      "name": "linux-x86_64-mimalloc-dbg",
+      "configurePreset": "linux-x86_64-mimalloc-dbg"
+    },
+    {
+      "name": "darwin-aarch64-mimalloc",
+      "configurePreset": "darwin-aarch64-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-mimalloc",
+      "configurePreset": "windows-x86_64-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-mimalloc-dbg",
+      "configurePreset": "windows-x86_64-mimalloc-dbg"
+    },
+    {
+      "name": "windows-aarch64-mimalloc",
+      "configurePreset": "windows-aarch64-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc",
+      "configurePreset": "windows-x86_64-msvc-mimalloc"
+    },
+    {
+      "name": "linux-armv7-musl-mimalloc",
+      "configurePreset": "linux-armv7-musl-mimalloc"
+    },
+    {
+      "name": "linux-riscv64-musl-mimalloc",
+      "configurePreset": "linux-riscv64-musl-mimalloc"
+    },
+    {
+      "name": "linux-s390x-musl-mimalloc",
+      "configurePreset": "linux-s390x-musl-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-mimalloc-md",
+      "configurePreset": "windows-x86_64-mimalloc-md"
+    },
+    {
+      "name": "windows-aarch64-mimalloc-md",
+      "configurePreset": "windows-aarch64-mimalloc-md"
+    },
+    {
+      "name": "windows-x86_64-msvc-mimalloc-md",
+      "configurePreset": "windows-x86_64-msvc-mimalloc-md"
+    },
+    {
+      "name": "linux-x86_64-musl-mimalloc-secure",
+      "configurePreset": "linux-x86_64-musl-mimalloc-secure"
+    },
+    {
+      "name": "darwin-x86_64-mimalloc",
+      "configurePreset": "darwin-x86_64-mimalloc"
+    },
+    {
+      "name": "linux-x86_64-asan-mimalloc",
+      "configurePreset": "linux-x86_64-asan-mimalloc"
+    },
+    {
+      "name": "windows-x86_64-gnu-mimalloc",
+      "configurePreset": "windows-x86_64-gnu-mimalloc"
+    },
+    {
+      "name": "windows-aarch64-gnu-mimalloc",
+      "configurePreset": "windows-aarch64-gnu-mimalloc"
     }
   ],
   "testPresets": [
