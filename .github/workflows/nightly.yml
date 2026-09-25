@@ -37,7 +37,7 @@ jobs:
           - name: sanitizers (linux-x86_64)
             host: linux-x86_64-san
             os: ubuntu-latest
-            presets: linux-x86_64-asan linux-x86_64-ubsan
+            presets: linux-x86_64-asan linux-x86_64-ubsan linux-x86_64-asan-mimalloc
             rbe: linux-x86_64-asan linux-x86_64-ubsan
           - name: sanitizers (linux-aarch64)
             host: linux-aarch64-san
@@ -58,7 +58,7 @@ jobs:
           - name: macos-x86_64
             host: macos-x86_64
             os: macos-15-intel
-            presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg
+            presets: host linux-x86_64-musl windows-x86_64 darwin-x86_64-dbg darwin-x86_64-mimalloc
             rbe: host darwin-x86_64-dbg
           # Windows host: one job per runtime set, since each job starts
           # with an empty cache and a Windows set (libc++ x4 CRT flavours,
@@ -85,7 +85,7 @@ jobs:
           - name: windows-aarch64 host
             host: windows-aarch64
             os: windows-11-arm
-            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc
+            presets: host linux-aarch64-musl windows-x86_64 windows-aarch64-gnu darwin-aarch64 wasm32 windows-aarch64-msvc windows-x86_64-msvc windows-aarch64-mimalloc-md windows-x86_64-mimalloc-md
             rbe: host windows-x86_64
           - name: windows-x86_64 targets from linux
             host: linux-x86_64-windows
@@ -99,7 +99,7 @@ jobs:
           - name: darwin-x86_64 from arm64
             host: macos-aarch64-cross
             os: macos-latest
-            presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg
+            presets: darwin-x86_64 darwin-aarch64 darwin-x86_64-dbg darwin-x86_64-mimalloc
             rbe: darwin-x86_64-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90

@@ -11,8 +11,9 @@ add_executable(hello_c hello.c)
 add_executable(hello_cxx hello.cpp)
 target_link_libraries(hello_cxx PRIVATE greeter_static Threads::Threads)
 
-# HERMETIC_MALLOC: the programs check where their blocks come from.
-if(HERMETIC_MALLOC_BACKEND)
+# HERMETIC_MALLOC: the programs check where their blocks come from, unless a
+# sanitizer brings its own allocator (the shim stands aside then).
+if(HERMETIC_MALLOC_BACKEND AND NOT CMAKE_C_FLAGS MATCHES "fsanitize=[^ ]*(address|thread|memory)")
   add_compile_definitions(HELLO_MALLOC)
 endif()
 

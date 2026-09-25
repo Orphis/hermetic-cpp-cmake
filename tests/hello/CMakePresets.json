@@ -528,6 +528,25 @@
         "HERMETIC_MALLOC": "mimalloc",
         "HERMETIC_MALLOC_DEFINITIONS": "MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0"
       }
+    },
+    {
+      "name": "darwin-x86_64-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "darwin-x86_64",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
+    },
+    {
+      "name": "linux-x86_64-asan-mimalloc",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=address;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=address",
+        "HERMETIC_MALLOC": "mimalloc"
+      }
     }
   ],
   "buildPresets": [
@@ -778,6 +797,14 @@
     {
       "name": "linux-x86_64-musl-mimalloc-secure",
       "configurePreset": "linux-x86_64-musl-mimalloc-secure"
+    },
+    {
+      "name": "darwin-x86_64-mimalloc",
+      "configurePreset": "darwin-x86_64-mimalloc"
+    },
+    {
+      "name": "linux-x86_64-asan-mimalloc",
+      "configurePreset": "linux-x86_64-asan-mimalloc"
     }
   ],
   "testPresets": [
