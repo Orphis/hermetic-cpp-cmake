@@ -9,6 +9,17 @@
 #include <thread>
 #include <vector>
 
+// The compiler's own description: clang's __VERSION__, or cl.exe's version.
+#define HELLO_STR_(x) #x
+#define HELLO_STR(x) HELLO_STR_(x)
+#if defined(__VERSION__)
+#define HELLO_COMPILER __VERSION__
+#elif defined(_MSC_FULL_VER)
+#define HELLO_COMPILER "MSVC " HELLO_STR(_MSC_FULL_VER)
+#else
+#define HELLO_COMPILER "unknown compiler"
+#endif
+
 namespace {
 int throwing(int x) {
   if (x > 2) throw std::runtime_error("too big");
@@ -40,6 +51,6 @@ int main() {
   }
   auto p = std::make_unique<std::string>(greet("world"));
   bool ok = counter == 6 + 0 + 2 + 4 && caught == 2 && seen.size() == 4 && *p == "hello, world";
-  std::cout << *p << " (" << __VERSION__ << "): " << (ok ? "OK" : "FAIL") << std::endl;
+  std::cout << *p << " (" << HELLO_COMPILER << "): " << (ok ? "OK" : "FAIL") << std::endl;
   return ok ? 0 : 1;
 }
