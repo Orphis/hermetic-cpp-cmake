@@ -11,7 +11,8 @@ binaries). macOS targets use the macOS SDK downloaded from Apple, Windows
 targets (MSVC ABI) use the MSVC toolset and Windows SDK downloaded from
 Microsoft, with the MSVC STL or a libc++ built from source, and freestanding
 WebAssembly targets get the compiler-rt builtins. Any host builds for any
-target.
+target with clang; Windows hosts can also build Windows targets with
+Microsoft's `cl.exe`.
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -115,6 +116,9 @@ Host notes:
 4. **Windows targets** on the MSVC ABI use `clang-cl` and `lld-link` with a MSVC
    toolset and a Windows SDK downloaded from Microsoft, the MSVC STL by
    default or a libc++ runtime set, and optionally the sanitizer runtimes.
+   On a Windows host, `HERMETIC_COMPILER=msvc` swaps `clang-cl` for the
+   toolset's own `cl.exe`, downloaded from the same source, with `lld-link`
+   still linking.
    On the GNU ABI (`HERMETIC_WINDOWS_ABI=gnu`) they use the plain
    `clang` driver with MinGW-w64 built from source into a runtime set, like
    hermetic-llvm's default Windows platforms, and nothing from Microsoft.
@@ -165,7 +169,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMETIC_TARGET` | host | `linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`, `darwin-x86_64`, `darwin-aarch64`, `windows-x86_64`, `windows-aarch64`, `wasm32`, `wasm64`; see [Hosts and targets](#hosts-and-targets). |
-| `HERMETIC_WINDOWS_ABI` | `msvc` | Windows targets: `msvc` (clang-cl, the Microsoft runtime and SDK) or `gnu` (MinGW-w64 with UCRT, built from source into the runtime set `<target>-mingw`; no Microsoft download, libc++ only, no sanitizers). |
+| `HERMETIC_WINDOWS_ABI` | `msvc` | Windows targets: `msvc` (clang-cl or, with `HERMETIC_COMPILER=msvc`, cl.exe; the Microsoft runtime and SDK) or `gnu` (MinGW-w64 with UCRT, built from source into the runtime set `<target>-mingw`; no Microsoft download, libc++ only, no sanitizers). |
 | `HERMETIC_ACCEPT_MICROSOFT_EULA` | | Must be `1` for Windows targets on the MSVC ABI: confirms you may use the MSVC runtime and Windows SDK (see https://visualstudio.microsoft.com/license-terms/). Also read from the environment. |
 | `HERMETIC_MSVC_TOOLSET_VERSION` | `14.50.35717` | MSVC toolset for Windows targets: an exact version from the table (14.29 through 14.51, i.e. Visual Studio 2019 to 2026), or `latest`. |
 | `HERMETIC_WINDOWS_SDK_VERSION` | `10.0.26100.7705` | Windows SDK for Windows targets: an exact NuGet version, a build prefix (`10.0.22621` selects its newest listed version), or `latest`. `cmake -DTOPIC=windows -P scripts/help.cmake` lists both tables. |
@@ -186,7 +190,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMETIC_USE_LLD` | `ON` | Link with LLD. |
-| `HERMETIC_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)). |
+| `HERMETIC_REPRODUCIBLE` | `ON` | Define `__DATE__`, `__TIME__` and `__TIMESTAMP__` as `"redacted"` (hermetic-llvm's deterministic flags), record the working directory in debug info as `.` and map the cache directory to a fixed name (see [Remote execution](#remote-execution)); with `cl.exe`, `/Brepro`, `/experimental:deterministic` and a `/pathmap:` of the cache instead. |
 | `HERMETIC_EXTRA_COMPILE_FLAGS` / `_EXTRA_CXX_FLAGS` / `_EXTRA_LINK_FLAGS` / `_EXTRA_LINK_LIBS` | | Lists appended to the generated `*_INIT` flags. |
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
@@ -436,8 +440,8 @@ the libraries' real paths, which `lld-link` opens. The link is only created
 for Windows targets and only supports the Ninja generators, whose commands
 run from the build directory.
 
-Not ported from hermetic-llvm: MinGW targets and the static-CRT variants
-of its Windows sanitizer route beyond what is described above.
+Not ported from hermetic-llvm: the static-CRT variants of its Windows
+sanitizer route beyond what is described above.
 
 ## Remote execution
 
@@ -623,8 +627,8 @@ them:
   and cross builds on Ubuntu x86_64, Ubuntu arm64, macOS arm64 and Windows
   x86_64, covering glibc, musl, the MSVC STL and libc++ Windows targets
   with ASan, MinGW-w64 Windows targets, macOS targets from Linux and the
-  WebAssembly targets. Each job builds at most a few runtime sets from
-  source.
+  WebAssembly targets, plus the `cl.exe` presets in a Windows job of their
+  own. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)
@@ -633,7 +637,8 @@ them:
   compiler version selection (`latest`, `21.1.8`, `first:>=22`), macOS
   x86_64 native and `darwin-x86_64` cross, every Windows preset from the
   Windows x86_64 host (one job per runtime set), from a Windows arm64 host
-  and from Linux, and a cold-start job provisioning a target with
+  and from Linux, `cl.exe` builds for both Windows targets from both
+  Windows hosts, and a cold-start job provisioning a target with
   sanitizers from an empty cache in one invocation.
 
 Coverage of the hosts-and-targets table: every push builds all Linux
@@ -652,6 +657,9 @@ Both workflows cache only `~/.cache/hermetic-cpp/downloads` (about 300 MB,
 mostly the LLVM source archive and the macOS SDK package) and rebuild runtime sets every time, which
 keeps them honest about the from-source path; a set takes one to three
 minutes on GitHub's runners. Build logs are uploaded as artifacts on failure.
+A preset that fails to build does not stop its job's other presets, and the
+run stage still checks whatever was built, so one failure costs its own
+checks only.
 
 `tests/run_rbe_check.sh [presets...]` checks that builds are ready for
 remote execution (see [Remote execution](#remote-execution)): it builds
@@ -661,8 +669,8 @@ It uses `<repo>/.hermetic-cpp` as the cache, or links it to
 `HERMETIC_CACHE_DIR` when that points elsewhere. Every build job runs
 it after building, on a subset of its presets (the `rbe` list of the job,
 built already, so nothing is downloaded or built again), on every host
-including Windows; the nightly jobs add sanitizer, Windows runtime set and
-macOS x86_64 presets. The "Tables and selection" job runs the wrapper's own
+including Windows, where the `cl.exe` debug preset is checked too; the
+nightly jobs add sanitizer, Windows runtime set and macOS x86_64 presets. The "Tables and selection" job runs the wrapper's own
 tests (`tests/rbe_wrapper_test.py`), which need no toolchain.
 
 The run stage also hashes every binary and fails when the same preset built
@@ -691,7 +699,9 @@ against different SDK versions (only with `HERMETIC_SYSROOT=host`,
 where the SDK is the host's Xcode; the sample records the version so the
 check can tell); and debug info or PDBs built on a Windows host (the
 backslash-joined include paths), where only the Windows builds may deviate
-and every other host must still agree. The sample pins
+and every other host must still agree. `cl.exe` binaries exist only from
+Windows hosts, so they take no part in the cross-host comparison; the RBE
+check covers their reproducibility across checkout paths instead. The sample pins
 `CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset one follows the SDK version
 into the binary. Publishing prebuilt runtime sets is still to come.
 
@@ -701,6 +711,11 @@ into the binary. Publishing prebuilt runtime sets is still to come.
   the compiler index, header indexes, source tables and abilists from
   upstream; `scripts/update_hermeticbuild_index.py` refreshes only the
   compiler index.
+- `scripts/update_windows_sources.py` regenerates
+  `cmake/distributions/windows.json` (MSVC toolsets with their compiler
+  packages, and Windows SDK versions) from the Visual Studio manifest and
+  NuGet; `scripts/update_macos_sdk.cmake` does the same for the macOS SDK
+  table.
 - `cmake -P tests/select_test.cmake` unit-tests version selection and libc
   parsing; `cmake -P scripts/help.cmake` lists what the tables contain;
   `scripts/prefetch.cmake` fetches and builds ahead of time.
@@ -716,6 +731,8 @@ into the binary. Publishing prebuilt runtime sets is still to come.
 - Not ported yet: BPF targets, libstdc++ as an alternative C++ library,
   the msvcrt.dll flavour and 32-bit x86 of the MinGW route, and the
   compiler bootstrap stages.
+- Beyond hermetic-llvm: Microsoft's `cl.exe` as the compiler for Windows
+  targets (`HERMETIC_COMPILER=msvc`), with the same linker and archiver.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
   (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is
