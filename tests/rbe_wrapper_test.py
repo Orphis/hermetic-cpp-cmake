@@ -105,6 +105,43 @@ def main():
     got = rbe_wrapper.split_windows('a "b c" d\\e \\"f\\" "g\\\\" h')
     check("splits like CommandLineToArgvW", got == ["a", "b c", "d\\e", '"f"', "g\\", "h"], repr(got))
 
+    # /showIncludes notes: paths inside the exec root come back relative (as
+    # cl.exe prints them absolute), paths outside are reported.
+    if os.name != "nt":
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.realpath(os.path.join(tmp, "ws")).replace("\\", "/")
+            build = f"{root}/src/build/x"
+            os.makedirs(build)
+            os.makedirs(f"{root}/.hermetic-cpp/bin")
+            os.makedirs(f"{root}/.hermetic-cpp/inc")
+            fake = f"{root}/.hermetic-cpp/bin/cl"
+            with open(fake, "w") as f:
+                f.write("#!/bin/sh\n"
+                        "for a in \"$@\"; do echo \"ARG:$a\"; done\n"
+                        f"echo 'Note: including file: {root}/.hermetic-cpp/inc/a.h'\n"
+                        "for a in \"$@\"; do case \"$a\" in *host*) echo 'Note: including file: /usr/include/stdio.h';; esac; done\n")
+            os.chmod(fake, 0o755)
+            log = f"{root}/rbe.jsonl"
+            proc = subprocess.run([sys.executable, WRAPPER, f"--root={root}", f"--log={log}", "--strict", "--",
+                                   fake, "/showIncludes", "-c", f"{root}/src/a.c"], cwd=build, capture_output=True, text=True)
+            check("showIncludes: exec-root paths rewritten relative",
+                  proc.returncode == 0 and "Note: including file: ../../../.hermetic-cpp/inc/a.h" in proc.stdout,
+                  f"rc={proc.returncode} out={proc.stdout!r} err={proc.stderr!r}")
+            proc = subprocess.run([sys.executable, WRAPPER, f"--root={root}", f"--log={log}", "--strict", "--",
+                                   fake, "/showIncludes", "-Dhost", "-c", f"{root}/src/a.c"], cwd=build, capture_output=True, text=True)
+            check("showIncludes: host paths outside the root reported",
+                  proc.returncode == 1 and "/usr/include/stdio.h (/showIncludes)" in proc.stderr,
+                  f"rc={proc.returncode} err={proc.stderr!r}")
+            # /pathmap: relative in the action key, absolute when executed.
+            proc = subprocess.run([sys.executable, WRAPPER, f"--root={root}", f"--log={log}", "--strict", "--",
+                                   fake, "/showIncludes", f"/pathmap:{root}/.hermetic-cpp=/hc", "-c", f"{root}/src/a.c"],
+                                  cwd=build, capture_output=True, text=True)
+            logged = [json.loads(l) for l in open(log) if l.strip()][-1]
+            check("pathmap: relative in the key, absolute for cl.exe",
+                  proc.returncode == 0 and "/pathmap:../../../.hermetic-cpp=/hc" in logged["argv"]
+                  and f"ARG:/pathmap:{root}/.hermetic-cpp=/hc" in proc.stdout,
+                  f"rc={proc.returncode} argv={logged.get('argv')} out={proc.stdout!r}")
+
     print("all passed" if failures == 0 else f"{failures} failed")
     return 1 if failures else 0
 

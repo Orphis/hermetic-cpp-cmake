@@ -38,8 +38,9 @@ Or with a preset:
 ## Hosts and targets
 
 The compiler prebuilt exists for six hosts; every host can build for every
-target. Runtime sets, Windows toolsets and the macOS SDK are downloaded or
-built the same way everywhere.
+target with clang. Runtime sets, Windows toolsets and the macOS SDK are
+downloaded or built the same way everywhere. Windows hosts can also build
+Windows targets with Microsoft's `cl.exe` (`HERMETIC_COMPILER=msvc`).
 
 | Host ↓ \ Target → | Linux (`linux-x86_64`, `linux-aarch64`, `linux-armv7`, `linux-riscv64`, `linux-s390x`; glibc or musl) | macOS (`darwin-x86_64`, `darwin-aarch64`) | Windows (`windows-x86_64`, `windows-aarch64`; MSVC ABI with the MSVC STL or libc++, or GNU ABI with MinGW-w64) | WebAssembly (`wasm32`, `wasm64`; freestanding) |
 | --- | :---: | :---: | :---: | :---: |
@@ -47,12 +48,16 @@ built the same way everywhere.
 | Linux arm64 | ✓ | ✓ | ✓ | ✓ |
 | macOS x86_64 | ✓ | ✓ | ✓ | ✓ |
 | macOS arm64 | ✓ | ✓ | ✓ | ✓ |
-| Windows x86_64 | ✓ | ✓ ¹ | ✓ | ✓ |
-| Windows arm64 | ✓ | ✓ ¹ | ✓ | ✓ |
+| Windows x86_64 | ✓ | ✓ ¹ | ✓ ² | ✓ |
+| Windows arm64 | ✓ | ✓ ¹ | ✓ ² | ✓ |
 
 ¹ Expanding the macOS SDK creates symbolic links, which Windows only lets
 administrators or users with Developer Mode create; see
-[macOS targets](#macos-targets). `HERMETIC_TARGET` defaults to the
+[macOS targets](#macos-targets).
+² With clang-cl, or with `cl.exe` (`HERMETIC_COMPILER=msvc`) for either
+Windows target on the MSVC ABI with the MSVC STL; lld-link and the LLVM
+tools link, archive and handle resources either way. See
+[Windows targets](#windows-targets). `HERMETIC_TARGET` defaults to the
 host's own platform. Which combinations CI exercises is listed under
 [Testing and CI](#testing-and-ci).
 
@@ -67,8 +72,10 @@ Host notes:
   (`xcrun --show-sdk-path`) instead of the downloaded one.
 - **Windows**: no Visual Studio, MSYS or WSL. The compiler prebuilt is
   hermetic-llvm's MinGW-built one, the MSVC toolset and Windows SDK are
-  downloaded like on the other hosts, and the test scripts run under Git
-  Bash. Keep the cache directory short (`HERMETIC_CACHE_DIR=C:/hl`) to
+  downloaded like on the other hosts (and, with `HERMETIC_COMPILER=msvc`,
+  the `cl.exe` compilers for the host and target architecture from the
+  same manifest), and the test scripts run under Git Bash. Keep the cache
+  directory short (`HERMETIC_CACHE_DIR=C:/hl`) to
   stay clear of path length limits; a Windows libc++ runtime set builds
   libc++ four times, one per C runtime flavour, so it takes a few minutes
   longer than a Linux set.
@@ -151,6 +158,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_HERMETICBUILD_INDEX` | | Another copy of the compiler index (same schema). |
 | `HERMETIC_LLVM_DISTRIBUTION_URL` / `_SHA256` / `_STRIP_COMPONENTS` | | Bring your own compiler archive (`bin/clang` at the root, or set the strip count). |
 | `HERMETIC_MIRROR_URLS` | | URL templates tried after the primary URL; `{version}`, `{release}` and `{basename}` are substituted. |
+| `HERMETIC_COMPILER` | `llvm` | `llvm` (clang from the prebuilt, every host and target) or `msvc` (Microsoft's `cl.exe` from the toolset packages, Windows hosts building Windows targets on the MSVC ABI with the MSVC STL; lld-link and the LLVM tools still link, archive and handle resources). See [Windows targets](#windows-targets). |
 
 ### Target, libc and runtimes
 
@@ -287,6 +295,30 @@ as the C runtime, and 32-bit x86.
 
 The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
 `clang-cl` and `lld-link` with Microsoft's runtime and SDK.
+
+**MSVC compiler.** With `HERMETIC_COMPILER=msvc` the compiler is
+Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the
+host and target architecture come from the same Visual Studio installer
+manifest as the toolset (about 28 MB, with the English message resources
+`cl.exe` needs), so a Windows host builds with the exact MSVC release the
+toolset version names, and nothing from a Visual Studio installation. Both
+host architectures are served and each can build both targets: an x86_64
+host gets the `HostX64` compilers for `windows-x86_64` and
+`windows-aarch64`, an ARM64 host the native `HostARM64` ones (toolsets
+14.32 and newer ship them; the three older ones are x86_64-host only). The
+link step is unchanged, `lld-link` through CMake's MSVC rules
+(`cmake/HermeticMSVCRules.cmake`), `llvm-lib` creates static libraries and
+`llvm-rc` and `llvm-mt` handle resources and manifests, so `link.exe` and
+`lib.exe` from the package are never run. The toolset and SDK headers are
+plain include directories (`/X` keeps the host's `INCLUDE` out), and with
+`HERMETIC_REPRODUCIBLE` the objects get `/Brepro`,
+`/experimental:deterministic` and a `/pathmap:` of the cache directory
+(toolset 14.40, Visual Studio 17.10, and newer). Debug info goes into the
+objects (`/Z7`, `CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` unless the
+project sets it). Only Windows hosts, Windows targets on the MSVC ABI and the
+MSVC STL: cross-compiling, libc++ and the sanitizer runtime sets stay with
+the `llvm` compiler. `cl.exe` binaries are not expected to match `clang-cl`
+ones, and the cross-host identity check does not cover them.
 
 **Toolset and SDK.** The MSVC toolset (C runtime and STL headers and
 libraries) comes from the Visual Studio installer manifest and the Windows
@@ -432,6 +464,15 @@ machine, and try_compile checks, which run locally, are left alone.
   alike. MSVC-ABI links already name the toolset, SDK and runtime set
   through the build directory's `hermetic-cpp` link (a relative symbolic
   link, which stays inside the tree when the cache does).
+- **`cl.exe` needs two more things from the wrapper**
+  (`HERMETIC_COMPILER=msvc`): its `/showIncludes` notes name every header
+  by its resolved absolute path, however the `/I` directories were
+  spelled, so the ones inside the root must be rewritten to relative
+  before the build system reads them; and `/pathmap:<from>=<to>` is
+  matched against the absolute paths it records, so a relativized `<from>`
+  must be made absolute again against the working directory when the
+  command runs (the action key keeps it relative). The reference wrapper
+  does both.
 - What the toolchain does for it with `HERMETIC_REPRODUCIBLE`: debug
   info records the working directory as `.` (`-ffile-compilation-dir=.`),
   the cache is mapped to a fixed name, and targets without a runtime set

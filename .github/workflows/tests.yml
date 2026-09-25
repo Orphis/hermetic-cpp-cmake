@@ -48,6 +48,12 @@ jobs:
             os: windows-latest
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg
             rbe: host linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu
+          # cl.exe builds in a job of their own: they download the compiler
+          # packages and keep the main Windows job's duration in line.
+          - host: windows-x86_64-msvc
+            os: windows-latest
+            presets: windows-x86_64-msvc windows-x86_64-msvc-dbg
+            rbe: windows-x86_64-msvc-dbg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:

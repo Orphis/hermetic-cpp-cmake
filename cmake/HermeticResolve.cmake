@@ -85,6 +85,7 @@ macro(hermetic_resolve)
     set(HERMETIC_RESOLVED_SYSROOT "")
     set(HERMETIC_RESOLVED_LIBC "")
     set(HERMETIC_RESOLVED_WINSDK "")
+    set(HERMETIC_RESOLVED_MSVC_BIN "")
     # Windows ABI: the MSVC one (clang-cl, the Microsoft runtime and SDK) or
     # the GNU one (MinGW-w64, no Microsoft download).
     set(HERMETIC_RESOLVED_WINDOWS_ABI "")
@@ -97,6 +98,24 @@ macro(hermetic_resolve)
         hermetic_fatal("HERMETIC_WINDOWS_ABI must be msvc or gnu, not '${HERMETIC_WINDOWS_ABI}'")
       endif()
     endif()
+    # The compiler: clang (LLVM prebuilt) everywhere, or MSVC's cl.exe for
+    # Windows targets on the MSVC ABI from a Windows host; lld-link and the
+    # LLVM tools serve both.
+    set(HERMETIC_RESOLVED_COMPILER "${HERMETIC_COMPILER}")
+    if(NOT HERMETIC_RESOLVED_COMPILER MATCHES "^(llvm|msvc)$")
+      hermetic_fatal("HERMETIC_COMPILER must be llvm or msvc, not '${HERMETIC_COMPILER}'")
+    endif()
+    if(HERMETIC_RESOLVED_COMPILER STREQUAL "msvc")
+      if(NOT HERMETIC_HOST_OS STREQUAL "windows")
+        hermetic_fatal("HERMETIC_COMPILER=msvc (cl.exe) needs a Windows host (x86_64 or aarch64, each with compilers for both target architectures); use the llvm compiler to cross-compile for Windows from elsewhere")
+      endif()
+      if(NOT _hl_target_OS STREQUAL "windows" OR NOT HERMETIC_RESOLVED_WINDOWS_ABI STREQUAL "msvc")
+        hermetic_fatal("HERMETIC_COMPILER=msvc builds Windows targets on the MSVC ABI only (HERMETIC_TARGET=windows-*, HERMETIC_WINDOWS_ABI=msvc)")
+      endif()
+      if(HERMETIC_LLVM_RUNTIME_SANITIZERS)
+        hermetic_fatal("HERMETIC_COMPILER=msvc: sanitizer runtime sets are built for clang; cl.exe's own /fsanitize=address ships with Visual Studio, not with the toolset packages")
+      endif()
+    endif()
     # C++ standard library: libc++ everywhere; Windows targets default to the
     # MSVC STL and may choose a libc++ runtime set instead.
     set(_hl_stdlib "${HERMETIC_CXX_STDLIB}")
@@ -107,7 +126,11 @@ macro(hermetic_resolve)
         set(_hl_stdlib libc++)
       endif()
     endif()
-    if(_hl_target_OS STREQUAL "windows" AND HERMETIC_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
+    if(HERMETIC_RESOLVED_COMPILER STREQUAL "msvc")
+      if(NOT _hl_stdlib STREQUAL "msvc")
+        hermetic_fatal("HERMETIC_CXX_STDLIB must be msvc (the MSVC STL) with HERMETIC_COMPILER=msvc, not '${_hl_stdlib}'")
+      endif()
+    elseif(_hl_target_OS STREQUAL "windows" AND HERMETIC_RESOLVED_WINDOWS_ABI STREQUAL "gnu")
       if(_hl_stdlib STREQUAL "msvc")
         set(_hl_stdlib libc++)
       elseif(NOT _hl_stdlib STREQUAL "libc++")
@@ -134,6 +157,7 @@ macro(hermetic_resolve)
           "${HERMETIC_TARGET}")
     elseif(_hl_target_OS STREQUAL "windows")
       hermetic_provide_windows_sdk("${_hl_target_ARCH}" _hl_win)
+      set(HERMETIC_RESOLVED_MSVC_BIN "${_hl_win_MSVC_BIN}")
       # One list, forwarded to try_compile projects as a single variable.
       set(HERMETIC_RESOLVED_WINSDK
         "${_hl_win_MSVC_VERSION}" "${_hl_win_MSVC_COMPAT_VERSION}" "${_hl_win_MSVC_INCLUDE}" "${_hl_win_MSVC_LIB}"

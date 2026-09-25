@@ -3,3 +3,4 @@ tests/hello/build/
 .cache/
 artifacts/
 .hermetic-cpp
+__pycache__/
