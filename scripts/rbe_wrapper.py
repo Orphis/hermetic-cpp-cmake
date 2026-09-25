@@ -51,6 +51,9 @@ WINDOWS = os.name == "nt"
 # part before is a path of this machine.
 PREFIX_MAP_RE = re.compile(r"^(?:/clang:)?-f(?:file|debug|macro|profile|coverage)-prefix-map=")
 FAKE_VALUE_PREFIXES = ("/pdbsourcepath:", "/pdbaltpath:", "-ffile-compilation-dir=", "-fdebug-compilation-dir=")
+# cl.exe's prefix map: applied to the absolute paths it records, so <from>
+# must be absolute when the command runs (see absolute_pathmap).
+PATHMAP_RE = re.compile(r"^([/-]pathmap:)(.+?)=(.*)$", re.IGNORECASE)
 # A path glued to an option: -I<dir>, /vctoolsdir<dir>, -isystem<dir>...
 OPTION_PREFIX_RE = re.compile(r"[-/][A-Za-z][A-Za-z0-9_+-]*")
 DRIVE_RE = re.compile(r"[A-Za-z]:[\\/]")
@@ -119,6 +122,17 @@ def absolute_paths_in(arg):
         if is_host_path(candidate):
             return [candidate]
     return []
+
+
+def absolute_pathmap(arg):
+    """The executed form of a relativized /pathmap:<from>=<to>: cl.exe matches
+    <from> against the absolute paths it records, so the wrapper resolves it
+    against the working directory, as a remote execution client has to on
+    the worker (the action key keeps the relative spelling)."""
+    m = PATHMAP_RE.match(arg)
+    if not m or os.path.isabs(m.group(2)) or DRIVE_RE.match(m.group(2)):
+        return arg
+    return f"{m.group(1)}{os.path.normpath(os.path.join(os.getcwd(), m.group(2)))}={m.group(3)}"
 
 
 def overlay_files(argv):
@@ -299,7 +313,7 @@ def run(argv, root, log, strict):
         fail(f"absolute paths left in {os.path.basename(argv[0])} command: " + ", ".join(record["problems"]))
         if strict:
             return 1
-    new_argv = record["argv"]
+    new_argv = [absolute_pathmap(a) for a in record["argv"]]
 
     # A worker's environment: nothing from this machine.
     env = {"PATH": os.defpath}

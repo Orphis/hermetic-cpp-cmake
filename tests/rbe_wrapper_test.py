@@ -117,6 +117,7 @@ def main():
             fake = f"{root}/.hermetic-cpp/bin/cl"
             with open(fake, "w") as f:
                 f.write("#!/bin/sh\n"
+                        "for a in \"$@\"; do echo \"ARG:$a\"; done\n"
                         f"echo 'Note: including file: {root}/.hermetic-cpp/inc/a.h'\n"
                         "for a in \"$@\"; do case \"$a\" in *host*) echo 'Note: including file: /usr/include/stdio.h';; esac; done\n")
             os.chmod(fake, 0o755)
@@ -131,6 +132,15 @@ def main():
             check("showIncludes: host paths outside the root reported",
                   proc.returncode == 1 and "/usr/include/stdio.h (/showIncludes)" in proc.stderr,
                   f"rc={proc.returncode} err={proc.stderr!r}")
+            # /pathmap: relative in the action key, absolute when executed.
+            proc = subprocess.run([sys.executable, WRAPPER, f"--root={root}", f"--log={log}", "--strict", "--",
+                                   fake, "/showIncludes", f"/pathmap:{root}/.hermetic-cpp=/hc", "-c", f"{root}/src/a.c"],
+                                  cwd=build, capture_output=True, text=True)
+            logged = [json.loads(l) for l in open(log) if l.strip()][-1]
+            check("pathmap: relative in the key, absolute for cl.exe",
+                  proc.returncode == 0 and "/pathmap:../../../.hermetic-cpp=/hc" in logged["argv"]
+                  and f"ARG:/pathmap:{root}/.hermetic-cpp=/hc" in proc.stdout,
+                  f"rc={proc.returncode} argv={logged.get('argv')} out={proc.stdout!r}")
 
     print("all passed" if failures == 0 else f"{failures} failed")
     return 1 if failures else 0

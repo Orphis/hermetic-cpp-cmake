@@ -464,6 +464,15 @@ machine, and try_compile checks, which run locally, are left alone.
   alike. MSVC-ABI links already name the toolset, SDK and runtime set
   through the build directory's `hermetic-cpp` link (a relative symbolic
   link, which stays inside the tree when the cache does).
+- **`cl.exe` needs two more things from the wrapper**
+  (`HERMETIC_COMPILER=msvc`): its `/showIncludes` notes name every header
+  by its resolved absolute path, however the `/I` directories were
+  spelled, so the ones inside the root must be rewritten to relative
+  before the build system reads them; and `/pathmap:<from>=<to>` is
+  matched against the absolute paths it records, so a relativized `<from>`
+  must be made absolute again against the working directory when the
+  command runs (the action key keeps it relative). The reference wrapper
+  does both.
 - What the toolchain does for it with `HERMETIC_REPRODUCIBLE`: debug
   info records the working directory as `.` (`-ffile-compilation-dir=.`),
   the cache is mapped to a fixed name, and targets without a runtime set
