@@ -282,9 +282,18 @@ Apple's catalog has carried since 2021 is listed in
 
 `HERMETIC_SYSROOT=host` keeps the previous behaviour on a macOS host
 (the SDK of the installed Xcode or Command Line Tools, via `xcrun`), which
-needs no license confirmation; a directory names any SDK. The sample
-project pins `CMAKE_OSX_DEPLOYMENT_TARGET`, since the default follows the
-SDK version.
+needs no license confirmation; a directory names any SDK.
+
+The deployment target defaults to the oldest macOS Apple still ships
+security updates for, which in practice is the current major version and
+the two before it: for the SDK in use, its major version and the two
+before it (15.0 with the 27.0 SDK, which covers macOS 27, 26 and 15; 14.0
+with a 26.x SDK), never older than the SDK supports
+(`SupportedTargets` in its `SDKSettings.json`). `CMAKE_OSX_DEPLOYMENT_TARGET`
+or the `MACOSX_DEPLOYMENT_TARGET` environment variable chooses another.
+Without a default, clang targets the host's macOS on a Mac and the SDK's
+version elsewhere, so the same build gave different binaries on different
+machines.
 
 Notes:
 
@@ -854,8 +863,9 @@ backslash-joined include paths), where only the Windows builds may deviate
 and every other host must still agree. `cl.exe` binaries exist only from
 Windows hosts, so they take no part in the cross-host comparison; the RBE
 check covers their reproducibility across checkout paths instead. The sample pins
-`CMAKE_OSX_DEPLOYMENT_TARGET`, since an unset one follows the SDK version
-into the binary. Publishing prebuilt runtime sets is still to come.
+`CMAKE_OSX_DEPLOYMENT_TARGET`, since the default follows the SDK version,
+which differs with `HERMETIC_SYSROOT=host`. Publishing prebuilt runtime sets
+is still to come.
 
 ## Maintenance
 
