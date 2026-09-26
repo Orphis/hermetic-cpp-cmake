@@ -362,9 +362,13 @@ needed. Not available on this ABI: the MSVC STL, the sanitizers, `msvcrt.dll`
 as the C runtime, and 32-bit x86.
 
 The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
-`clang-cl` and `lld-link` with Microsoft's runtime and SDK. MASM sources
-(`enable_language(ASM_MASM)`) are assembled by `llvm-ml` on x64; there is no
-LLVM counterpart to ARM64's `armasm64`.
+`clang-cl` and `lld-link` with Microsoft's runtime and SDK. There is no MASM
+assembler (`enable_language(ASM_MASM)`): LLVM's `llvm-ml` encodes label
+addresses (`lea rcx, label`) as absolute 32-bit relocations where `ml64`
+makes them RIP-relative, and the result crashes in a 64-bit image (Boost.Context
+did), so such projects fail to find `ml64` rather than build something
+broken. Boost.Context can use Windows fibers instead
+(`BOOST_CONTEXT_IMPLEMENTATION=winfib`).
 
 **MSVC compiler.** With `HERMETIC_COMPILER=msvc` the compiler is
 Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the

@@ -5,7 +5,9 @@
 #include <string>
 #include <thread>
 
+#ifdef HAVE_BOOST_CONTEXT
 #include <boost/context/fiber.hpp>
+#endif
 #include <fmt/format.h>
 #include <png.h>
 #include <spdlog/spdlog.h>
@@ -46,9 +48,10 @@ int main() {
   ffi = "libffi";
 #endif
 
-  // Boost.Context switches stacks in assembly of its own (MASM on the
-  // MSVC ABI): ping-pong between two contexts.
+  // Boost.Context switches stacks in assembly of its own: ping-pong
+  // between two contexts.
   int steps = 0;
+#ifdef HAVE_BOOST_CONTEXT
   {
     namespace ctx = boost::context;
     ctx::fiber other{[&steps](ctx::fiber &&main) {
@@ -61,6 +64,7 @@ int main() {
     for (int i = 0; i < 3; ++i) other = std::move(other).resume();
   }
   ok = ok && steps == 3;
+#endif
 
   // spdlog keeps thread_local state: logging from another thread runs its
   // destructors when that thread exits.
