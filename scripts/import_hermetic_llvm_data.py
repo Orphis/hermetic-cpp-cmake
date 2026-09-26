@@ -86,7 +86,14 @@ def main():
         "musl": musl,
         "extras": extras,
     }
-    with open(os.path.join(dist, "runtime_sources.json"), "w", encoding="utf-8") as f:
+    # Entries of our own (mingw: MinGW-w64, which hermetic-llvm does not
+    # build) stay as they are.
+    runtime_sources = os.path.join(dist, "runtime_sources.json")
+    if os.path.exists(runtime_sources):
+        with open(runtime_sources, encoding="utf-8") as f:
+            for key, value in json.load(f).items():
+                result.setdefault(key, value)
+    with open(runtime_sources, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
         f.write("\n")
 
