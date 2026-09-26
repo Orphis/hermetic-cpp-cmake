@@ -85,12 +85,28 @@ def under(path, roots):
     return False
 
 
+TOKEN_BOUNDARIES = " \t\r\n=,;\"'"
+
+
 def relativize(text, roots, rel):
-    """Rewrites every occurrence of ROOTS/ in TEXT as REL/."""
+    """Rewrites every occurrence of ROOTS/ in TEXT as REL/, except inside a
+    longer path: a spelling that a separator of the same token precedes (an
+    option's own leading / or - aside), such as an output name CMake derived
+    from an absolute source path, is left for the checks to report."""
     flags = re.IGNORECASE if WINDOWS else 0
+
+    def replace(m):
+        start = m.start()
+        while start > 0 and m.string[start - 1] not in TOKEN_BOUNDARIES:
+            start -= 1
+        prefix = m.string[start:m.start()]
+        if re.search(r"[/\\]", prefix[1:] if prefix[:1] in "/-" else prefix):
+            return m.group(0)
+        return rel
+
     for r in roots:
         for spelling in {r, r.replace("/", "\\")}:
-            text = re.sub(re.escape(spelling) + r"(?=[/\\])", lambda _: rel, text, flags=flags)
+            text = re.sub(re.escape(spelling) + r"(?=[/\\])", replace, text, flags=flags)
     return text
 
 
@@ -121,6 +137,18 @@ def absolute_paths_in(arg):
         candidate = re.split(r"[=,;]", arg[i:], maxsplit=1)[0]
         if is_host_path(candidate):
             return [candidate]
+    return []
+
+
+def embedded_roots_in(arg, roots):
+    """The exec root left inside a longer path by relativize: a name made
+    from the machine's absolute path (CMake names the objects of sources
+    outside the source and build trees that way)."""
+    flags = re.IGNORECASE if WINDOWS else 0
+    for r in roots:
+        for spelling in {r, r.replace("/", "\\")}:
+            if re.search(re.escape(spelling) + r"(?=[/\\])", arg, flags):
+                return [f"{arg} (names the exec root inside a longer path)"]
     return []
 
 
@@ -176,6 +204,7 @@ def analyze(argv, roots, write_rsp):
                 text = relativize(f.read(), roots, rel)
             for tok in text.split():
                 problems += absolute_paths_in(tok.strip('"'))
+                problems += embedded_roots_in(tok.strip('"'), roots)
             out = a[1:] + ".rbe"
             if write_rsp:
                 with open(out, "w", encoding="utf-8", errors="surrogateescape") as f:
@@ -186,6 +215,7 @@ def analyze(argv, roots, write_rsp):
             new_argv.append(relativize(a, roots, rel))
     for a in new_argv:
         problems += absolute_paths_in(a)
+        problems += embedded_roots_in(a, roots)
     for overlay in overlay_files(new_argv):
         try:
             with open(overlay, encoding="utf-8") as f:
