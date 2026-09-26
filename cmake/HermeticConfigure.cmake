@@ -152,7 +152,9 @@ macro(hermetic_configure)
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
     if(_hl_mingw)
       set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-windres${_hl_exe}" CACHE FILEPATH "Resource compiler")
-      set(CMAKE_RC_FLAGS_INIT "--target=${_hl_triple}")
+      # Its preprocessor needs the runtime set's MinGW-w64 headers
+      # (<windows.h>, <winver.h>) as much as the compiler does.
+      set(CMAKE_RC_FLAGS_INIT "--target=${_hl_triple} --preprocessor-arg=--sysroot=${_hl_set}")
     endif()
   endif()
   set(CMAKE_OBJC_COMPILER "${_hl_bin}/clang${_hl_exe}")
