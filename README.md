@@ -623,9 +623,10 @@ the project's `vcpkg.json` as usual, after setting it up:
   `-hermetic` suffix (`arm64-linux-musl-hermetic`,
   `x64-windows-static-md-hermetic`, ...): the options that decide what code
   is built and with what (target, libc, C++ library, compiler version,
-  SDK and toolset versions, ...), and on the MSVC ABI the C runtime of
-  `CMAKE_MSVC_RUNTIME_LIBRARY` as given on the command line (static unless
-  it names a DLL runtime; CMake's default is the DLL one).
+  SDK and toolset versions, ...), on macOS the deployment target, and on the
+  MSVC ABI the C runtime of `CMAKE_MSVC_RUNTIME_LIBRARY` as given on the
+  command line (static unless it names a DLL runtime; CMake's default is the
+  DLL one).
 - The host triplet, for the build tools some ports need: the same one when
   the target's programs run on this host, else one for the host with the
   same compiler (with the host's own SDK on macOS, and MinGW-w64 on
@@ -648,8 +649,9 @@ cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cm
       -DVCPKG_TARGET_TRIPLET=x64-linux-musl-hermetic
 ```
 
-The project then gets the triplet's options as defaults, and on the MSVC
-ABI its C runtime; an option given on the command line that contradicts
+The project then gets the triplet's options as defaults, its
+`VCPKG_OSX_DEPLOYMENT_TARGET` if it sets one, and on the MSVC ABI its C
+runtime; an option given on the command line that contradicts
 the triplet draws a warning. The same triplets serve `vcpkg install
 --overlay-triplets=<this dir>/vcpkg/triplets` outside CMake. A triplet of
 your own sets any `HERMETIC_*` option, then includes

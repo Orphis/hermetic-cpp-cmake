@@ -99,6 +99,7 @@ function(hermetic_vcpkg_triplet_defaults)
     endif()
   endforeach()
   unset(VCPKG_CRT_LINKAGE)
+  unset(VCPKG_OSX_DEPLOYMENT_TARGET)
   # hermetic-triplet.cmake returns once it has listed the options.
   set(_HERMETIC_VCPKG_READ_OPTIONS TRUE)
   include("${file}")
@@ -114,6 +115,12 @@ function(hermetic_vcpkg_triplet_defaults)
     endif()
   endforeach()
   set(_HERMETIC_VCPKG_TRIPLET_CRT "${VCPKG_CRT_LINKAGE}" PARENT_SCOPE)
+  # The macOS deployment target the triplet's packages are built for, unless
+  # the project gives one.
+  if(VCPKG_OSX_DEPLOYMENT_TARGET AND NOT CMAKE_OSX_DEPLOYMENT_TARGET
+      AND "$ENV{MACOSX_DEPLOYMENT_TARGET}" STREQUAL "")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${VCPKG_OSX_DEPLOYMENT_TARGET}" PARENT_SCOPE)
+  endif()
 endfunction()
 
 # Run after hermetic_configure, whose _hl_* variables it reads.
@@ -379,6 +386,11 @@ macro(_hermetic_vcpkg_prepare)
     endforeach()
     if(_hl_windows AND _hv_crt STREQUAL "static")
       list(APPEND _hv_options "VCPKG_CRT_LINKAGE=static")
+    endif()
+    # This configuration's macOS deployment target (the project's, or the
+    # toolchain's default for the SDK): vcpkg passes it to every port.
+    if(_hl_tgt_OS STREQUAL "darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET)
+      list(APPEND _hv_options "VCPKG_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
     endif()
     _hermetic_vcpkg_write_triplet("${_hv_dir}" "${VCPKG_TARGET_TRIPLET}" ${_hv_options})
     set(HERMETIC_VCPKG_GENERATED_TARGET_TRIPLET "${VCPKG_TARGET_TRIPLET}" CACHE INTERNAL "")
