@@ -1,0 +1,42 @@
+name: Set up CMake
+description: >
+  Installs a pinned CMake release from Kitware's GitHub releases, checked
+  against its published SHA-256, ahead of the runner's own CMake: every host
+  builds with the same CMake, which import std (CMake 4.2 and newer) needs.
+inputs:
+  version:
+    description: CMake version (the hashes below must match it)
+    default: 4.4.3
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        case "${RUNNER_OS}-${RUNNER_ARCH}" in
+          Linux-X64)     name="cmake-${VERSION}-linux-x86_64.tar.gz";   sha=d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc ;;
+          Linux-ARM64)   name="cmake-${VERSION}-linux-aarch64.tar.gz";  sha=2efc974dbd63b4444c0e8494b92f2e80c2d7e635b4b80eac2916985ddd8f72a6 ;;
+          macOS-*)       name="cmake-${VERSION}-macos-universal.tar.gz"; sha=0c5d65251c14cc884bfa16bdbed3c263ce5bffe2e21c0d0d00962cb0610464fa ;;
+          Windows-X64)   name="cmake-${VERSION}-windows-x86_64.zip";    sha=4d52ebab7193a698651639ed80d8d04fd903358843572cf44c7fd234cb7c26ab ;;
+          Windows-ARM64) name="cmake-${VERSION}-windows-arm64.zip";     sha=7b410ddd00e24c7250eec7452da2348a4a70437aa87e9cda0a20d6a85662fcff ;;
+          *) echo "no CMake ${VERSION} package for ${RUNNER_OS}-${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        dir="${RUNNER_TEMP}/cmake-${VERSION}"
+        mkdir -p "${dir}"
+        curl -sSfL --retry 3 -o "${dir}/${name}" "https://github.com/Kitware/CMake/releases/download/v${VERSION}/${name}"
+        actual=$( (command -v sha256sum >/dev/null && sha256sum "${dir}/${name}" || shasum -a 256 "${dir}/${name}") | cut -d' ' -f1)
+        if [[ "${actual}" != "${sha}" ]]; then echo "${name}: SHA-256 ${actual}, expected ${sha}"; exit 1; fi
+        case "${name}" in
+          *.zip) (cd "${dir}" && unzip -q "${name}") ;;
+          *) tar -xzf "${dir}/${name}" -C "${dir}" ;;
+        esac
+        root="${dir}/${name%.tar.gz}"; root="${root%.zip}"
+        case "${RUNNER_OS}" in
+          macOS) bin="${root}/CMake.app/Contents/bin" ;;
+          Windows) bin="$(cygpath -w "${root}/bin")" ;;
+          *) bin="${root}/bin" ;;
+        esac
+        echo "${bin}" >> "${GITHUB_PATH}"
+        "${root}/$( [[ ${RUNNER_OS} == macOS ]] && echo CMake.app/Contents/bin || echo bin )/cmake" --version | head -1
