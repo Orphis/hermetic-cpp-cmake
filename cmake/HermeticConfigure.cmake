@@ -207,6 +207,20 @@ macro(hermetic_configure)
     if(NOT _hl_native)
       set(CMAKE_OSX_ARCHITECTURES "${_hl_tgt_SYSTEM_PROCESSOR}")
     endif()
+    # A deployment target unless the project gives one (-D, or
+    # MACOSX_DEPLOYMENT_TARGET in the environment, as CMake itself reads).
+    if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+      if(NOT "$ENV{MACOSX_DEPLOYMENT_TARGET}" STREQUAL "")
+        set(_hl_deployment "$ENV{MACOSX_DEPLOYMENT_TARGET}")
+      else()
+        hermetic_macos_default_deployment_target("${_hl_sysroot}" _hl_deployment)
+      endif()
+      if(_hl_deployment)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "${_hl_deployment}" CACHE STRING
+          "Minimum macOS version to target (default: the oldest one Apple supports, for the SDK)")
+        hermetic_log("macOS deployment target ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+      endif()
+    endif()
     # Makes every host behave alike for shared libraries (see the file).
     set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticDarwinRules.cmake")
   elseif(_hl_set AND NOT _hl_windows AND NOT _hl_tgt_OS STREQUAL "wasm")

@@ -90,6 +90,55 @@ function(hermetic_macos_sdk_usable VERSION COMPILER_ROOT OUT)
   endif()
 endfunction()
 
+# The deployment target used when the project sets none: the oldest macOS
+# Apple still ships security updates for when the SDK comes out, i.e. the
+# SDK's major version and the two before it (27.0 SDK: 27, 26, 15, so 15.0),
+# and no older than the SDK supports (SupportedTargets.macosx in
+# SDKSettings.json). Clang would otherwise target the host's macOS on a Mac
+# and the SDK's version elsewhere, so builds depended on the machine.
+function(hermetic_macos_default_deployment_target SDK_DIR OUT)
+  set(${OUT} "" PARENT_SCOPE)
+  if(NOT EXISTS "${SDK_DIR}/SDKSettings.json")
+    return()
+  endif()
+  file(READ "${SDK_DIR}/SDKSettings.json" settings)
+  string(JSON version ERROR_VARIABLE err GET "${settings}" Version)
+  if(err OR NOT version MATCHES "^([0-9]+)(\\.([0-9]+))?")
+    return()
+  endif()
+  set(major "${CMAKE_MATCH_1}")
+  if(major EQUAL 10)
+    set(major "10.${CMAKE_MATCH_3}")
+  endif()
+  # macOS majors: 10.13 to 10.15, 11 to 15, then 26 on (named after the year).
+  set(majors 10.13 10.14 10.15)
+  foreach(v RANGE 11 15)
+    list(APPEND majors ${v})
+  endforeach()
+  if(major GREATER_EQUAL 26)
+    foreach(v RANGE 26 ${major})
+      list(APPEND majors ${v})
+    endforeach()
+  endif()
+  list(FIND majors "${major}" index)
+  if(index LESS 0)
+    return()
+  endif()
+  math(EXPR index "${index} - 2")
+  if(index LESS 0)
+    set(index 0)
+  endif()
+  list(GET majors ${index} target)
+  if(NOT target MATCHES "\\.")
+    set(target "${target}.0")
+  endif()
+  string(JSON minimum ERROR_VARIABLE err GET "${settings}" SupportedTargets macosx MinimumDeploymentTarget)
+  if(NOT err AND minimum AND target VERSION_LESS minimum)
+    set(target "${minimum}")
+  endif()
+  set(${OUT} "${target}" PARENT_SCOPE)
+endfunction()
+
 # Provides the macOS SDK selected by SPEC (an exact version, a prefix such
 # as 15 for its newest listed version, latest, or default) and sets
 # ${OUT_DIR} to its directory (<cache>/macos/MacOSX<version>.sdk). With
