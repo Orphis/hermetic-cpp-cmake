@@ -625,10 +625,14 @@ file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
   `CMAKE_OSX_DEPLOYMENT_TARGET` fails there.
 - **MSVC STL with clang-cl**: needs clang 23.1.2 (the default) or newer.
   23.1.0 cannot build the STL's `std` module ("reference to 'align_val_t'
-  is ambiguous", llvm/llvm-project#218152, fixed in 23.1.1), and 22.x names
-  anonymous namespaces on the MSVC ABI after the main file's path without
-  the prefix maps (llvm/llvm-project#194542, in clang 23), so its binaries
-  depend on where the build directory is.
+  is ambiguous", llvm/llvm-project#218152, fixed in 23.1.1): with it, the
+  mirrored module sources hold an `#error` saying so instead, which only a
+  project importing std runs into. 22.x names anonymous namespaces on the
+  MSVC ABI after the main file's path without the prefix maps
+  (llvm/llvm-project#194542, in clang 23), so its binaries depend on where
+  the build directory is. The mirrored sources also silence the warnings
+  clang gives about them (`#include` in the module's purview, the reserved
+  name `std`), which they turn off for `cl.exe` with `#pragma warning`.
 - **Reproducibility**: objects, libraries and programs built with modules
   are as reproducible as the rest, debug information included. The
   toolchain mirrors the standard library's module sources into
