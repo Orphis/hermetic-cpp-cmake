@@ -35,7 +35,7 @@ jobs:
           - host: linux-x86_64
             os: ubuntu-latest
             presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-musl-mimalloc linux-x86_64-mimalloc-dbg windows-x86_64-mimalloc windows-x86_64-mimalloc-md windows-x86_64-gnu-mimalloc darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc-secure linux-x86_64-musl-modules windows-x86_64-gnu-modules windows-x86_64-libcxx-modules windows-x86_64-modules darwin-aarch64-modules
-            rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-mimalloc-dbg windows-x86_64-gnu-mimalloc
+            rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-mimalloc-dbg windows-x86_64-gnu-mimalloc linux-x86_64-musl-modules
           - host: linux-aarch64
             os: ubuntu-24.04-arm
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64 linux-x86_64-dbg linux-aarch64-mimalloc linux-aarch64-musl-mimalloc linux-x86_64-musl-mimalloc linux-aarch64-modules

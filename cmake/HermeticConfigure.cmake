@@ -25,6 +25,52 @@ function(hermetic_llvm_resource_dir ROOT OUT)
   set(${OUT} "${found}" PARENT_SCOPE)
 endfunction()
 
+# The standard library's module sources, mirrored into the build directory
+# (OUT_DIR) with their metadata, for import std. CMake names the objects of
+# sources outside the source and build trees after their absolute path,
+# which would put the cache's location into output names and commands (and
+# remote execution keys); the Ninja generators also name sources inside the
+# build tree by relative paths. Only the module sources move: the headers
+# they include stay where they are. Sets ${OUT} to the mirrored metadata.
+function(hermetic_mirror_stdlib_modules JSON_FILE OUT_DIR OUT)
+  file(READ "${JSON_FILE}" json)
+  get_filename_component(json_dir "${JSON_FILE}" DIRECTORY)
+  string(JSON n LENGTH "${json}" "modules")
+  math(EXPR last "${n} - 1")
+  foreach(i RANGE ${last})
+    string(JSON source GET "${json}" "modules" ${i} "source-path")
+    if(NOT IS_ABSOLUTE "${source}")
+      set(source "${json_dir}/${source}")
+    endif()
+    get_filename_component(source "${source}" ABSOLUTE)
+    get_filename_component(source_dir "${source}" DIRECTORY)
+    get_filename_component(name "${source}" NAME)
+    # The module's directory holds its partitions (libc++'s std/*.inc).
+    file(COPY "${source_dir}/" DESTINATION "${OUT_DIR}" PATTERN "*.json" EXCLUDE)
+    string(JSON json SET "${json}" "modules" ${i} "source-path" "\"${name}\"")
+    string(JSON dirs ERROR_VARIABLE err GET "${json}" "modules" ${i} "local-arguments" "system-include-directories")
+    if(NOT err)
+      string(JSON m LENGTH "${dirs}")
+      if(m GREATER 0)
+        math(EXPR m_last "${m} - 1")
+        foreach(k RANGE ${m_last})
+          string(JSON dir GET "${dirs}" ${k})
+          if(NOT IS_ABSOLUTE "${dir}")
+            set(dir "${json_dir}/${dir}")
+          endif()
+          get_filename_component(dir "${dir}" ABSOLUTE)
+          if(dir STREQUAL source_dir)
+            set(dir ".")
+          endif()
+          string(JSON json SET "${json}" "modules" ${i} "local-arguments" "system-include-directories" ${k} "\"${dir}\"")
+        endforeach()
+      endif()
+    endif()
+  endforeach()
+  file(CONFIGURE OUTPUT "${OUT_DIR}/modules.json" CONTENT "${json}\n" @ONLY)
+  set(${OUT} "${OUT_DIR}/modules.json" PARENT_SCOPE)
+endfunction()
+
 # Debugger settings for a build directory. Reproducible builds record fixed
 # or relative paths in debug info: the cache as /hermetic-cpp/cache, the
 # compiler as /hermetic-cpp/llvm, the working directory as "." (and, when a
@@ -471,8 +517,22 @@ macro(hermetic_configure)
     elseif(_hl_tgt_OS STREQUAL "darwin" AND HERMETIC_MACOS_LIBCXX_MODULES AND _hl_sysroot)
       hermetic_macos_libcxx_modules("${_hl_sysroot}" _hl_modules_json)
     endif()
-    if(_hl_modules_json)
-      list(GET _hl_modules_json 0 CMAKE_CXX_STDLIB_MODULES_JSON)
+    get_property(_hl_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
+    if(_hl_modules_json AND NOT _hl_in_try_compile)
+      list(GET _hl_modules_json 0 _hl_modules_json)
+      hermetic_mirror_stdlib_modules("${_hl_modules_json}" "${CMAKE_BINARY_DIR}/hermetic-cpp-modules"
+        CMAKE_CXX_STDLIB_MODULES_JSON)
+      # Their debug info names them like the cache.
+      if(HERMETIC_REPRODUCIBLE)
+        set(_hl_modules_map "${CMAKE_BINARY_DIR}/hermetic-cpp-modules=/hermetic-cpp/modules")
+        if(_hl_msvc)
+          hermetic_append_flags(_hl_c_flags "/pathmap:${_hl_modules_map}")
+        elseif(_hl_windows)
+          hermetic_append_flags(_hl_c_flags "/clang:-ffile-prefix-map=${_hl_modules_map}")
+        else()
+          hermetic_append_flags(_hl_c_flags "-ffile-prefix-map=${_hl_modules_map}")
+        endif()
+      endif()
     endif()
   endif()
 

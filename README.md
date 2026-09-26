@@ -618,12 +618,18 @@ file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
   module ("reference to 'align_val_t' is ambiguous",
   llvm/llvm-project#218152), which 23.1.1 fixes; 22.1.8 works.
 - **Reproducibility**: objects, libraries and programs built with modules
-  are as reproducible as the rest, debug information included. The built
-  module interfaces (`.pcm`) record their source file's path as given,
-  which `-ffile-prefix-map` does not rewrite; they are intermediate files,
-  but with remote execution an importer's action key covers them, so their
-  sources must be named by paths that do not depend on the machine (the
-  reference wrapper makes them relative).
+  are as reproducible as the rest, debug information included. The
+  toolchain mirrors the standard library's module sources into
+  `<build>/hermetic-cpp-modules` (mapped to `/hermetic-cpp/modules` in debug
+  information), since CMake names the objects of sources outside the
+  source and build trees after their absolute path, which would put the
+  cache's location into output names and commands. The built module
+  interfaces (`.pcm`) record their source file's path as given, which
+  `-ffile-prefix-map` does not rewrite: they are intermediate files, but
+  with remote execution an importer's action key covers them, so they are
+  only shared between machines when their sources are named relatively, as
+  the reference wrapper does (the remote execution check covers a modules
+  preset).
 
 The sample's `*-modules` presets build [{fmt}](https://github.com/fmtlib/fmt)
 as a module that imports std itself, a module of the sample's own and a
