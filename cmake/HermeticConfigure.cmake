@@ -136,6 +136,11 @@ macro(hermetic_configure)
     # clang-cl assembles .S files too; CMake applies MSVC-style flags to ASM
     # whenever the C compiler is MSVC-like, which plain clang would reject.
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
+    # No MASM assembler (enable_language(ASM_MASM)): llvm-ml encodes label
+    # addresses (lea rcx, label) as absolute 32-bit relocations where ml64
+    # makes them RIP-relative, which lld-link truncates silently in a 64-bit
+    # image: Boost.Context built with it crashed. Such projects fail to find
+    # ml64 instead (see README.md).
     set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticWindowsRules.cmake")
   else()
     set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
@@ -144,7 +149,9 @@ macro(hermetic_configure)
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang${_hl_exe}")
     if(_hl_mingw)
       set(CMAKE_RC_COMPILER "${_hl_bin}/llvm-windres${_hl_exe}" CACHE FILEPATH "Resource compiler")
-      set(CMAKE_RC_FLAGS_INIT "--target=${_hl_triple}")
+      # Its preprocessor needs the runtime set's MinGW-w64 headers
+      # (<windows.h>, <winver.h>) as much as the compiler does.
+      set(CMAKE_RC_FLAGS_INIT "--target=${_hl_triple} --preprocessor-arg=--sysroot=${_hl_set}")
     endif()
   endif()
   set(CMAKE_OBJC_COMPILER "${_hl_bin}/clang${_hl_exe}")
@@ -180,6 +187,14 @@ macro(hermetic_configure)
   if(NOT _hl_native)
     set(CMAKE_SYSTEM_NAME "${_hl_tgt_SYSTEM_NAME}")
     set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
+  elseif(DEFINED CMAKE_SYSTEM_NAME)
+    # A system name from the command line (vcpkg passes its triplet's, and
+    # "MinGW" for MinGW-w64, which its own toolchain replaces) makes CMake
+    # skip host detection: it leaves the processor empty and assumes a cross
+    # build.
+    set(CMAKE_SYSTEM_NAME "${_hl_tgt_SYSTEM_NAME}")
+    set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
+    set(CMAKE_CROSSCOMPILING FALSE)
   endif()
   foreach(_hl_lang C CXX ASM OBJC OBJCXX)
     set(CMAKE_${_hl_lang}_COMPILER_TARGET "${_hl_triple}")
@@ -221,8 +236,9 @@ macro(hermetic_configure)
     if(NOT DEFINED CMAKE_TRY_COMPILE_CONFIGURATION)
       set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
     endif()
-    # find_* may look inside the MSVC and SDK trees only.
-    set(CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
+    # find_* may look inside the MSVC and SDK trees only, and in the roots
+    # the project gives (a directory of prebuilt packages).
+    list(APPEND CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
     if(_hl_set)
       list(APPEND CMAKE_FIND_ROOT_PATH "${_hl_set}")
     endif()
@@ -245,6 +261,13 @@ macro(hermetic_configure)
 
   # ---- Flags -------------------------------------------------------------
   set(_hl_c_flags "")
+  # CMake's rules get the target from CMAKE_<LANG>_COMPILER_TARGET, but
+  # scripts that run the compiler themselves pass CMAKE_<LANG>_FLAGS (and
+  # CMAKE_SYSROOT) only: libpng's genout.cmake, which preprocesses its
+  # configuration, would do so for the host.
+  if(NOT _hl_msvc)
+    hermetic_append_flags(_hl_c_flags "--target=${_hl_triple}")
+  endif()
   set(_hl_cxx_first_flags "")  # C++ only, ahead of the common flags (include order)
   set(_hl_cxx_flags "")
   set(_hl_link_flags "")
@@ -322,7 +345,9 @@ macro(hermetic_configure)
     # absolute paths (prefix maps cover them, and the compiler identification
     # step runs where no link exists).
     set(_hl_link_root "")
-    if(HERMETIC_REPRODUCIBLE)
+    # Not for the flags vcpkg extracts for autotools and Meson ports, which
+    # link in build directories of their own, without the link.
+    if(HERMETIC_REPRODUCIBLE AND NOT HERMETIC_VCPKG_GET_VARS)
       hermetic_link_directory("${HERMETIC_CACHE_DIR}"
         "${CMAKE_BINARY_DIR}/${HERMETIC_CACHE_LINK_NAME}" _hl_link_ok)
       hermetic_link_directory("${_hl_root}"
@@ -481,7 +506,10 @@ macro(hermetic_configure)
   endforeach()
   if(_hl_windows)
     # The overlay and MSVC paths are compile-only; keep them off the RC flags.
-    set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared")
+    # Scripts include C headers too (libgit2's git2.rc: <time.h>, from the
+    # UCRT), which rc.exe finds through the INCLUDE of a Visual Studio
+    # environment.
+    set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared /I${_hl_sdk_include}/ucrt /I${_hl_msvc_include}")
   endif()
   if(_hl_cxx_first_flags)
     set(CMAKE_CXX_FLAGS_INIT "")
