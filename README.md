@@ -256,6 +256,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_MALLOC` | | Replace the C library's allocator in every executable: `mimalloc`, or the name of a library target of the project implementing [`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h). See [Replacing malloc](#replacing-malloc). |
 | `HERMETIC_MALLOC_DEFINITIONS` | | mimalloc's compile-time settings, a list such as `MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0` (`MI_SECURE`, `MI_GUARDED`, `MI_STATS`, `MI_PADDING`, `MI_DEBUG`, the `MI_DEFAULT_*` option defaults, ...). |
+| `HERMETIC_MACOS_LIBCXX_MODULES` | `OFF` | macOS targets: provide the module sources of the SDK's libc++ for `import std`, from the LLVM sources of the same release (downloaded). See [C++ modules and import std](#c-modules-and-import-std). |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
 | `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
@@ -579,6 +580,54 @@ The sources are compiled from copies in `<build>/hermetic-cpp-malloc`, mapped
 to `/hermetic-cpp/malloc` in debug information like the cache, so builds with
 the allocator stay reproducible across hosts and checkouts and ready for
 remote execution.
+
+## C++ modules and import std
+
+Named modules work with the Ninja generators on every target with a C++
+library. `import std;` also works on every target, provided the C++ library
+ships the standard library's module sources, and the toolchain tells CMake
+where they are: it sets `CMAKE_CXX_STDLIB_MODULES_JSON` (CMake 4.2 and
+newer), which CMake would otherwise ask the compiler for, without the flags
+that name the runtime set. A project that uses `import std` still enables
+CMake's experimental gate itself, before `project()`, with the value of its
+CMake release (`CMAKE_EXPERIMENTAL_CXX_IMPORT_STD`, the `CxxImportStd`
+feature), and sets `CMAKE_CXX_MODULE_STD` (or the `CXX_MODULE_STD`
+property) with C++23 or newer. With a `cmake_minimum_required` older than
+3.28 (policy CMP0155), sources that import modules outside a `CXX_MODULES`
+file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
+`CXX_SCAN_FOR_MODULES` property).
+
+| Target | Standard library modules |
+| --- | --- |
+| Linux (glibc, musl), Windows on the GNU ABI | libc++'s, from the runtime set |
+| Windows, MSVC ABI with libc++ | libc++'s, from the runtime set |
+| Windows, MSVC ABI with the MSVC STL | the toolset's (`std.ixx`), for clang-cl and `cl.exe`; the toolchain converts its `modules.json` to the format CMake reads |
+| macOS | with `HERMETIC_MACOS_LIBCXX_MODULES=ON` |
+| WebAssembly | none (no C++ library) |
+
+- **macOS**: Apple's SDK carries libc++'s headers but not its module
+  sources, which must come from the same libc++ release. With
+  `HERMETIC_MACOS_LIBCXX_MODULES=ON` the toolchain reads that release from
+  the SDK (`_LIBCPP_VERSION`, 22.1.6 for the 27.0 SDK), takes `libcxx/modules`
+  from the LLVM sources of that version (or the newest listed release of the
+  same major version) and generates them into `<cache>/macos`. It is off by
+  default because it downloads that LLVM source archive. `std::format` of
+  floating-point numbers needs macOS 13.3, so a lower
+  `CMAKE_OSX_DEPLOYMENT_TARGET` fails there.
+- **MSVC STL with clang-cl**: clang 23.1.0 cannot build the STL's `std`
+  module ("reference to 'align_val_t' is ambiguous",
+  llvm/llvm-project#218152), which 23.1.1 fixes; 22.1.8 works.
+- **Reproducibility**: objects, libraries and programs built with modules
+  are as reproducible as the rest, debug information included. The built
+  module interfaces (`.pcm`) record their source file's path as given,
+  which `-ffile-prefix-map` does not rewrite; they are intermediate files,
+  but with remote execution an importer's action key covers them, so their
+  sources must be named by paths that do not depend on the machine (the
+  reference wrapper makes them relative).
+
+The sample's `*-modules` presets build [{fmt}](https://github.com/fmtlib/fmt)
+as a module that imports std itself, a module of the sample's own and a
+program importing both (`tests/hello/modules`).
 
 ## Remote execution
 

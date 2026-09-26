@@ -192,23 +192,37 @@ endfunction()
 # Source fixes hermetic-llvm applies to the LLVM tree (3rd_party/llvm-project/
 # x.x/patches), done here as exact text replacements so no patch tool is
 # needed; each is idempotent and fails loudly on an unexpected source.
+# Replaces BEFORE with AFTER in FILE, once: a tree patched already is left
+# alone, and a file matching neither fails, so that a new LLVM release that
+# changed the text gets the patch revisited.
+function(_hermetic_patch_text FILE BEFORE AFTER)
+  file(READ "${FILE}" content)
+  string(FIND "${content}" "${AFTER}" pos)
+  if(NOT pos EQUAL -1)
+    return()
+  endif()
+  string(FIND "${content}" "${BEFORE}" pos)
+  if(pos EQUAL -1)
+    hermetic_fatal("${FILE} does not contain the text hermetic_llvm_patch_llvm_source expects; update it")
+  endif()
+  string(REPLACE "${BEFORE}" "${AFTER}" content "${content}")
+  file(WRITE "${FILE}" "${content}")
+endfunction()
+
 function(hermetic_llvm_patch_llvm_source DIR)
   # libcxx-vcruntime-nothrow.patch: on the Microsoft ABI std::nothrow comes
   # from the C runtime (msvcrt.lib); libc++ defining it too makes lld-link
   # report a duplicate as soon as both archives are pulled in.
-  set(file "${DIR}/libcxx/src/new_helpers.cpp")
-  file(READ "${file}" content)
-  set(before "#ifndef __GLIBCXX__\nconst nothrow_t nothrow{};\n#endif\n")
-  set(after "#if !defined(__GLIBCXX__) && !defined(_LIBCPP_ABI_VCRUNTIME) // hermetic-llvm: libcxx-vcruntime-nothrow.patch\nconst nothrow_t nothrow{};\n#endif\n")
-  string(FIND "${content}" "${after}" pos)
-  if(pos EQUAL -1)
-    string(FIND "${content}" "${before}" pos)
-    if(pos EQUAL -1)
-      hermetic_fatal("${file} does not contain the expected std::nothrow definition; update hermetic_llvm_patch_llvm_source")
-    endif()
-    string(REPLACE "${before}" "${after}" content "${content}")
-    file(WRITE "${file}" "${content}")
-  endif()
+  _hermetic_patch_text("${DIR}/libcxx/src/new_helpers.cpp"
+    "#ifndef __GLIBCXX__\nconst nothrow_t nothrow{};\n#endif\n"
+    "#if !defined(__GLIBCXX__) && !defined(_LIBCPP_ABI_VCRUNTIME) // hermetic-llvm: libcxx-vcruntime-nothrow.patch\nconst nothrow_t nothrow{};\n#endif\n")
+  # On the Microsoft ABI libc++ takes new_handler and set_new_handler from
+  # the C runtime's <new.h>, which has no get_new_handler (the MSVC STL
+  # defines it in its own library); the std module exported it anyway, so
+  # import std did not compile there.
+  _hermetic_patch_text("${DIR}/libcxx/modules/std/new.inc"
+    "  using std::get_new_handler;\n"
+    "#ifndef _LIBCPP_ABI_VCRUNTIME // hermetic-cpp: not in the C runtime's <new.h>\n  using std::get_new_handler;\n#endif\n")
 endfunction()
 
 # The hermetic-llvm "extras" tool prebuilts (glibc-stubs-generator, pkgutil, ...).
@@ -686,7 +700,7 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
         -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC=ON
         -DLIBCXX_ABI_FORCE_MICROSOFT=ON -DLIBCXX_CXX_ABI=vcruntime -DLIBCXX_HAS_WIN32_THREAD_API=ON
         -DLIBCXX_ENABLE_TIME_ZONE_DATABASE=OFF -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF
-        -DLIBCXX_INSTALL_MODULES=OFF -DLIBCXX_USE_COMPILER_RT=ON
+        -DLIBCXX_INSTALL_MODULES=ON -DLIBCXX_USE_COMPILER_RT=ON
         -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)
     if(NOT EXISTS "${install}/lib/libc++.lib")
       hermetic_fatal("libc++ (${crt}) build did not produce ${install}/lib/libc++.lib")
@@ -694,6 +708,10 @@ function(hermetic_llvm_build_windows_runtime_set LLVM_ROOT LLVM_VERSION TARGET O
     file(RENAME "${install}/lib/libc++.lib" "${tmp}/lib/libc++-${short}.lib")
     if(short STREQUAL "md")
       file(COPY "${install}/include/c++" DESTINATION "${tmp}/include")
+      # The module sources for import std (the same for every flavour), with
+      # their metadata, whose paths are relative to lib/.
+      file(COPY "${install}/share/libc++" DESTINATION "${tmp}/share")
+      file(COPY "${install}/lib/libc++.modules.json" DESTINATION "${tmp}/lib")
     endif()
     file(REMOVE_RECURSE "${install}")
   endforeach()

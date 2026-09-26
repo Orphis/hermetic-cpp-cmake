@@ -450,3 +450,30 @@ function(hermetic_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
     set(${arg_OUT_LINK_DRIVER} "${link_driver}" PARENT_SCOPE)
   endif()
 endfunction()
+
+# import std with the MSVC STL: the toolset ships its module sources
+# (modules/std.ixx, std.compat.ixx) with a modules.json of Microsoft's own
+# format, which CMake converts only when it finds the file itself. The
+# toolchain names it (CMAKE_CXX_STDLIB_MODULES_JSON), so it writes the
+# converted metadata next to it, with relative paths. Sets ${OUT} to that
+# file, or to nothing when the toolset has no module sources.
+function(hermetic_msvc_stl_modules_json MSVC_INCLUDE_DIR OUT)
+  set(${OUT} "" PARENT_SCOPE)
+  get_filename_component(dir "${MSVC_INCLUDE_DIR}/../modules" ABSOLUTE)
+  if(NOT EXISTS "${dir}/std.ixx")
+    return()
+  endif()
+  set(modules "")
+  foreach(pair "std=std.ixx" "std.compat=std.compat.ixx")
+    string(REGEX MATCH "^([^=]+)=(.*)$" _ "${pair}")
+    if(EXISTS "${dir}/${CMAKE_MATCH_2}")
+      if(modules)
+        string(APPEND modules ",")
+      endif()
+      string(APPEND modules "\n    {\"logical-name\": \"${CMAKE_MATCH_1}\", \"source-path\": \"${CMAKE_MATCH_2}\", \"is-std-library\": true}")
+    endif()
+  endforeach()
+  file(CONFIGURE OUTPUT "${dir}/hermetic-cpp.modules.json"
+    CONTENT "{\n  \"version\": 1,\n  \"revision\": 1,\n  \"modules\": [${modules}\n  ]\n}\n")
+  set(${OUT} "${dir}/hermetic-cpp.modules.json" PARENT_SCOPE)
+endfunction()

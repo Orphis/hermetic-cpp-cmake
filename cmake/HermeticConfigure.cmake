@@ -457,6 +457,25 @@ macro(hermetic_configure)
     hermetic_append_flags(_hl_link_flags "-resource-dir=${_hl_resource}")
   endif()
 
+  # import std (CMake 4.2 and newer, behind its CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
+  # gate): CMake would ask the compiler where the C++ library's module
+  # metadata is, without the flags that name the runtime set, so the
+  # toolchain names it. A project may set it first.
+  if(NOT DEFINED CMAKE_CXX_STDLIB_MODULES_JSON)
+    set(_hl_modules_json "")
+    if(_hl_windows AND NOT HERMETIC_RESOLVED_CXX_STDLIB STREQUAL "libc++")
+      hermetic_msvc_stl_modules_json("${_hl_msvc_include}" _hl_modules_json)
+    elseif(_hl_set)
+      file(GLOB _hl_modules_json "${_hl_set}/usr/lib/libc++.modules.json" "${_hl_set}/lib/libc++.modules.json"
+        "${_hl_set}/*-w64-mingw32/lib/libc++.modules.json")
+    elseif(_hl_tgt_OS STREQUAL "darwin" AND HERMETIC_MACOS_LIBCXX_MODULES AND _hl_sysroot)
+      hermetic_macos_libcxx_modules("${_hl_sysroot}" _hl_modules_json)
+    endif()
+    if(_hl_modules_json)
+      list(GET _hl_modules_json 0 CMAKE_CXX_STDLIB_MODULES_JSON)
+    endif()
+  endif()
+
   hermetic_append_flags(_hl_c_flags ${HERMETIC_EXTRA_COMPILE_FLAGS})
   hermetic_append_flags(_hl_cxx_flags ${HERMETIC_EXTRA_CXX_FLAGS})
   hermetic_append_flags(_hl_link_flags ${HERMETIC_EXTRA_LINK_FLAGS})
