@@ -817,7 +817,8 @@ them:
   and `HERMETIC_MALLOC=mimalloc` on musl, glibc, macOS
   and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
   blocks, the C library's and a shared library's included, come from
-  mimalloc. Each job builds at most a few runtime sets from source.
+  mimalloc, and C++ modules with `import std` on every one of those
+  platforms. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)

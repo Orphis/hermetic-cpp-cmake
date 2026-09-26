@@ -1,4 +1,26 @@
 cmake_minimum_required(VERSION 3.19)
+
+# The C++ modules sample (the *-modules presets) uses import std, which CMake
+# (4.2 and newer, where the toolchain can name the C++ library's module
+# metadata) keeps behind an experimental gate: a value that changes with
+# every CMake release, needed before the C++ language is enabled.
+option(HERMETIC_TESTS_CXX_MODULES "Build the C++ modules sample (import std, {fmt} as a module)" OFF)
+if(HERMETIC_TESTS_CXX_MODULES)
+  if(CMAKE_VERSION VERSION_LESS 4.2)
+    message(FATAL_ERROR "The C++ modules sample needs CMake 4.2 or newer, not ${CMAKE_VERSION}")
+  endif()
+  set(_import_std_gates "4.4=f35a9ac6-8463-4d38-8eec-5d6008153e7d")
+  string(REGEX MATCH "^[0-9]+\\.[0-9]+" _cmake_minor "${CMAKE_VERSION}")
+  foreach(_gate IN LISTS _import_std_gates)
+    if(_gate MATCHES "^${_cmake_minor}=(.*)$")
+      set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${CMAKE_MATCH_1}")
+    endif()
+  endforeach()
+  if(NOT CMAKE_EXPERIMENTAL_CXX_IMPORT_STD)
+    message(FATAL_ERROR "No import std gate known for CMake ${CMAKE_VERSION}; add it to _import_std_gates (it is CMake's CxxImportStd experimental feature UUID)")
+  endif()
+endif()
+
 project(hermetic_hello C CXX)
 
 # No build-tree rpath: it would embed the absolute build directory, which
@@ -46,6 +68,9 @@ if(HERMETIC_TARGET MATCHES "^wasm")
   add_executable(hello_wasm wasm_add.c wasm_mul.cpp)
 else()
   include(hello_native.cmake)
+  if(HERMETIC_TESTS_CXX_MODULES)
+    include(modules/modules.cmake)
+  endif()
 endif()
 # Consumed by tests/run_artifacts.sh to pick where a build's binaries can run
 # (and, for macOS, to attribute differences to differing SDK versions), and

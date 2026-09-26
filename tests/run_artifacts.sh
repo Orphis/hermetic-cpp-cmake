@@ -81,7 +81,7 @@ for dir in "${artifacts}"/*/*/; do
     abs="$(cd "${dir}" && pwd)"
     echo "--- docker ${platform} ${image}"
     docker run --rm --platform="${platform}" -v "${abs}:/b:ro" "${image}" \
-      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi'
+      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi; if [ -e /b/hello_modules ]; then /b/hello_modules; fi'
     case "${libc}" in
       gnu.2.4*)
         echo "--- expecting a glibc mismatch on bullseye"
@@ -90,9 +90,9 @@ for dir in "${artifacts}"/*/*/; do
         fi ;;
     esac
   elif [[ "${target}" == windows-* ]]; then
-    (cd "${dir}" && ./hello_c.exe && ./hello_cxx.exe && { [[ ! -e hello_shared.exe ]] || ./hello_shared.exe; })
+    (cd "${dir}" && ./hello_c.exe && ./hello_cxx.exe && { [[ ! -e hello_shared.exe ]] || ./hello_shared.exe; } && { [[ ! -e hello_modules.exe ]] || ./hello_modules.exe; })
   else
-    (cd "${dir}" && ./hello_c && ./hello_cxx && { [[ ! -e hello_shared ]] || DYLD_LIBRARY_PATH=. ./hello_shared; })
+    (cd "${dir}" && ./hello_c && ./hello_cxx && { [[ ! -e hello_shared ]] || DYLD_LIBRARY_PATH=. ./hello_shared; } && { [[ ! -e hello_modules ]] || ./hello_modules; })
   fi
   ran=$((ran + 1))
 done
@@ -109,7 +109,7 @@ table="$(for dir in "${artifacts}"/*/*/; do
   target="${target%$'\r'}"; libc="${libc%$'\r'}"; sdk="${sdk%$'\r'}"  # CMake writes CRLF on Windows hosts
   runs_here "${target}" || continue
   host="$(basename "$(dirname "${dir}")")"; preset="$(basename "${dir}")"
-  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/libgreeter.dll "${dir}"/greeter_static.lib "${dir}"/hello_wasm.wasm "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/mimalloc.dll "${dir}"/*.pdb "${dir}"/set/*; do
+  for f in "${dir}"/hello_c "${dir}"/hello_cxx "${dir}"/hello_shared "${dir}"/hello_modules "${dir}"/hello_modules.exe "${dir}"/libgreeter.so "${dir}"/libgreeter_static.a "${dir}"/hello_c.exe "${dir}"/hello_cxx.exe "${dir}"/hello_shared.exe "${dir}"/greeter.dll "${dir}"/libgreeter.dll "${dir}"/greeter_static.lib "${dir}"/hello_wasm.wasm "${dir}"/clang_rt.asan_dynamic-*.dll "${dir}"/mimalloc.dll "${dir}"/*.pdb "${dir}"/set/*; do
     [[ -f "$f" ]] || continue
     [[ "$f" != *.exe && -f "$f.exe" ]] && continue  # Git Bash resolves hello_c to hello_c.exe
     name="$(basename "$f")"; [[ "$f" == */set/* ]] && name="set/${name}"

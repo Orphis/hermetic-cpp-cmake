@@ -565,6 +565,69 @@
         "HERMETIC_WINDOWS_ABI": "gnu",
         "HERMETIC_MALLOC": "mimalloc"
       }
+    },
+    {
+      "name": "linux-x86_64-musl-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LIBC": "musl",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "linux-aarch64-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-gnu-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_WINDOWS_ABI": "gnu",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-libcxx-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_CXX_STDLIB": "libc++",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_LLVM_VERSION": "22.1.8",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "windows-x86_64-msvc-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "windows-x86_64",
+        "HERMETIC_COMPILER": "msvc",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
+    },
+    {
+      "name": "darwin-aarch64-modules",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "darwin-aarch64",
+        "HERMETIC_MACOS_LIBCXX_MODULES": "ON",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0",
+        "HERMETIC_TESTS_CXX_MODULES": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -831,6 +894,34 @@
     {
       "name": "windows-aarch64-gnu-mimalloc",
       "configurePreset": "windows-aarch64-gnu-mimalloc"
+    },
+    {
+      "name": "linux-x86_64-musl-modules",
+      "configurePreset": "linux-x86_64-musl-modules"
+    },
+    {
+      "name": "linux-aarch64-modules",
+      "configurePreset": "linux-aarch64-modules"
+    },
+    {
+      "name": "windows-x86_64-gnu-modules",
+      "configurePreset": "windows-x86_64-gnu-modules"
+    },
+    {
+      "name": "windows-x86_64-libcxx-modules",
+      "configurePreset": "windows-x86_64-libcxx-modules"
+    },
+    {
+      "name": "windows-x86_64-modules",
+      "configurePreset": "windows-x86_64-modules"
+    },
+    {
+      "name": "windows-x86_64-msvc-modules",
+      "configurePreset": "windows-x86_64-msvc-modules"
+    },
+    {
+      "name": "darwin-aarch64-modules",
+      "configurePreset": "darwin-aarch64-modules"
     }
   ],
   "testPresets": [

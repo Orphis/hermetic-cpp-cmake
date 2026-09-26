@@ -20,7 +20,7 @@ for preset in "${presets[@]}"; do
   [[ -e "${src}/.failed" ]] && { echo "preset ${preset} failed to build, skipping"; continue; }
   mkdir -p "${out}/${preset}"
   cp "${src}/target.txt" "${out}/${preset}/"
-  for f in hello_c hello_cxx hello_shared hello_c.exe hello_cxx.exe hello_shared.exe libgreeter.so libgreeter.dylib greeter.dll libgreeter.dll hello_wasm.wasm \
+  for f in hello_c hello_cxx hello_shared hello_modules hello_c.exe hello_cxx.exe hello_shared.exe hello_modules.exe libgreeter.so libgreeter.dylib greeter.dll libgreeter.dll hello_wasm.wasm \
       clang_rt.asan_dynamic-x86_64.dll clang_rt.asan_dynamic-aarch64.dll \
       hello_c.pdb hello_cxx.pdb hello_shared.pdb greeter.pdb libgreeter_static.a greeter_static.lib \
       mimalloc.dll mimalloc-redirect.dll mimalloc-redirect-arm64.dll; do
