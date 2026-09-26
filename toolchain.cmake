@@ -43,6 +43,10 @@ set(_hl_resolved_names
   HERMETIC_RESOLVED_HOST_OS HERMETIC_RESOLVED_HOST_ARCH)
 list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES ${_hl_option_names} ${_hl_resolved_names})
 
+include("${HERMETIC_DIR}/cmake/HermeticCommon.cmake")
+include("${HERMETIC_DIR}/cmake/HermeticVcpkg.cmake")
+hermetic_vcpkg_triplet_defaults()
+
 if(NOT DEFINED HERMETIC_LLVM_VERSION OR HERMETIC_LLVM_VERSION STREQUAL "")
   set(HERMETIC_LLVM_VERSION "latest")
 endif()
@@ -56,7 +60,6 @@ if(NOT DEFINED HERMETIC_REPRODUCIBLE)
   set(HERMETIC_REPRODUCIBLE ON)
 endif()
 
-include("${HERMETIC_DIR}/cmake/HermeticCommon.cmake")
 include("${HERMETIC_DIR}/cmake/HermeticDistributions.cmake")
 include("${HERMETIC_DIR}/cmake/HermeticTargets.cmake")
 include("${HERMETIC_DIR}/cmake/HermeticLLVMRuntimes.cmake")
@@ -68,4 +71,5 @@ include("${HERMETIC_DIR}/cmake/HermeticMalloc.cmake")
 
 hermetic_resolve()
 hermetic_configure()
+hermetic_vcpkg_setup()
 hermetic_malloc_setup()
