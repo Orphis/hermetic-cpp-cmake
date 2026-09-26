@@ -34,7 +34,7 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-musl-mimalloc linux-x86_64-mimalloc-dbg windows-x86_64-mimalloc windows-x86_64-mimalloc-md windows-x86_64-gnu-mimalloc darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc-secure linux-x86_64-musl-modules windows-x86_64-gnu-modules windows-x86_64-libcxx-modules darwin-aarch64-modules
+            presets: host linux-x86_64-musl linux-aarch64-musl windows-x86_64 windows-x86_64-libcxx-asan windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu darwin-aarch64 wasm32 wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-musl-mimalloc linux-x86_64-mimalloc-dbg windows-x86_64-mimalloc windows-x86_64-mimalloc-md windows-x86_64-gnu-mimalloc darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc-secure linux-x86_64-musl-modules windows-x86_64-gnu-modules windows-x86_64-libcxx-modules windows-x86_64-modules darwin-aarch64-modules
             rbe: linux-x86_64-dbg linux-aarch64-musl windows-x86_64-dbg windows-x86_64-libcxx-asan windows-x86_64-gnu-dbg darwin-aarch64-dbg wasm32-dbg linux-x86_64-mimalloc-dbg windows-x86_64-gnu-mimalloc linux-x86_64-musl-modules
           - host: linux-aarch64
             os: ubuntu-24.04-arm
@@ -42,10 +42,8 @@ jobs:
             rbe: host linux-x86_64-dbg windows-x86_64 linux-aarch64-mimalloc
           - host: macos-aarch64
             os: macos-latest
-            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu wasm32 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc windows-x86_64-mimalloc-dbg windows-x86_64-mimalloc-md darwin-aarch64-modules linux-x86_64-musl-modules
+            presets: host linux-aarch64 linux-x86_64-musl windows-x86_64 windows-x86_64-libcxx windows-x86_64-libcxx-mt windows-x86_64-gnu wasm32 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-gnu-dbg darwin-aarch64-dbg darwin-aarch64-hostsdk wasm32-dbg darwin-aarch64-mimalloc linux-x86_64-musl-mimalloc windows-x86_64-mimalloc-dbg windows-x86_64-mimalloc-md darwin-aarch64-modules linux-x86_64-musl-modules windows-x86_64-modules
             rbe: host linux-aarch64 windows-x86_64-dbg windows-x86_64-libcxx darwin-aarch64-dbg wasm32-dbg darwin-aarch64-mimalloc
-          # windows-x86_64-modules is built here only: it pins clang 22.1.8, whose
-          # MSVC-ABI anonymous namespace names hash the source path unmapped.
           - host: windows-x86_64
             os: windows-latest
             presets: host linux-x86_64-musl linux-x86_64 windows-x86_64-gnu wasm64 linux-x86_64-dbg windows-x86_64-dbg windows-x86_64-mimalloc windows-x86_64-mimalloc-dbg windows-x86_64-mimalloc-md windows-x86_64-gnu-mimalloc linux-x86_64-mimalloc-dbg windows-x86_64-modules windows-x86_64-libcxx-modules windows-x86_64-gnu-modules

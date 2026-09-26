@@ -606,7 +606,7 @@
       "inherits": "base",
       "cacheVariables": {
         "HERMETIC_TARGET": "windows-x86_64",
-        "HERMETIC_LLVM_VERSION": "22.1.8",
+        "HERMETIC_LLVM_VERSION": "23.1.2",
         "HERMETIC_TESTS_CXX_MODULES": "ON"
       }
     },

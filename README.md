@@ -623,12 +623,12 @@ file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
   default because it downloads that LLVM source archive. `std::format` of
   floating-point numbers needs macOS 13.3, so a lower
   `CMAKE_OSX_DEPLOYMENT_TARGET` fails there.
-- **MSVC STL with clang-cl**: clang 23.1.0 cannot build the STL's `std`
-  module ("reference to 'align_val_t' is ambiguous",
-  llvm/llvm-project#218152), which 23.1.1 fixes; 22.1.8 works, but its
-  names of anonymous namespaces on the MSVC ABI hash the main file's path
-  without the prefix maps (llvm/llvm-project#194542, in clang 23), so its
-  binaries depend on where the build directory is.
+- **MSVC STL with clang-cl**: needs clang 23.1.2 (the default) or newer.
+  23.1.0 cannot build the STL's `std` module ("reference to 'align_val_t'
+  is ambiguous", llvm/llvm-project#218152, fixed in 23.1.1), and 22.x names
+  anonymous namespaces on the MSVC ABI after the main file's path without
+  the prefix maps (llvm/llvm-project#194542, in clang 23), so its binaries
+  depend on where the build directory is.
 - **Reproducibility**: objects, libraries and programs built with modules
   are as reproducible as the rest, debug information included. The
   toolchain mirrors the standard library's module sources into
