@@ -153,6 +153,23 @@ macro(_hermetic_vcpkg_port_setup)
   if(_hl_libc_family STREQUAL "musl" AND CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$")
     hermetic_append_flags(CMAKE_SHARED_LINKER_FLAGS_INIT ${_hl_exe_link_flags})
   endif()
+  # The same flags link with -nostdlib++ and name the C++ library in
+  # CMAKE_CXX_STANDARD_LIBRARIES, which vcpkg passes to autotools ports (as
+  # LIBS) but to Meson on Windows only: Meson's C++ programs then missed
+  # libc++ (harfbuzz). ld.lld finds archives wherever they are on the line.
+  if(CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$" AND NOT _hl_windows AND NOT _hl_mingw)
+    hermetic_append_flags(CMAKE_SHARED_LINKER_FLAGS_INIT ${_hl_cxx_libs})
+  endif()
+  # libc++ 23 no longer includes headers the standard does not require
+  # (<new> from <memory>, <cstddef> from others, ...) unless asked to, and
+  # ports written against libstdc++ or an older libc++ rely on them
+  # (capnproto: std::nullptr_t, zeromq: std::nothrow). Third-party code
+  # keeps them; the macro changes nothing else and older libc++ ignores it.
+  if(HERMETIC_RESOLVED_CXX_STDLIB STREQUAL "libc++")
+    foreach(_hv_lang CXX OBJCXX)
+      hermetic_append_flags(CMAKE_${_hv_lang}_FLAGS_INIT -D_LIBCPP_KEEP_TRANSITIVE_INCLUDES_LLVM23)
+    endforeach()
+  endif()
 
   if(HERMETIC_REPRODUCIBLE)
     set(_hv_maps "")

@@ -659,7 +659,12 @@ across machines). In port builds, the toolchain in turn does what vcpkg's
 own platform toolchains do with the triplet's settings: `VCPKG_CRT_LINKAGE`
 selects the MSVC runtime (ports asking for CMake before 3.15 included),
 `VCPKG_C_FLAGS`, `VCPKG_CXX_FLAGS` and `VCPKG_LINKER_FLAGS` are added, and
-ELF code is position independent. vcpkg's source and installed trees are
+ELF code is position independent. Autotools and Meson ports, which get
+their flags from what vcpkg extracts of a CMake configuration, also get
+the C++ library and, on musl, the static link mode that CMake would add to
+each link. With libc++, ports keep the headers libc++ 23 stopped including
+from others unless asked (`_LIBCPP_KEEP_TRANSITIVE_INCLUDES_LLVM23`): code
+written against libstdc++ or an older libc++ often relies on them. vcpkg's source and installed trees are
 mapped to `/vcpkg/buildtrees` and `/vcpkg/installed` in debug information,
 so binary packages do not depend on where vcpkg is; the consuming project
 maps its own paths, `VCPKG_INSTALLED_DIR` included, if it needs to.
