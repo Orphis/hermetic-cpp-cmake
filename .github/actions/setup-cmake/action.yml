@@ -26,7 +26,9 @@ runs:
         dir="${RUNNER_TEMP}/cmake-${VERSION}"
         mkdir -p "${dir}"
         curl -sSfL --retry 3 -o "${dir}/${name}" "https://github.com/Kitware/CMake/releases/download/v${VERSION}/${name}"
-        actual=$( (command -v sha256sum >/dev/null && sha256sum "${dir}/${name}" || shasum -a 256 "${dir}/${name}") | cut -d' ' -f1)
+        # From standard input: Git Bash's sha256sum escapes a Windows path
+        # and prefixes the digest with a backslash then.
+        actual=$( (command -v sha256sum >/dev/null && sha256sum || shasum -a 256) < "${dir}/${name}" | cut -d' ' -f1)
         if [[ "${actual}" != "${sha}" ]]; then echo "${name}: SHA-256 ${actual}, expected ${sha}"; exit 1; fi
         case "${name}" in
           *.zip) (cd "${dir}" && unzip -q "${name}") ;;
