@@ -149,9 +149,10 @@ jobs:
             tests/hello/build/rbe-*/rbe-actions.jsonl*
           if-no-files-found: ignore
 
-  # vcpkg packages built with the toolchain's triplets (tests/run_vcpkg.sh),
-  # after the build jobs so that their runtime sets are cached; triplets
-  # marked :run execute on the runner.
+  # vcpkg packages built with the toolchain (tests/run_vcpkg.sh), after the
+  # build jobs so that their runtime sets are cached: toolchain/<triplet>
+  # with HERMETIC_VCPKG=ON, <triplet> with vcpkg's toolchain file in front;
+  # those marked :run execute on the runner.
   vcpkg:
     name: vcpkg on ${{ matrix.host }}
     needs: build
@@ -162,13 +163,13 @@ jobs:
         include:
           - host: linux-x86_64
             os: ubuntu-latest
-            triplets: x64-linux-musl-hermetic:run x64-linux-hermetic:run x64-windows-static-hermetic x64-mingw-static-hermetic
+            triplets: toolchain/x64-linux-musl-hermetic:run x64-linux-hermetic:run toolchain/x64-windows-static-hermetic x64-mingw-static-hermetic
           - host: macos-aarch64
             os: macos-latest
-            triplets: arm64-osx-hermetic:run x64-linux-musl-hermetic
+            triplets: toolchain/arm64-osx-hermetic:run toolchain/x64-linux-musl-hermetic
           - host: windows-x86_64
             os: windows-latest
-            triplets: x64-windows-static-md-hermetic:run x64-mingw-static-hermetic:run
+            triplets: toolchain/x64-windows-static-md-hermetic:run x64-windows-static-hermetic:run toolchain/x64-mingw-static-hermetic:run
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
