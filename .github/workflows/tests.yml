@@ -60,13 +60,18 @@ jobs:
       HERMETIC_TESTS_SKIP_DOCKER: "1"
     steps:
       - uses: actions/checkout@v4
-      - name: Cache downloaded archives
-        uses: actions/cache@v4
+      # Downloaded archives: restored by every run, saved by runs on master
+      # only, so that branches and pull requests reuse master's instead of
+      # storing their own copy (400 to 600 MB per host) whenever the tables
+      # differ; an archive that master does not have yet is downloaded.
+      - name: Restore downloaded archives
+        id: downloads
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/hermetic-cpp/downloads
             C:/hl/downloads
-          key: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json', 'cmake/HermeticLLVMRuntimes.cmake') }}
+          key: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json') }}
           restore-keys: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-
       # Runtime sets built by an earlier run of this job with the same recipe
       # (everything under runtimes/ and cmake/): an exact match or nothing,
@@ -94,6 +99,15 @@ jobs:
       - name: Build presets (and run native ctest)
         shell: bash
         run: tests/run_tests.sh ${{ matrix.presets }}
+      # Whether or not every preset built: the archives are checked downloads.
+      - name: Save downloaded archives
+        if: ${{ !cancelled() && github.ref == 'refs/heads/master' && steps.downloads.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/hermetic-cpp/downloads
+            C:/hl/downloads
+          key: ${{ steps.downloads.outputs.cache-primary-key }}
       # Even when a preset failed: the run stage checks whatever built.
       - name: Stage binaries
         if: always()

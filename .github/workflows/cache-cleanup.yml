@@ -1,0 +1,34 @@
+name: Cache cleanup
+# A closed pull request's caches (its merge ref's and its branch's: runtime
+# sets, and anything saved before downloads were master-only) are no use to
+# any other run; GitHub would keep them until the repository reaches its
+# cache limit and then evict the least recently used entries, master's
+# included.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    # Forks' pull requests get a read-only token, and their branches no cache.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the caches of this pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MERGE_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+          HEAD_REF: refs/heads/${{ github.event.pull_request.head.ref }}
+        run: |
+          for ref in "$MERGE_REF" "$HEAD_REF"; do
+            gh cache list --ref "$ref" --limit 100 --json id,key,sizeInBytes \
+              --jq '.[] | "\(.id) \(.sizeInBytes / 1048576 | floor) MB \(.key)"' |
+            while read -r id size unit key; do
+              echo "deleting ${ref}: ${key} (${size} ${unit})"
+              gh cache delete "$id"
+            done
+          done
