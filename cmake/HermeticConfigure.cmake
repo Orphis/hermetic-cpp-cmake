@@ -314,7 +314,13 @@ macro(hermetic_configure)
     # CodeView's build info), which differs from checkout to checkout:
     # record "." instead, leaving relative paths relative to the build
     # directory.
+    # Sources inside the build directory (generated ones, FetchContent's)
+    # are named by absolute path too, which also reaches the code on the
+    # MSVC ABI: anonymous namespaces are named after the hash of the main
+    # file's path (after these maps). The build directory comes first, so
+    # that a cache inside it keeps its own name.
     set(_hl_prefix_maps "-ffile-compilation-dir=."
+      "-ffile-prefix-map=${CMAKE_BINARY_DIR}=/hermetic-cpp/build"
       "-ffile-prefix-map=${HERMETIC_CACHE_DIR}=/hermetic-cpp/cache"
       "-ffile-prefix-map=${_hl_root}=/hermetic-cpp/llvm")
     if(_hl_windows)
@@ -570,9 +576,7 @@ macro(hermetic_configure)
       set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_BUILD_DIR "${CMAKE_BINARY_DIR}")
       set_property(GLOBAL PROPERTY HERMETIC_DEBUGGER_MAPS
         "/hermetic-cpp/cache=${HERMETIC_CACHE_DIR}" "/hermetic-cpp/llvm=${_hl_root}")
-      if(_hl_msvc)
-        set_property(GLOBAL APPEND PROPERTY HERMETIC_DEBUGGER_MAPS "/hermetic-cpp/build=${CMAKE_BINARY_DIR}")
-      endif()
+      set_property(GLOBAL APPEND PROPERTY HERMETIC_DEBUGGER_MAPS "/hermetic-cpp/build=${CMAKE_BINARY_DIR}")
       _hermetic_write_debugger_files()
     endif()
   endif()

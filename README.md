@@ -616,7 +616,10 @@ file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
   `CMAKE_OSX_DEPLOYMENT_TARGET` fails there.
 - **MSVC STL with clang-cl**: clang 23.1.0 cannot build the STL's `std`
   module ("reference to 'align_val_t' is ambiguous",
-  llvm/llvm-project#218152), which 23.1.1 fixes; 22.1.8 works.
+  llvm/llvm-project#218152), which 23.1.1 fixes; 22.1.8 works, but its
+  names of anonymous namespaces on the MSVC ABI hash the main file's path
+  without the prefix maps (llvm/llvm-project#194542, in clang 23), so its
+  binaries depend on where the build directory is.
 - **Reproducibility**: objects, libraries and programs built with modules
   are as reproducible as the rest, debug information included. The
   toolchain mirrors the standard library's module sources into
@@ -671,7 +674,7 @@ machine, and try_compile checks, which run locally, are left alone.
   does both.
 - What the toolchain does for it with `HERMETIC_REPRODUCIBLE`: debug
   info records the working directory as `.` (`-ffile-compilation-dir=.`),
-  the cache is mapped to a fixed name, and targets without a runtime set
+  the cache and the build directory are mapped to fixed names, and targets without a runtime set
   name the compiler's resource directory explicitly (the driver would
   otherwise derive an absolute path from its own location, which no
   command-line rewrite reaches).
@@ -685,7 +688,9 @@ steps are not meant to run remotely.
 ### Debugging
 
 Debug info then names the cache as `/hermetic-cpp/cache`, the compiler as
-`/hermetic-cpp/llvm` and the working directory as `.` (sources a remote
+`/hermetic-cpp/llvm`, sources inside the build directory (generated ones,
+FetchContent's) under `/hermetic-cpp/build`, and the working directory as
+`.` (sources a remote
 execution wrapper made relative stay relative to the build directory), so a
 debugger has to be told where those are. The toolchain writes the settings
 into every build directory:
