@@ -524,8 +524,10 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
 
   # 3. libunwind, libc++abi and libc++ (static, libc++abi merged into libc++.a).
   set(musl_flag OFF)
+  set(glibc_flag ON)
   if(family STREQUAL "musl")
     set(musl_flag ON)
+    set(glibc_flag OFF)
   endif()
   hermetic_llvm_build_stage(NAME libcxx SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx"
     INSTALL_PREFIX "${tmp}/usr" LOG_DIR "${log_dir}"
@@ -543,6 +545,11 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
       -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBUNWIND_USE_COMPILER_RT=ON -DLIBUNWIND_INSTALL_HEADERS=ON
       -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON
       -DLIBCXXABI_ENABLE_STATIC_UNWINDER=ON
+      # Destructors of thread_local objects: glibc (2.18 and newer) has
+      # __cxa_thread_atexit_impl, musl does not, and libc++abi then keeps its
+      # own list. Its check_library_exists probe answered yes for musl, which
+      # left every program with such an object with an undefined symbol.
+      "-DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=${glibc_flag}"
       -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_USE_COMPILER_RT=ON "-DLIBCXX_HAS_MUSL_LIBC=${musl_flag}"
       -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
       -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)

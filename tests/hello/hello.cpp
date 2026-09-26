@@ -45,6 +45,14 @@ static bool allocator_ok() { return true; }
 #endif
 
 namespace {
+// A thread_local object with a destructor: registered through
+// __cxa_thread_atexit, which musl's runtime sets once failed to link.
+struct PerThread {
+  std::string name = "unset";
+  ~PerThread() { name.clear(); }
+};
+thread_local PerThread per_thread;
+
 int throwing(int x) {
   if (x > 2) throw std::runtime_error("too big");
   return x * 2;
@@ -59,7 +67,8 @@ int main() {
   for (int i = 0; i < 4; ++i) {
     threads.emplace_back([&, i] {
       std::lock_guard<std::mutex> lock(m);
-      seen[greet("thread " + std::to_string(i))] = i;
+      per_thread.name = "thread " + std::to_string(i);
+      seen[greet(per_thread.name)] = i;
       counter += i;
     });
   }
