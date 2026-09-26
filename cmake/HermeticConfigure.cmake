@@ -136,6 +136,14 @@ macro(hermetic_configure)
     # clang-cl assembles .S files too; CMake applies MSVC-style flags to ASM
     # whenever the C compiler is MSVC-like, which plain clang would reject.
     set(CMAKE_ASM_COMPILER "${_hl_bin}/clang-cl${_hl_exe}")
+    # MASM sources (enable_language(ASM_MASM), such as Boost.Context's):
+    # llvm-ml, which takes ml.exe's options, rather than an ml64 that only
+    # a Visual Studio environment provides. ARM64's armasm64 has no LLVM
+    # counterpart.
+    if(_hl_tgt_ARCH STREQUAL "x86_64" AND EXISTS "${_hl_bin}/llvm-ml${_hl_exe}")
+      set(CMAKE_ASM_MASM_COMPILER "${_hl_bin}/llvm-ml${_hl_exe}")
+      set(CMAKE_ASM_MASM_FLAGS_INIT "--m64")
+    endif()
     set(CMAKE_USER_MAKE_RULES_OVERRIDE "${HERMETIC_DIR}/cmake/HermeticWindowsRules.cmake")
   else()
     set(CMAKE_C_COMPILER "${_hl_bin}/clang${_hl_exe}")
@@ -215,8 +223,9 @@ macro(hermetic_configure)
     if(NOT DEFINED CMAKE_TRY_COMPILE_CONFIGURATION)
       set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
     endif()
-    # find_* may look inside the MSVC and SDK trees only.
-    set(CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
+    # find_* may look inside the MSVC and SDK trees only, and in the roots
+    # the project gives (a directory of prebuilt packages).
+    list(APPEND CMAKE_FIND_ROOT_PATH "${_hl_msvc_include}/.." ${_hl_msvc_lib} "${_hl_sdk_include}/.." "${_hl_sdk_ucrt_lib}/../.." "${_hl_sdk_um_lib}/../..")
     if(_hl_set)
       list(APPEND CMAKE_FIND_ROOT_PATH "${_hl_set}")
     endif()

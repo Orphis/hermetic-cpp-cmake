@@ -362,7 +362,9 @@ needed. Not available on this ABI: the MSVC STL, the sanitizers, `msvcrt.dll`
 as the C runtime, and 32-bit x86.
 
 The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
-`clang-cl` and `lld-link` with Microsoft's runtime and SDK.
+`clang-cl` and `lld-link` with Microsoft's runtime and SDK. MASM sources
+(`enable_language(ASM_MASM)`) are assembled by `llvm-ml` on x64; there is no
+LLVM counterpart to ARM64's `armasm64`.
 
 **MSVC compiler.** With `HERMETIC_COMPILER=msvc` the compiler is
 Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the
