@@ -142,6 +142,17 @@ macro(_hermetic_vcpkg_port_setup)
       hermetic_append_flags(CMAKE_${_hv_lang}_FLAGS_INIT -fPIC)
     endforeach()
   endif()
+  # Autotools and Meson ports get their flags from vcpkg_cmake_get_vars's
+  # project (ports/vcpkg-cmake-get-vars/cmake_get_vars), and LDFLAGS from its
+  # shared-library link flags, with which they link executables too,
+  # configure's test programs included. musl targets are static only (no
+  # libc.so): without the executables' link mode there, those programs ask
+  # for a dynamic loader that does not exist, and configure fails to run
+  # them on a host of the target's architecture. (Not for the ports' own
+  # CMake builds: lld refuses -static-pie with -shared.)
+  if(_hl_libc_family STREQUAL "musl" AND CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$")
+    hermetic_append_flags(CMAKE_SHARED_LINKER_FLAGS_INIT ${_hl_exe_link_flags})
+  endif()
 
   if(HERMETIC_REPRODUCIBLE)
     set(_hv_maps "")
