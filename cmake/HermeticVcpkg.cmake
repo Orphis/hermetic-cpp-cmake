@@ -31,6 +31,14 @@
 
 include_guard(GLOBAL)
 
+# vcpkg_cmake_get_vars's project (ports/vcpkg-cmake-get-vars/cmake_get_vars),
+# from which vcpkg extracts the compiler and flags that autotools, Meson and
+# other ports build with, outside CMake.
+set(HERMETIC_VCPKG_GET_VARS FALSE)
+if(CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$" AND DEFINED VCPKG_CRT_LINKAGE AND DEFINED _VCPKG_INSTALLED_DIR)
+  set(HERMETIC_VCPKG_GET_VARS TRUE)
+endif()
+
 list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
   VCPKG_CRT_LINKAGE VCPKG_TARGET_ARCHITECTURE
   VCPKG_C_FLAGS VCPKG_CXX_FLAGS VCPKG_C_FLAGS_DEBUG VCPKG_CXX_FLAGS_DEBUG
@@ -143,21 +151,21 @@ macro(_hermetic_vcpkg_port_setup)
     endforeach()
   endif()
   # Autotools and Meson ports get their flags from vcpkg_cmake_get_vars's
-  # project (ports/vcpkg-cmake-get-vars/cmake_get_vars), and LDFLAGS from its
+  # project (HERMETIC_VCPKG_GET_VARS), and LDFLAGS from its
   # shared-library link flags, with which they link executables too,
   # configure's test programs included. musl targets are static only (no
   # libc.so): without the executables' link mode there, those programs ask
   # for a dynamic loader that does not exist, and configure fails to run
   # them on a host of the target's architecture. (Not for the ports' own
   # CMake builds: lld refuses -static-pie with -shared.)
-  if(_hl_libc_family STREQUAL "musl" AND CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$")
+  if(_hl_libc_family STREQUAL "musl" AND HERMETIC_VCPKG_GET_VARS)
     hermetic_append_flags(CMAKE_SHARED_LINKER_FLAGS_INIT ${_hl_exe_link_flags})
   endif()
   # The same flags link with -nostdlib++ and name the C++ library in
   # CMAKE_CXX_STANDARD_LIBRARIES, which vcpkg passes to autotools ports (as
   # LIBS) but to Meson on Windows only: Meson's C++ programs then missed
   # libc++ (harfbuzz). ld.lld finds archives wherever they are on the line.
-  if(CMAKE_SOURCE_DIR MATCHES "/cmake_get_vars$" AND NOT _hl_windows AND NOT _hl_mingw)
+  if(HERMETIC_VCPKG_GET_VARS AND NOT _hl_windows AND NOT _hl_mingw)
     hermetic_append_flags(CMAKE_SHARED_LINKER_FLAGS_INIT ${_hl_cxx_libs})
   endif()
   # libc++ 23 no longer includes headers the standard does not require

@@ -323,7 +323,9 @@ macro(hermetic_configure)
     # absolute paths (prefix maps cover them, and the compiler identification
     # step runs where no link exists).
     set(_hl_link_root "")
-    if(HERMETIC_REPRODUCIBLE)
+    # Not for the flags vcpkg extracts for autotools and Meson ports, which
+    # link in build directories of their own, without the link.
+    if(HERMETIC_REPRODUCIBLE AND NOT HERMETIC_VCPKG_GET_VARS)
       hermetic_link_directory("${HERMETIC_CACHE_DIR}"
         "${CMAKE_BINARY_DIR}/${HERMETIC_CACHE_LINK_NAME}" _hl_link_ok)
       hermetic_link_directory("${_hl_root}"
@@ -482,7 +484,10 @@ macro(hermetic_configure)
   endforeach()
   if(_hl_windows)
     # The overlay and MSVC paths are compile-only; keep them off the RC flags.
-    set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared")
+    # Scripts include C headers too (libgit2's git2.rc: <time.h>, from the
+    # UCRT), which rc.exe finds through the INCLUDE of a Visual Studio
+    # environment.
+    set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared /I${_hl_sdk_include}/ucrt /I${_hl_msvc_include}")
   endif()
   if(_hl_cxx_first_flags)
     set(CMAKE_CXX_FLAGS_INIT "")
