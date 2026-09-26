@@ -580,6 +580,74 @@ to `/hermetic-cpp/malloc` in debug information like the cache, so builds with
 the allocator stay reproducible across hosts and checkouts and ready for
 remote execution.
 
+## vcpkg
+
+[vcpkg](https://vcpkg.io) builds packages with this toolchain through the
+overlay triplets in [`vcpkg/triplets`](vcpkg/triplets): static libraries for
+every target, named after vcpkg's own triplets with a `-hermetic` suffix
+(`x64-linux-hermetic`, `arm64-linux-musl-hermetic`,
+`x64-windows-static-hermetic` for `/MT`, `x64-windows-static-md-hermetic` for
+`/MD`, `x64-mingw-static-hermetic`, `arm64-osx-hermetic`, ...). A project
+that uses vcpkg's toolchain file chain-loads this one and names the triplet:
+
+```sh
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake \
+      -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=<this dir>/toolchain.cmake \
+      -DVCPKG_OVERLAY_TRIPLETS=<this dir>/vcpkg/triplets \
+      -DVCPKG_TARGET_TRIPLET=x64-linux-musl-hermetic
+```
+
+The project gets the triplet's options (`HERMETIC_TARGET`, `HERMETIC_LIBC`,
+...) as defaults, and on the MSVC ABI its C runtime, so it is built like its
+packages; an option given on the command line that contradicts the triplet
+draws a warning. A triplet of your own sets any `HERMETIC_*` option, then
+includes [`vcpkg/hermetic-triplet.cmake`](vcpkg/hermetic-triplet.cmake):
+
+```cmake
+set(HERMETIC_TARGET linux-aarch64)
+set(HERMETIC_LIBC gnu.2.31)
+set(HERMETIC_MALLOC mimalloc)
+include("<this dir>/vcpkg/hermetic-triplet.cmake")
+```
+
+That file fills in what vcpkg needs about the target and about a toolchain
+it did not set up: the architecture and system names, the GNU triple for
+autotools ports (vcpkg would guess it from the compiler's name), the
+toolchain's options for every port, the environment it passes through on
+Windows hosts, and the toolchain's own files in the package ABI (vcpkg only
+hashes the triplet and `toolchain.cmake`, so a change to a pinned
+distribution or a runtime set recipe would otherwise reuse stale binary
+packages). In port builds, the toolchain in turn does what vcpkg's own
+platform toolchains do with the triplet's settings: `VCPKG_CRT_LINKAGE`
+selects the MSVC runtime (ports asking for CMake before 3.15 included),
+`VCPKG_C_FLAGS`, `VCPKG_CXX_FLAGS` and `VCPKG_LINKER_FLAGS` are added, and
+ELF code is position independent. vcpkg's source and installed trees are
+mapped to `/vcpkg/buildtrees` and `/vcpkg/installed` in debug information,
+so binary packages do not depend on where vcpkg is; the consuming project
+maps its own paths, `VCPKG_INSTALLED_DIR` included, if it needs to.
+
+vcpkg itself needs a few things from the host:
+
+- `pkg-config`, on Linux and macOS hosts (vcpkg downloads its own on
+  Windows): most ports check their `.pc` files with it. The `PKG_CONFIG`
+  environment variable names one elsewhere; it is passed to port builds
+  without being part of the package ABI.
+- `patchelf` only for shared libraries on Linux targets: with static
+  libraries the triplets turn vcpkg's RPATH fix-up off.
+
+Limitations:
+
+- Ports built with MSBuild or nmake use Visual Studio's own tools, not this
+  toolchain; CMake, Meson and autotools ports are fine.
+- The shipped triplets build static libraries. `VCPKG_LIBRARY_LINKAGE
+  dynamic` works for ELF and Mach-O targets; Windows DLLs have not been
+  tried.
+- WebAssembly has no triplet: vcpkg's ports expect Emscripten.
+- Static libraries for Windows record each member under the object's path.
+  CMake names the object of a source outside the port's source directory
+  after its absolute path (zstd's `build/cmake` project compiling `lib/`), so
+  such archives still name the vcpkg directory; the objects in them do not.
+
 ## Remote execution
 
 Remote build execution (RBE) caches an action by its command line and
@@ -769,6 +837,12 @@ them:
   and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
   blocks, the C library's and a shared library's included, come from
   mimalloc. Each job builds at most a few runtime sets from source.
+  Once a host's builds are done, `tests/run_vcpkg.sh` builds the vcpkg
+  packages of [`tests/vcpkg`](tests/vcpkg) (CMake ports, zstd's old CMake
+  policies, libpng's own preprocessing, spdlog's `thread_local` objects, and
+  libffi through autotools) with pinned vcpkg for a few triplets per host,
+  runs the native ones, and checks that the installed libraries name no
+  machine path and, on the MSVC ABI, ask for the triplet's C runtime.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)

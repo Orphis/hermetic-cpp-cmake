@@ -149,6 +149,63 @@ jobs:
             tests/hello/build/rbe-*/rbe-actions.jsonl*
           if-no-files-found: ignore
 
+  # vcpkg packages built with the toolchain's triplets (tests/run_vcpkg.sh),
+  # after the build jobs so that their runtime sets are cached; triplets
+  # marked :run execute on the runner.
+  vcpkg:
+    name: vcpkg on ${{ matrix.host }}
+    needs: build
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x86_64
+            os: ubuntu-latest
+            triplets: x64-linux-musl-hermetic:run x64-linux-hermetic:run x64-windows-static-hermetic x64-mingw-static-hermetic
+          - host: macos-aarch64
+            os: macos-latest
+            triplets: arm64-osx-hermetic:run x64-linux-musl-hermetic
+          - host: windows-x86_64
+            os: windows-latest
+            triplets: x64-windows-static-md-hermetic:run x64-mingw-static-hermetic:run
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore downloaded archives
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/hermetic-cpp/downloads
+            C:/hl/downloads
+          key: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/distributions/*.json') }}
+          restore-keys: hermetic-cpp-downloads-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore runtime sets
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/hermetic-cpp/runtimes
+            C:/hl/runtimes
+          key: hermetic-cpp-runtimes-${{ matrix.host }}-${{ hashFiles('runtimes/**', 'cmake/**') }}
+      - name: Install Ninja and pkg-config
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y ninja-build pkg-config ;;
+            macOS) brew install ninja pkgconf ;;
+            Windows) choco install -y ninja ;;
+          esac
+      - name: Use short paths on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "HERMETIC_CACHE_DIR=C:/hl" >> "$GITHUB_ENV"
+          echo "HERMETIC_VCPKG_WORK=C:/v" >> "$GITHUB_ENV"
+      - name: Build and check vcpkg packages
+        shell: bash
+        run: tests/run_vcpkg.sh ${{ matrix.triplets }}
+
   run:
     name: run ${{ matrix.environment }}
     needs: build

@@ -180,6 +180,12 @@ macro(hermetic_configure)
   if(NOT _hl_native)
     set(CMAKE_SYSTEM_NAME "${_hl_tgt_SYSTEM_NAME}")
     set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
+  elseif(DEFINED CMAKE_SYSTEM_NAME)
+    # A system name from the command line (vcpkg passes its triplet's) makes
+    # CMake skip host detection: it leaves the processor empty and assumes a
+    # cross build.
+    set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
+    set(CMAKE_CROSSCOMPILING FALSE)
   endif()
   foreach(_hl_lang C CXX ASM OBJC OBJCXX)
     set(CMAKE_${_hl_lang}_COMPILER_TARGET "${_hl_triple}")
@@ -231,6 +237,13 @@ macro(hermetic_configure)
 
   # ---- Flags -------------------------------------------------------------
   set(_hl_c_flags "")
+  # CMake's rules get the target from CMAKE_<LANG>_COMPILER_TARGET, but
+  # scripts that run the compiler themselves pass CMAKE_<LANG>_FLAGS (and
+  # CMAKE_SYSROOT) only: libpng's genout.cmake, which preprocesses its
+  # configuration, would do so for the host.
+  if(NOT _hl_msvc)
+    hermetic_append_flags(_hl_c_flags "--target=${_hl_triple}")
+  endif()
   set(_hl_cxx_first_flags "")  # C++ only, ahead of the common flags (include order)
   set(_hl_cxx_flags "")
   set(_hl_link_flags "")
