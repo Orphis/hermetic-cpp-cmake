@@ -510,6 +510,12 @@ macro(hermetic_configure)
     # UCRT), which rc.exe finds through the INCLUDE of a Visual Studio
     # environment.
     set(CMAKE_RC_FLAGS_INIT "/I${_hl_sdk_include}/um /I${_hl_sdk_include}/shared /I${_hl_sdk_include}/ucrt /I${_hl_msvc_include}")
+    # For the preprocessing step of resource scripts alone (see
+    # HermeticWindowsRules.cmake): a case-insensitive overlay of the headers
+    # naming the files it finds by their real paths, so that the dependency
+    # file lists files that exist.
+    list(GET HERMETIC_RESOLVED_WINSDK 9 _hl_rc_overlay)
+    set(HERMETIC_RC_PREPROCESS_FLAGS "-Xclang -ivfsoverlay -Xclang \"${_hl_rc_overlay}.rc.yaml\"")
   endif()
   if(_hl_cxx_first_flags)
     set(CMAKE_CXX_FLAGS_INIT "")
