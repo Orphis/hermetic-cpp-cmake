@@ -54,8 +54,8 @@ endfunction()
 # options get theirs; the command line's win.
 function(hermetic_vcpkg_triplet_defaults)
   set(_HERMETIC_VCPKG_TRIPLET_CRT "" PARENT_SCOPE)
-  if(NOT VCPKG_TARGET_TRIPLET)
-    return()
+  if(NOT VCPKG_TARGET_TRIPLET OR VCPKG_TARGET_TRIPLET STREQUAL HERMETIC_VCPKG_GENERATED_TARGET_TRIPLET)
+    return()  # none, or the one HERMETIC_VCPKG wrote on an earlier run
   endif()
   _hermetic_vcpkg_port_build(port)
   if(port)
@@ -179,4 +179,224 @@ macro(_hermetic_vcpkg_port_setup)
       hermetic_append_flags(CMAKE_${_hv_kind}_LINKER_FLAGS_${_hv_config}_INIT ${VCPKG_LINKER_FLAGS_${_hv_config}})
     endforeach()
   endforeach()
+endmacro()
+
+# ---- The toolchain in front: HERMETIC_VCPKG --------------------------------
+#
+# With HERMETIC_VCPKG (ON, or a vcpkg directory) the project names this
+# toolchain only, and the toolchain sets vcpkg up the other way round: it
+# writes a triplet for its own configuration (and one for build tools, when
+# the target's programs cannot run on the host) into
+# <build>/hermetic-cpp-vcpkg, then includes vcpkg's toolchain file, which
+# installs the manifest with them. The triplets chain-load this toolchain for
+# the ports, as the ones in vcpkg/triplets do.
+
+# The options that decide what a port's code is built for and with; the
+# rest (cache, downloads, logging, the allocator of executables) do not
+# change the packages.
+set(HERMETIC_VCPKG_TRIPLET_OPTIONS
+  HERMETIC_LLVM_VERSION HERMETIC_LLVM_RELEASE HERMETIC_LLVM_HERMETICBUILD_INDEX
+  HERMETIC_LLVM_DISTRIBUTION_URL HERMETIC_LLVM_DISTRIBUTION_SHA256 HERMETIC_LLVM_DISTRIBUTION_STRIP_COMPONENTS
+  HERMETIC_TARGET HERMETIC_LIBC HERMETIC_CXX_STDLIB HERMETIC_LLVM_RUNTIMES HERMETIC_LLVM_RUNTIME_SANITIZERS
+  HERMETIC_SYSROOT HERMETIC_SYSROOT_SHA256 HERMETIC_SYSROOT_STRIP_COMPONENTS
+  HERMETIC_MSVC_TOOLSET_VERSION HERMETIC_WINDOWS_SDK_VERSION HERMETIC_WINDOWS_ABI HERMETIC_MACOS_SDK_VERSION
+  HERMETIC_PIE HERMETIC_USE_LLD HERMETIC_REPRODUCIBLE HERMETIC_COMPILER)
+
+# The vcpkg checkout pinned in cmake/distributions/vcpkg.json, cloned into
+# the cache once: the history without trees or files until they are needed
+# (manifests with a builtin-baseline read older versions from it).
+function(hermetic_vcpkg_fetch OUT)
+  hermetic_read_json("${HERMETIC_DIR}/cmake/distributions/vcpkg.json" json)
+  string(JSON repository GET "${json}" vcpkg repository)
+  string(JSON commit GET "${json}" vcpkg commit)
+  string(SUBSTRING "${commit}" 0 12 short)
+  set(dest "${HERMETIC_CACHE_DIR}/vcpkg/${short}")
+  set(stamp "${dest}/.hermetic-cpp.stamp")
+  if(EXISTS "${stamp}")
+    set(${OUT} "${dest}" PARENT_SCOPE)
+    return()
+  endif()
+  file(MAKE_DIRECTORY "${HERMETIC_CACHE_DIR}/locks")
+  file(LOCK "${HERMETIC_CACHE_DIR}/locks/vcpkg-${short}.lock" GUARD FUNCTION TIMEOUT 7200)
+  if(EXISTS "${stamp}")
+    set(${OUT} "${dest}" PARENT_SCOPE)
+    return()
+  endif()
+  find_program(HERMETIC_GIT git)
+  if(NOT HERMETIC_GIT)
+    hermetic_fatal("HERMETIC_VCPKG=ON clones vcpkg with git, which was not found; install it, or set VCPKG_ROOT or HERMETIC_VCPKG to a vcpkg checkout")
+  endif()
+  hermetic_log("vcpkg: cloning ${repository} at ${commit}")
+  set(tmp "${dest}.tmp")
+  file(REMOVE_RECURSE "${tmp}" "${dest}")
+  foreach(step IN ITEMS clone checkout)
+    if(step STREQUAL "clone")
+      set(cmd "${HERMETIC_GIT}" clone -q --filter=tree:0 --no-checkout "${repository}" "${tmp}")
+    else()
+      set(cmd "${HERMETIC_GIT}" -C "${tmp}" -c advice.detachedHead=false checkout -q "${commit}")
+    endif()
+    execute_process(COMMAND ${cmd} RESULT_VARIABLE result ERROR_VARIABLE error)
+    if(NOT result EQUAL 0)
+      file(REMOVE_RECURSE "${tmp}")
+      hermetic_fatal("vcpkg: git ${step} failed: ${error}")
+    endif()
+  endforeach()
+  file(RENAME "${tmp}" "${dest}")
+  file(WRITE "${stamp}" "${commit}\n")
+  set(${OUT} "${dest}" PARENT_SCOPE)
+endfunction()
+
+# vcpkg's name for a target, in the scheme of vcpkg/triplets.
+function(_hermetic_vcpkg_triplet_name OS ARCH LIBC WINDOWS_ABI CRT OUT)
+  if(ARCH STREQUAL "x86_64")
+    set(name x64)
+  elseif(ARCH STREQUAL "aarch64")
+    set(name arm64)
+  elseif(ARCH STREQUAL "armv7")
+    set(name arm)
+  else()
+    set(name "${ARCH}")
+  endif()
+  if(OS STREQUAL "linux")
+    string(APPEND name "-linux")
+    if(LIBC MATCHES "^musl")
+      string(APPEND name "-musl")
+    endif()
+  elseif(OS STREQUAL "darwin")
+    string(APPEND name "-osx")
+  elseif(WINDOWS_ABI STREQUAL "gnu")
+    string(APPEND name "-mingw-static")
+  elseif(CRT STREQUAL "static")
+    string(APPEND name "-windows-static")
+  else()
+    string(APPEND name "-windows-static-md")
+  endif()
+  set(${OUT} "${name}-hermetic" PARENT_SCOPE)
+endfunction()
+
+# Writes <DIR>/<NAME>.cmake: the options given as NAME=VALUE, then
+# vcpkg/hermetic-triplet.cmake. Its location is in a file of its own, so the
+# triplet's text, which vcpkg hashes into every package's ABI, is the same
+# on every machine.
+function(_hermetic_vcpkg_write_triplet DIR NAME)
+  set(text "# Generated by hermetic-cpp-cmake for this build (HERMETIC_VCPKG).\n")
+  foreach(assignment IN LISTS ARGN)
+    string(REGEX MATCH "^([^=]+)=(.*)$" _ "${assignment}")
+    string(REPLACE "\\" "\\\\" value "${CMAKE_MATCH_2}")
+    string(REPLACE "\"" "\\\"" value "${value}")
+    string(APPEND text "set(${CMAKE_MATCH_1} \"${value}\")\n")
+  endforeach()
+  string(APPEND text "include(\"\${CMAKE_CURRENT_LIST_DIR}/hermetic-triplet.location\")\n")
+  file(CONFIGURE OUTPUT "${DIR}/${NAME}.cmake" CONTENT "${text}" @ONLY)
+endfunction()
+
+# Run last in the toolchain, after hermetic_configure.
+macro(hermetic_vcpkg_include)
+  _hermetic_vcpkg_port_build(_hv_port)
+  if(HERMETIC_VCPKG AND NOT _hv_port)
+    if(DEFINED VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
+      message(WARNING "[hermetic-cpp] HERMETIC_VCPKG is ignored: vcpkg's toolchain file is already the project's and chain-loads this one")
+    else()
+      get_property(_hv_in_try_compile GLOBAL PROPERTY IN_TRY_COMPILE)
+      if(NOT _hv_in_try_compile)
+        _hermetic_vcpkg_prepare()
+      endif()
+      include("${HERMETIC_VCPKG_RESOLVED_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    endif()
+  endif()
+endmacro()
+
+macro(_hermetic_vcpkg_prepare)
+  # The checkout.
+  if(IS_DIRECTORY "${HERMETIC_VCPKG}")
+    get_filename_component(HERMETIC_VCPKG_RESOLVED_ROOT "${HERMETIC_VCPKG}" ABSOLUTE)
+  elseif(DEFINED ENV{VCPKG_ROOT} AND IS_DIRECTORY "$ENV{VCPKG_ROOT}")
+    file(TO_CMAKE_PATH "$ENV{VCPKG_ROOT}" HERMETIC_VCPKG_RESOLVED_ROOT)
+  else()
+    hermetic_vcpkg_fetch(HERMETIC_VCPKG_RESOLVED_ROOT)
+  endif()
+  if(NOT EXISTS "${HERMETIC_VCPKG_RESOLVED_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    hermetic_fatal("HERMETIC_VCPKG: ${HERMETIC_VCPKG_RESOLVED_ROOT} is not a vcpkg checkout")
+  endif()
+  hermetic_log("vcpkg: ${HERMETIC_VCPKG_RESOLVED_ROOT}")
+
+  set(_hv_dir "${CMAKE_BINARY_DIR}/hermetic-cpp-vcpkg")
+  file(CONFIGURE OUTPUT "${_hv_dir}/hermetic-triplet.location"
+    CONTENT "include(\"${HERMETIC_DIR}/vcpkg/hermetic-triplet.cmake\")\n")
+
+  # The target's triplet, from this configuration, unless the project named
+  # one (hermetic_vcpkg_triplet_defaults then read its options). vcpkg's
+  # toolchain file caches the name: the one written on an earlier run is
+  # rewritten, for options that may have changed since.
+  if(NOT VCPKG_TARGET_TRIPLET OR VCPKG_TARGET_TRIPLET STREQUAL HERMETIC_VCPKG_GENERATED_TARGET_TRIPLET)
+    set(_hv_crt dynamic)
+    if(_hl_windows AND DEFINED CMAKE_MSVC_RUNTIME_LIBRARY AND NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
+      set(_hv_crt static)
+    endif()
+    _hermetic_vcpkg_triplet_name("${_hl_tgt_OS}" "${_hl_tgt_ARCH}" "${HERMETIC_RESOLVED_LIBC}"
+      "${HERMETIC_RESOLVED_WINDOWS_ABI}" "${_hv_crt}" VCPKG_TARGET_TRIPLET)
+    set(_hv_options "")
+    foreach(_hv_var IN LISTS HERMETIC_VCPKG_TRIPLET_OPTIONS)
+      if(DEFINED ${_hv_var} AND NOT "${${_hv_var}}" STREQUAL "")
+        list(APPEND _hv_options "${_hv_var}=${${_hv_var}}")
+      endif()
+    endforeach()
+    if(_hl_windows AND _hv_crt STREQUAL "static")
+      list(APPEND _hv_options "VCPKG_CRT_LINKAGE=static")
+    endif()
+    _hermetic_vcpkg_write_triplet("${_hv_dir}" "${VCPKG_TARGET_TRIPLET}" ${_hv_options})
+    set(HERMETIC_VCPKG_GENERATED_TARGET_TRIPLET "${VCPKG_TARGET_TRIPLET}" CACHE INTERNAL "")
+  endif()
+
+  # Build tools (the host triplet): the target's triplet when its programs
+  # run here, else one for the host with the same compiler. Without the
+  # licence answers, the host's own SDK on macOS and MinGW-w64 on Windows,
+  # which need no download from Apple or Microsoft.
+  if(NOT VCPKG_HOST_TRIPLET OR VCPKG_HOST_TRIPLET STREQUAL HERMETIC_VCPKG_GENERATED_HOST_TRIPLET)
+    if(_hl_native)
+      set(VCPKG_HOST_TRIPLET "${VCPKG_TARGET_TRIPLET}")
+    else()
+      set(_hv_options "HERMETIC_TARGET=${HERMETIC_RESOLVED_HOST_OS}-${HERMETIC_RESOLVED_HOST_ARCH}")
+      foreach(_hv_var IN ITEMS HERMETIC_LLVM_VERSION HERMETIC_LLVM_RELEASE HERMETIC_LLVM_HERMETICBUILD_INDEX
+          HERMETIC_LLVM_DISTRIBUTION_URL HERMETIC_LLVM_DISTRIBUTION_SHA256 HERMETIC_LLVM_DISTRIBUTION_STRIP_COMPONENTS)
+        if(DEFINED ${_hv_var} AND NOT "${${_hv_var}}" STREQUAL "")
+          list(APPEND _hv_options "${_hv_var}=${${_hv_var}}")
+        endif()
+      endforeach()
+      set(_hv_host_abi msvc)
+      if(HERMETIC_RESOLVED_HOST_OS STREQUAL "darwin")
+        if(NOT HERMETIC_ACCEPT_APPLE_SDK_LICENSE AND NOT "$ENV{HERMETIC_ACCEPT_APPLE_SDK_LICENSE}")
+          list(APPEND _hv_options "HERMETIC_SYSROOT=host")
+        endif()
+      elseif(HERMETIC_RESOLVED_HOST_OS STREQUAL "windows")
+        if(NOT HERMETIC_ACCEPT_MICROSOFT_EULA AND NOT "$ENV{HERMETIC_ACCEPT_MICROSOFT_EULA}")
+          set(_hv_host_abi gnu)
+          list(APPEND _hv_options "HERMETIC_WINDOWS_ABI=gnu")
+        endif()
+      endif()
+      _hermetic_vcpkg_triplet_name("${HERMETIC_RESOLVED_HOST_OS}" "${HERMETIC_RESOLVED_HOST_ARCH}" gnu
+        "${_hv_host_abi}" dynamic VCPKG_HOST_TRIPLET)
+      _hermetic_vcpkg_write_triplet("${_hv_dir}" "${VCPKG_HOST_TRIPLET}" ${_hv_options})
+    endif()
+    set(HERMETIC_VCPKG_GENERATED_HOST_TRIPLET "${VCPKG_HOST_TRIPLET}" CACHE INTERNAL "")
+  endif()
+  set(VCPKG_OVERLAY_TRIPLETS "${_hv_dir}" ${VCPKG_OVERLAY_TRIPLETS})
+  list(REMOVE_DUPLICATES VCPKG_OVERLAY_TRIPLETS)
+
+  # vcpkg builds the ports in processes of its own: they get the licence
+  # answers and the cache given to this configuration through the
+  # environment (vcpkg/hermetic-triplet.cmake passes them on).
+  foreach(_hv_var IN ITEMS HERMETIC_ACCEPT_MICROSOFT_EULA HERMETIC_ACCEPT_APPLE_SDK_LICENSE)
+    if(${_hv_var})
+      set(ENV{${_hv_var}} 1)
+    endif()
+  endforeach()
+  set(ENV{HERMETIC_CACHE_DIR} "${HERMETIC_CACHE_DIR}")
+
+  if(NOT CMAKE_HOST_WIN32 AND NOT DEFINED ENV{PKG_CONFIG})
+    find_program(HERMETIC_PKG_CONFIG NAMES pkg-config pkgconf)
+    if(NOT HERMETIC_PKG_CONFIG)
+      message(WARNING "[hermetic-cpp] vcpkg checks the pkg-config files of most ports with pkg-config, which was not found: install it (or pkgconf), or name one with the PKG_CONFIG environment variable")
+    endif()
+  endif()
 endmacro()

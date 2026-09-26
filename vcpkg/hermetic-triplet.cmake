@@ -18,6 +18,9 @@
 # /MT). The triplets next to this file are ready to use:
 #
 #   vcpkg install --overlay-triplets=<this dir>/triplets --triplet=x64-linux-musl-hermetic
+#
+# A project configured with HERMETIC_VCPKG writes such triplets for its own
+# configuration into <build>/hermetic-cpp-vcpkg (see cmake/HermeticVcpkg.cmake).
 
 get_filename_component(_hermetic_vcpkg_repo "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 

@@ -181,9 +181,11 @@ macro(hermetic_configure)
     set(CMAKE_SYSTEM_NAME "${_hl_tgt_SYSTEM_NAME}")
     set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
   elseif(DEFINED CMAKE_SYSTEM_NAME)
-    # A system name from the command line (vcpkg passes its triplet's) makes
-    # CMake skip host detection: it leaves the processor empty and assumes a
-    # cross build.
+    # A system name from the command line (vcpkg passes its triplet's, and
+    # "MinGW" for MinGW-w64, which its own toolchain replaces) makes CMake
+    # skip host detection: it leaves the processor empty and assumes a cross
+    # build.
+    set(CMAKE_SYSTEM_NAME "${_hl_tgt_SYSTEM_NAME}")
     set(CMAKE_SYSTEM_PROCESSOR "${_hl_tgt_SYSTEM_PROCESSOR}")
     set(CMAKE_CROSSCOMPILING FALSE)
   endif()

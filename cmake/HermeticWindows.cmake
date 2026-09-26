@@ -158,6 +158,18 @@ function(hermetic_write_case_overlay OUT_FILE)
       return()
     endif()
   endif()
+  # Configures running at the same time (vcpkg configures a port's debug and
+  # release trees at once) write the same overlay: one at a time, into a
+  # file renamed into place, since on Windows a file another process is
+  # writing cannot be opened, and the error left the SDK unresolved.
+  file(MAKE_DIRECTORY "${base}")
+  file(LOCK "${OUT_FILE}.lock" GUARD FUNCTION TIMEOUT 600)
+  if(EXISTS "${OUT_FILE}")
+    file(STRINGS "${OUT_FILE}" first LIMIT_COUNT 1)
+    if(first STREQUAL marker)
+      return()
+    endif()
+  endif()
   set(yaml "${marker}\n${head}  'roots': [\n")
   foreach(dir IN LISTS dirs)
     file(GLOB_RECURSE subdirs LIST_DIRECTORIES true "${dir}/*")
@@ -186,8 +198,8 @@ function(hermetic_write_case_overlay OUT_FILE)
     endforeach()
   endforeach()
   string(APPEND yaml "  ]\n}\n")
-  file(MAKE_DIRECTORY "${base}")
-  file(WRITE "${OUT_FILE}" "${yaml}")
+  file(WRITE "${OUT_FILE}.tmp" "${yaml}")
+  file(RENAME "${OUT_FILE}.tmp" "${OUT_FILE}")
 endfunction()
 
 # Provides the MSVC runtime and Windows SDK for ARCH (x86_64 or aarch64).

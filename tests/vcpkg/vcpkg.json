@@ -1,12 +1,14 @@
 {
   "name": "hermetic-vcpkg-test",
   "version": "1.0",
+  "builtin-baseline": "6df3b6ad25ac49dab7c8fbe927d5293198e75951",
   "dependencies": [
     "fmt",
     "spdlog",
     "zlib",
     "libpng",
     "zstd",
-    { "name": "libffi", "platform": "!windows | mingw" }
+    { "name": "libffi", "platform": "!windows | mingw" },
+    { "name": "zlib", "host": true }
   ]
 }
