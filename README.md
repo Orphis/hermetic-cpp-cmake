@@ -299,7 +299,16 @@ uninitialized memory is reported.
 MSan programs restart themselves with address space randomization
 disabled, which Docker's default seccomp profile forbids ("unable to
 disable ASLR"): run them in containers with
-`--security-opt seccomp=unconfined` (the tests do).
+`--security-opt seccomp=unconfined` (the tests do). Reports name functions
+and lines when MSan finds `llvm-symbolizer`: the toolchain has one in
+`HERMETIC_LLVM_BIN_DIR`, for `MSAN_SYMBOLIZER_PATH` or `PATH`.
+
+Test suites that pass elsewhere can still fail under MSan: values written
+by glibc functions it has no interceptor for look uninitialized
+(`fegetexceptflag`, for one), uses of objects after their destructor ran
+are reported (`poison_in_dtor`, on by default), and a program that dies of
+a signal exits with status 1 after MSan's report instead
+(`MSAN_OPTIONS=handle_segv=0` keeps the signal, for death tests).
 
 ## macOS targets
 

@@ -570,12 +570,16 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   #    upstream's MSan setups: its register context is filled in by assembly,
   #    which MSan sees as uninitialized, and MSan's own report unwinder calls
   #    into it (an instrumented one recurses until the stack overflows).
+  #    libunwind makes its extra flags PUBLIC, so it is not merged into
+  #    libc++abi here, which would otherwise inherit -fno-sanitize=memory:
+  #    programs link <set>/msan/lib/libunwind.a on its own instead.
   if(sanitizers AND family STREQUAL "gnu" AND tgt_ARCH MATCHES "^(x86_64|aarch64)$")
     hermetic_llvm_build_stage(NAME libcxx-msan SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx-msan"
       INSTALL_PREFIX "${tmp}/msan" LOG_DIR "${log_dir}" BOOTSTRAP ${libcxx_bootstrap}
       CACHE "LLVM_ENABLE_RUNTIMES=libunwind|libcxxabi|libcxx"
       ARGS ${libcxx_args} -DLLVM_USE_SANITIZER=MemoryWithOrigins
         -DLIBUNWIND_ADDITIONAL_COMPILE_FLAGS=-fno-sanitize=memory
+        -DLIBCXXABI_STATICALLY_LINK_UNWINDER_IN_STATIC_LIBRARY=OFF
         -DLIBCXX_INSTALL_HEADERS=OFF -DLIBCXXABI_INSTALL_HEADERS=OFF -DLIBUNWIND_INSTALL_HEADERS=OFF)
     set(sanitizer_json "${sanitizer_json}, \"msan-libcxx\"")
   endif()

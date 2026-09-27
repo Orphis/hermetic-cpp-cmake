@@ -1,13 +1,19 @@
 // Built under MemorySanitizer (-fsanitize=memory). The C++ library must be
-// instrumented too: otherwise the strings, containers and streams below make
-// MSan report values it did not see initialized. After them, a genuine read
-// of uninitialized memory must be reported (the test expects the report).
+// instrumented too: otherwise the strings, containers, streams, exceptions
+// and demangling below make MSan report values it did not see initialized.
+// After them, a genuine read of uninitialized memory must be reported (the
+// test expects the report).
+
+#include <cxxabi.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <typeinfo>
 #include <vector>
 
 // Out of line, so the optimizer keeps the load it is about.
@@ -21,6 +27,15 @@ int main() {
   std::ostringstream text;
   for (const auto &[name, values] : groups) {
     text << name << '=' << values.size() << ';';
+  }
+  // libc++abi: exceptions and the demangler.
+  try {
+    throw std::runtime_error(text.str());
+  } catch (const std::exception &e) {
+    int status = 0;
+    char *type = abi::__cxa_demangle(typeid(e).name(), nullptr, nullptr, &status);
+    text << ' ' << (status == 0 ? type : "?") << ':' << std::string(e.what()).size();
+    std::free(type);
   }
   std::printf("libc++ under MSan: %s OK\n", text.str().c_str());
   std::fflush(stdout);
