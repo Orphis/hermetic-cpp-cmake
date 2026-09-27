@@ -310,9 +310,10 @@ endfunction()
 
 # Configures, builds and installs a CMake project with the bootstrap toolchain.
 #   hermetic_llvm_build_stage(NAME <stage> SOURCE <dir> BUILD <dir> INSTALL_PREFIX <dir>
-#     BOOTSTRAP <var=value>... ARGS <-D...>...)
+#     BOOTSTRAP <var=value>... ARGS <-D...>... [ENV <var=value>...])
+# ENV: environment variables for the build step.
 function(hermetic_llvm_build_stage)
-  cmake_parse_arguments(A "" "NAME;SOURCE;BUILD;INSTALL_PREFIX;LOG_DIR" "BOOTSTRAP;ARGS;CACHE" ${ARGN})
+  cmake_parse_arguments(A "" "NAME;SOURCE;BUILD;INSTALL_PREFIX;LOG_DIR" "BOOTSTRAP;ARGS;CACHE;ENV" ${ARGN})
   file(MAKE_DIRECTORY "${A_LOG_DIR}")
   set(log "${A_LOG_DIR}/${A_NAME}.log")
   set(generator "")
@@ -349,7 +350,9 @@ function(hermetic_llvm_build_stage)
     hermetic_fatal("${A_NAME}: configure failed, see ${log}")
   endif()
   hermetic_log("  ${A_NAME}: building")
-  execute_process(COMMAND "${CMAKE_COMMAND}" --build "${A_BUILD}"
+  # The bootstrap settings in the environment too, for projects the build
+  # configures itself (bootstrap.toolchain.cmake reads them from there).
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E env ${A_BOOTSTRAP} ${A_ENV} "${CMAKE_COMMAND}" --build "${A_BUILD}"
     OUTPUT_FILE "${log}.build" ERROR_FILE "${log}.build" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
     hermetic_fatal("${A_NAME}: build failed, see ${log}.build")
@@ -545,8 +548,17 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
   #    links against the builtins and libc built above.
   set(sanitizer_json "")
   if(sanitizers)
+    # libFuzzer's private libc++ is merged into it with `clang++ -r`, which
+    # runs the default linker, "ld": lld under that name (its GNU flavor on
+    # every host), which Clang finds through COMPILER_PATH.
+    set(exe "")
+    if(CMAKE_HOST_WIN32)
+      set(exe ".exe")
+    endif()
+    file(MAKE_DIRECTORY "${build_root}/ld")
+    file(CREATE_LINK "${LLVM_ROOT}/bin/ld.lld${exe}" "${build_root}/ld/ld${exe}" COPY_ON_ERROR SYMBOLIC)
     hermetic_llvm_build_stage(NAME sanitizers SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/sanitizers"
-      INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}"
+      INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}" ENV "COMPILER_PATH=${build_root}/ld"
       BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}" "HERMETIC_LLVM_BOOTSTRAP_RESOURCE_DIR=${tmp}/resource"
         "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-rtlib=compiler-rt --unwindlib=none" "HERMETIC_LLVM_BOOTSTRAP_LINK_TESTS=ON"
         "HERMETIC_LLVM_BOOTSTRAP_EXTRA_CXX_FLAGS=-stdlib=libc++" "HERMETIC_LLVM_BOOTSTRAP_CXX_LIBS=-nostdlib++ -lc++ -lc++abi -lunwind -lpthread -ldl"
@@ -556,7 +568,11 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
         -DCOMPILER_RT_BUILD_SANITIZERS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=ON -DCOMPILER_RT_BUILD_PROFILE=ON
         -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF
         -DCOMPILER_RT_BUILD_GWP_ASAN=OFF -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF
-        -DCOMPILER_RT_USE_LIBCXX=OFF -DSANITIZER_CXX_ABI=libc++ -DCOMPILER_RT_SANITIZERS_TO_BUILD=all)
+        -DSANITIZER_CXX_ABI=libc++ -DCOMPILER_RT_SANITIZERS_TO_BUILD=all
+        # libFuzzer with a private libc++ merged in (namespace __Fuzzer), as
+        # upstream ships it: nothing shared with the program's C++ library,
+        # which may be built differently (with MemorySanitizer, say).
+        -DCOMPILER_RT_USE_LIBCXX=ON "-DLIBCXX_HAS_MUSL_LIBC=${musl_flag}")
     set(sanitizer_json ", \"sanitizers\"")
   endif()
 

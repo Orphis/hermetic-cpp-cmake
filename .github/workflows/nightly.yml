@@ -37,12 +37,12 @@ jobs:
           - name: sanitizers (linux-x86_64)
             host: linux-x86_64-san
             os: ubuntu-latest
-            presets: linux-x86_64-asan linux-x86_64-ubsan linux-x86_64-asan-mimalloc linux-x86_64-msan
+            presets: linux-x86_64-asan linux-x86_64-ubsan linux-x86_64-asan-mimalloc linux-x86_64-msan linux-x86_64-tsan
             rbe: linux-x86_64-asan linux-x86_64-ubsan
           - name: sanitizers (linux-aarch64)
             host: linux-aarch64-san
             os: ubuntu-24.04-arm
-            presets: linux-aarch64-asan linux-aarch64-msan
+            presets: linux-aarch64-asan linux-aarch64-msan linux-aarch64-tsan linux-aarch64-hwasan linux-aarch64-ubsan
           - name: armv7 / riscv64 / s390x
             host: linux-x86_64-exotic
             os: ubuntu-latest

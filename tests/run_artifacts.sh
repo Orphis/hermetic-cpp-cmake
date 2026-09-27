@@ -80,12 +80,12 @@ for dir in "${artifacts}"/*/*/; do
     image="$(image_for "${target}" "${libc}")"
     abs="$(cd "${dir}" && pwd)"
     echo "--- docker ${platform} ${image}"
-    # MemorySanitizer re-executes itself with ASLR disabled, which Docker's
-    # default seccomp profile forbids.
+    # MemorySanitizer and ThreadSanitizer re-execute themselves with ASLR
+    # disabled, which Docker's default seccomp profile forbids.
     opts=()
-    if [ -e "${abs}/hello_msan_catch" ]; then opts=(--security-opt seccomp=unconfined); fi
+    if [ -e "${abs}/hello_san_catch" ]; then opts=(--security-opt seccomp=unconfined); fi
     docker run --rm ${opts[@]+"${opts[@]}"} --platform="${platform}" -v "${abs}:/b:ro" "${image}" \
-      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi; if [ -e /b/hello_msan_catch ]; then if out=$(/b/hello_msan_catch 2>&1); then echo "hello_msan_catch: no MemorySanitizer report"; exit 1; fi; echo "$out" | grep "libc++ under MSan:"; echo "$out" | grep -q "use-of-uninitialized-value" || { echo "$out"; exit 1; }; echo "hello_msan_catch: MemorySanitizer reported the uninitialized read: OK"; fi'
+      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi; if [ -e /b/hello_san_catch ]; then out=$(/b/hello_san_catch 2>&1) || true; want=$(echo "$out" | sed -n "s/^.* expects: //p"); echo "$out" | grep "^libc++ under .* OK$" && [ -n "$want" ] && echo "$out" | grep -qF "$want" || { echo "$out"; exit 1; }; echo "hello_san_catch: reported $want: OK"; fi; if [ -e /b/hello_fuzz ]; then out=$(cd /tmp && /b/hello_fuzz -runs=10000000 -seed=1 2>&1) || true; echo "$out" | grep -q "deadly signal" || { echo "$out" | tail -20; exit 1; }; echo "hello_fuzz: libFuzzer found the crashing input: OK"; fi'
     case "${libc}" in
       gnu.2.4*)
         echo "--- expecting a glibc mismatch on bullseye"
@@ -140,7 +140,7 @@ classified="$(echo "${table}" | awk '
         if (!(s in sdks)) { sdks[s]=1; ns++ } }
       if (na <= 1) continue
       split(k, kk, " "); preset=kk[1]; file=kk[2]
-      if (preset ~ /-(asan|ubsan|msan|tsan)($|-)/ && file !~ /^(clang_rt\.|set\/)/) print "expected", k
+      if (preset ~ /-(asan|hwasan|ubsan|msan|tsan)($|-)/ && file !~ /^(clang_rt\.|set\/)/) print "expected", k
       else if (preset ~ /^darwin-/ && ns > 1) print "expected", k
       else if (preset ~ /-dbg($|-)/ && nu <= 1) print "expected", k
       else print "unexpected", k
