@@ -152,9 +152,26 @@ function(hermetic_write_case_overlay OUT_FILE)
       string(APPEND head "  'use-external-names': false,\n")
     endif()
   endif()
+  # Already written: rewriting it would put every compile that reads it out
+  # of date, and one build directory's configure would rebuild the others.
+  # (Not with file(STRINGS), which escapes the ";" between the directories
+  # and never matched.)
+  string(LENGTH "${marker}\n" marker_length)
   if(EXISTS "${OUT_FILE}")
-    file(STRINGS "${OUT_FILE}" first LIMIT_COUNT 1)
-    if(first STREQUAL marker)
+    file(READ "${OUT_FILE}" first LIMIT ${marker_length})
+    if(first STREQUAL "${marker}\n")
+      return()
+    endif()
+  endif()
+  # Configures running at the same time (vcpkg configures a port's debug and
+  # release trees at once) write the same overlay: one at a time, into a
+  # file renamed into place, since on Windows a file another process is
+  # writing cannot be opened, and the error left the SDK unresolved.
+  file(MAKE_DIRECTORY "${base}")
+  file(LOCK "${OUT_FILE}.lock" GUARD FUNCTION TIMEOUT 600)
+  if(EXISTS "${OUT_FILE}")
+    file(READ "${OUT_FILE}" first LIMIT ${marker_length})
+    if(first STREQUAL "${marker}\n")
       return()
     endif()
   endif()
@@ -186,8 +203,8 @@ function(hermetic_write_case_overlay OUT_FILE)
     endforeach()
   endforeach()
   string(APPEND yaml "  ]\n}\n")
-  file(MAKE_DIRECTORY "${base}")
-  file(WRITE "${OUT_FILE}" "${yaml}")
+  file(WRITE "${OUT_FILE}.tmp" "${yaml}")
+  file(RENAME "${OUT_FILE}.tmp" "${OUT_FILE}")
 endfunction()
 
 # Provides the MSVC runtime and Windows SDK for ARCH (x86_64 or aarch64).
@@ -336,6 +353,9 @@ function(hermetic_provide_windows_sdk ARCH OUT)
     PREFIX_FROM "${HERMETIC_CACHE_DIR}" PREFIX_TO "${HERMETIC_CACHE_LINK_NAME}"
     ${msvc_lib} "${sdk_ucrt_lib}" "${sdk_um_lib}")
   hermetic_write_case_overlay("${overlay}.lib.yaml" EXTERNAL_NAMES ${msvc_lib} "${sdk_ucrt_lib}" "${sdk_um_lib}")
+  # For the preprocessing of resource scripts: the headers, by their real
+  # paths, so that the dependency file names files that exist.
+  hermetic_write_case_overlay("${overlay}.rc.yaml" EXTERNAL_NAMES "${msvc_include}" "${sdk_include}")
 
   set(${OUT}_MSVC_VERSION "${msvc_version}" PARENT_SCOPE)
   set(${OUT}_MSVC_COMPAT_VERSION "${compat}" PARENT_SCOPE)

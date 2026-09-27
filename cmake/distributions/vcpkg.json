@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "description": "vcpkg checkout used with HERMETIC_VCPKG=ON when VCPKG_ROOT is not set: cloned (without trees until needed) into the cache and checked out at this commit; vcpkg's toolchain file downloads its own tool (pinned by the checkout)"
+  },
+  "vcpkg": {
+    "repository": "https://github.com/microsoft/vcpkg.git",
+    "commit": "6df3b6ad25ac49dab7c8fbe927d5293198e75951",
+    "date": "2026-09-25",
+    "license": "MIT"
+  }
+}

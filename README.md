@@ -256,6 +256,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_MALLOC` | | Replace the C library's allocator in every executable: `mimalloc`, or the name of a library target of the project implementing [`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h). See [Replacing malloc](#replacing-malloc). |
 | `HERMETIC_MALLOC_DEFINITIONS` | | mimalloc's compile-time settings, a list such as `MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0` (`MI_SECURE`, `MI_GUARDED`, `MI_STATS`, `MI_PADDING`, `MI_DEBUG`, the `MI_DEFAULT_*` option defaults, ...). |
+| `HERMETIC_VCPKG` | | `ON` or a vcpkg directory: the toolchain sets vcpkg up for this configuration and includes its toolchain file, so the project's `vcpkg.json` is installed with packages built like the project (see vcpkg). `ON` uses `VCPKG_ROOT`, else a pinned checkout cloned into the cache. |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
 | `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
@@ -370,7 +371,13 @@ needed. Not available on this ABI: the MSVC STL, the sanitizers, `msvcrt.dll`
 as the C runtime, and 32-bit x86.
 
 The MSVC ABI (the default) follows hermetic-llvm's `windows_msvc` route:
-`clang-cl` and `lld-link` with Microsoft's runtime and SDK.
+`clang-cl` and `lld-link` with Microsoft's runtime and SDK. There is no MASM
+assembler (`enable_language(ASM_MASM)`): LLVM's `llvm-ml` encodes label
+addresses (`lea rcx, label`) as absolute 32-bit relocations where `ml64`
+makes them RIP-relative, and the result crashes in a 64-bit image (Boost.Context
+did), so such projects fail to find `ml64` rather than build something
+broken. Boost.Context can use Windows fibers instead
+(`BOOST_CONTEXT_IMPLEMENTATION=winfib`).
 
 **MSVC compiler.** With `HERMETIC_COMPILER=msvc` the compiler is
 Microsoft's `cl.exe` instead of `clang-cl`: the compiler packages for the
@@ -589,6 +596,124 @@ to `/hermetic-cpp/malloc` in debug information like the cache, so builds with
 the allocator stay reproducible across hosts and checkouts and ready for
 remote execution.
 
+## vcpkg
+
+[vcpkg](https://vcpkg.io) packages are built with this toolchain too, for
+the same target and with the same compiler, runtime and C library as the
+project. The simplest way is to name this toolchain only and set
+`HERMETIC_VCPKG`:
+
+```sh
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<this dir>/toolchain.cmake \
+      -DHERMETIC_TARGET=linux-aarch64 -DHERMETIC_LIBC=musl -DHERMETIC_VCPKG=ON
+```
+
+The toolchain then includes vcpkg's toolchain file itself, which installs
+the project's `vcpkg.json` as usual, after setting it up:
+
+- vcpkg: `HERMETIC_VCPKG=ON` uses the checkout in `VCPKG_ROOT`, or else the
+  one pinned in
+  [`cmake/distributions/vcpkg.json`](cmake/distributions/vcpkg.json), cloned
+  into the cache (the history without file contents until they are needed,
+  about 100 MB, so that manifests with a `builtin-baseline` work);
+  `HERMETIC_VCPKG=<dir>` uses that checkout. vcpkg's toolchain file
+  downloads the vcpkg tool itself.
+- A triplet for this configuration, written into
+  `<build>/hermetic-cpp-vcpkg` with vcpkg's name for the target and a
+  `-hermetic` suffix (`arm64-linux-musl-hermetic`,
+  `x64-windows-static-md-hermetic`, ...): the options that decide what code
+  is built and with what (target, libc, C++ library, compiler version,
+  SDK and toolset versions, ...), on macOS the deployment target, and on the
+  MSVC ABI the C runtime of `CMAKE_MSVC_RUNTIME_LIBRARY` as given on the
+  command line (static unless it names a DLL runtime; CMake's default is the
+  DLL one).
+- The host triplet, for the build tools some ports need: the same one when
+  the target's programs run on this host, else one for the host with the
+  same compiler (with the host's own SDK on macOS, and MinGW-w64 on
+  Windows, when the licence for the SDK download was not accepted).
+- The licence answers and the cache directory given to this configuration,
+  for the ports' own configurations.
+
+The other way round works as well: vcpkg's toolchain file as the project's,
+chain-loading this one, with the overlay triplets of
+[`vcpkg/triplets`](vcpkg/triplets), static libraries named like vcpkg's own
+triplets with a `-hermetic` suffix (`x64-linux-hermetic`,
+`arm64-linux-musl-hermetic`, `x64-windows-static-hermetic` for `/MT`,
+`x64-windows-static-md-hermetic` for `/MD`, `x64-mingw-static-hermetic`,
+`arm64-osx-hermetic`, ...):
+
+```sh
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake \
+      -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=<this dir>/toolchain.cmake \
+      -DVCPKG_OVERLAY_TRIPLETS=<this dir>/vcpkg/triplets \
+      -DVCPKG_TARGET_TRIPLET=x64-linux-musl-hermetic
+```
+
+The project then gets the triplet's options as defaults, its
+`VCPKG_OSX_DEPLOYMENT_TARGET` if it sets one, and on the MSVC ABI its C
+runtime; an option given on the command line that contradicts
+the triplet draws a warning. The same triplets serve `vcpkg install
+--overlay-triplets=<this dir>/vcpkg/triplets` outside CMake. A triplet of
+your own sets any `HERMETIC_*` option, then includes
+[`vcpkg/hermetic-triplet.cmake`](vcpkg/hermetic-triplet.cmake):
+
+```cmake
+set(HERMETIC_TARGET linux-aarch64)
+set(HERMETIC_LIBC gnu.2.31)
+include("<this dir>/vcpkg/hermetic-triplet.cmake")
+```
+
+That file fills in what vcpkg needs about the target and about a toolchain
+it did not set up: the architecture and system names, the GNU triple for
+autotools ports (vcpkg would guess it from the compiler's name), the
+toolchain's options for every port, the environment it passes through on
+Windows hosts, and the toolchain's own files in the package ABI (vcpkg only
+hashes the triplet and `toolchain.cmake`, so a change to a pinned
+distribution or a runtime set recipe would otherwise reuse stale binary
+packages; the files are hashed by content, and the triplets
+`HERMETIC_VCPKG` writes name nothing of the machine, so binary caches work
+across machines). In port builds, the toolchain in turn does what vcpkg's
+own platform toolchains do with the triplet's settings: `VCPKG_CRT_LINKAGE`
+selects the MSVC runtime (ports asking for CMake before 3.15 included),
+`VCPKG_C_FLAGS`, `VCPKG_CXX_FLAGS` and `VCPKG_LINKER_FLAGS` are added, and
+ELF code is position independent. Autotools and Meson ports, which get
+their flags from what vcpkg extracts of a CMake configuration, also get
+the C++ library and, on musl, the static link mode that CMake would add to
+each link. With libc++, ports keep the headers libc++ 23 stopped including
+from others unless asked (`_LIBCPP_KEEP_TRANSITIVE_INCLUDES_LLVM23`): code
+written against libstdc++ or an older libc++ often relies on them. vcpkg's source and installed trees are
+mapped to `/vcpkg/buildtrees` and `/vcpkg/installed` in debug information,
+so binary packages do not depend on where vcpkg is; the consuming project
+maps its own paths, `VCPKG_INSTALLED_DIR` included, if it needs to.
+
+vcpkg itself needs a few things from the host:
+
+- `pkg-config`, on Linux and macOS hosts (vcpkg downloads its own on
+  Windows): most ports check their `.pc` files with it. The `PKG_CONFIG`
+  environment variable names one elsewhere; it is passed to port builds
+  without being part of the package ABI.
+- `patchelf` only for shared libraries on Linux targets: with static
+  libraries the triplets turn vcpkg's RPATH fix-up off.
+- Ports that regenerate their build system (`autoreconf`) need autoconf,
+  automake and libtool, as vcpkg says when it needs them.
+
+Limitations:
+
+- Ports built with MSBuild or nmake use Visual Studio's own tools, not this
+  toolchain; CMake, Meson and autotools ports are fine.
+- The shipped triplets build static libraries. `VCPKG_LIBRARY_LINKAGE
+  dynamic` works for ELF and Mach-O targets; Windows DLLs have not been
+  tried.
+- WebAssembly has no triplet: vcpkg's ports expect Emscripten.
+- MSVC ABI packages built on a macOS host with vcpkg under `/Users`:
+  scripts that run the compiler themselves on an absolute path (libpng's)
+  have clang-cl read `/Users/...` as its `/U` option. Keep vcpkg (or the
+  cache, for `HERMETIC_VCPKG=ON`) elsewhere for those.
+- Static libraries for Windows record each member under the object's path.
+  CMake names the object of a source outside the port's source directory
+  after its absolute path (zstd's `build/cmake` project compiling `lib/`), so
+  such archives still name the vcpkg directory; the objects in them do not.
+
 ## Remote execution
 
 Remote build execution (RBE) caches an action by its command line and
@@ -778,6 +903,14 @@ them:
   and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
   blocks, the C library's and a shared library's included, come from
   mimalloc. Each job builds at most a few runtime sets from source.
+  Once a host's builds are done, `tests/run_vcpkg.sh` builds the vcpkg
+  packages of [`tests/vcpkg`](tests/vcpkg) (CMake ports, zstd's old CMake
+  policies, libpng's own preprocessing, spdlog's `thread_local` objects, and
+  libffi through autotools, a host dependency, a `builtin-baseline`) with
+  the pinned vcpkg for a few targets per host, both with `HERMETIC_VCPKG`
+  and with vcpkg's toolchain file in front, runs the native ones, and
+  checks that the installed libraries name no machine path and, on the MSVC
+  ABI, ask for the triplet's C runtime.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)

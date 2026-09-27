@@ -56,6 +56,17 @@ endforeach()
 unset(_hl_lib)
 unset(_hl_tool_dir)
 unset(_hl_tool_ext)
+# Resource scripts: CMake preprocesses them with clang-cl (cmake_llvm_rc),
+# then llvm-rc compiles the result, both with the RC flags. The
+# preprocessor needs the case-insensitive overlay the compiler gets:
+# resource scripts include <windows.h>, which the SDK names Windows.h, and
+# a case-sensitive host does not find it. The overlay goes to the
+# preprocessor only, after the -DRC_INVOKED CMake gives it alone.
+if(HERMETIC_RC_PREPROCESS_FLAGS AND CMAKE_RC_COMPILE_OBJECT MATCHES "cmake_llvm_rc"
+    AND NOT CMAKE_RC_COMPILE_OBJECT MATCHES "ivfsoverlay")
+  string(REPLACE " -DRC_INVOKED " " -DRC_INVOKED ${HERMETIC_RC_PREPROCESS_FLAGS} "
+    CMAKE_RC_COMPILE_OBJECT "${CMAKE_RC_COMPILE_OBJECT}")
+endif()
 # lib.exe-style static linker flags (/machine:x64) mean nothing to llvm-ar.
 set(CMAKE_STATIC_LINKER_FLAGS_INIT "")
 set(CMAKE_STATIC_LINKER_FLAGS "")
