@@ -54,10 +54,13 @@ elf_pattern_for() {
 }
 
 run_in_docker() {
-  local platform="$1" image="$2" dir="$3"
+  local platform="$1" image="$2" dir="$3" opts=()
   echo "--- running in docker (${platform}, ${image})"
-  docker run --rm --platform="${platform}" -v "${dir}:/build:ro" "${image}" \
-    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi'
+  # MemorySanitizer re-executes itself with ASLR disabled, which Docker's
+  # default seccomp profile forbids.
+  if [ -e "${dir}/hello_msan_catch" ]; then opts=(--security-opt seccomp=unconfined); fi
+  docker run --rm ${opts[@]+"${opts[@]}"} --platform="${platform}" -v "${dir}:/build:ro" "${image}" \
+    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi; if [ -e /build/hello_msan_catch ]; then if out=$(/build/hello_msan_catch 2>&1); then echo "hello_msan_catch: no MemorySanitizer report"; exit 1; fi; echo "$out" | grep "libc++ under MSan:"; echo "$out" | grep -q "use-of-uninitialized-value" || { echo "$out"; exit 1; }; echo "hello_msan_catch: MemorySanitizer reported the uninitialized read: OK"; fi'
 }
 
 # A binary linked against a newer glibc than the image provides must refuse

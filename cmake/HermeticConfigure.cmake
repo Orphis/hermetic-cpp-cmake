@@ -445,6 +445,19 @@ macro(hermetic_configure)
     hermetic_append_flags(_hl_cxx_flags -stdlib=libc++)
     hermetic_append_flags(_hl_link_flags -nostdlib++)
     hermetic_append_flags(_hl_cxx_libs -lc++ -lc++abi)
+    # MemorySanitizer (-fsanitize=memory in the project-wide compile flags):
+    # the C++ runtimes built with it, from <set>/msan/lib, since MSan
+    # reports every value it did not see initialized, and libc++ would
+    # otherwise be full of them.
+    set(_hl_global_flags "${HERMETIC_EXTRA_COMPILE_FLAGS} ${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}")
+    if(_hl_global_flags MATCHES "-fsanitize=([^ ;]*,)?memory([, ;]|$)")
+      if(_hl_libc_family STREQUAL "musl")
+        hermetic_fatal("-fsanitize=memory is not available with musl (compiler-rt's MemorySanitizer supports glibc only)")
+      elseif(NOT EXISTS "${_hl_set}/msan/lib/libc++.a")
+        hermetic_fatal("-fsanitize=memory needs HERMETIC_LLVM_RUNTIME_SANITIZERS=ON (the runtime set then holds libc++ built with MemorySanitizer), on x86_64 or aarch64")
+      endif()
+      hermetic_append_flags(_hl_link_flags "-L${_hl_set}/msan/lib")
+    endif()
     if(_hl_libc_family STREQUAL "musl")
       # Fully static, like hermetic-llvm: no dynamic loader at all.
       if(NOT DEFINED HERMETIC_PIE OR HERMETIC_PIE)

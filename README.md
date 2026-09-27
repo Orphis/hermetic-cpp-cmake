@@ -239,7 +239,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_LLVM_RUNTIMES` | `auto` | `auto`: use a prebuilt runtime set when the index lists one, else build it; `download`: fail if none is listed; `build`: always build locally. |
 | `HERMETIC_LLVM_RUNTIME_SET_DIR` | | Use an existing runtime set directory (one produced by `runtimes/build_runtimes.cmake`). |
 | `HERMETIC_LLVM_RUNTIME_SETS_FILES` | | Extra JSON indexes of prebuilt runtime sets (`{"<llvm>": {"<id>": {"url": ..., "sha256": ...}}}`). |
-| `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. Windows: ASan, UBSan, libFuzzer and profile, see [Sanitizers](#sanitizers). |
+| `HERMETIC_LLVM_RUNTIME_SANITIZERS` | `OFF` | Also build the sanitizer, fuzzer and profile runtimes into the set (needed for `-fsanitize=...` and `-fprofile-instr-generate`); adds about a minute to the build and 200 MB to the set. Linux with glibc on x86_64 and aarch64: also libc++ built with MemorySanitizer, see [MemorySanitizer](#memorysanitizer). Windows: ASan, UBSan, libFuzzer and profile, see [Sanitizers](#sanitizers). |
 | `HERMETIC_PIE` | `ON` | musl: `-static-pie` (`OFF`: `-static`). glibc: Clang's default PIE (`OFF`: `-no-pie`). |
 | `HERMETIC_SYSROOT` | `sdk` | macOS: `sdk` downloads the SDK (see the next two rows), `host` uses the SDK of the host's Xcode or Command Line Tools (macOS hosts only), or a directory names any SDK. Linux: a bring-your-own sysroot directory or archive URL (with `HERMETIC_SYSROOT_SHA256`, `_STRIP_COMPONENTS`); this disables runtime sets and the sysroot must provide crt, libc, C++ library and compiler runtime itself. |
 | `HERMETIC_ACCEPT_APPLE_SDK_LICENSE` | | Must be `1` for macOS targets unless `HERMETIC_SYSROOT` names an SDK: confirms you may use the macOS SDK (the Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf). Also read from the environment. |
@@ -265,6 +265,41 @@ After the toolchain file runs, projects can read `HERMETIC_LLVM_ROOT`,
 `HERMETIC_TARGET_TRIPLE`, `HERMETIC_EFFECTIVE_LIBC`,
 `HERMETIC_EFFECTIVE_CXX_STDLIB`, `HERMETIC_CROSSCOMPILING` and, on
 Windows hosts building Windows targets, `HERMETIC_WINDOWS_SDK_TOOLS_DIR`.
+
+## MemorySanitizer
+
+MemorySanitizer (`-fsanitize=memory`) reports reads of memory that nothing
+it instrumented has initialized, so everything in the program must be
+built with it, the C++ standard library included: with an uninstrumented
+libc++, strings, containers and streams alone produce reports. On Linux
+with glibc on x86_64 and aarch64 (the targets compiler-rt's MSan supports;
+not musl), `HERMETIC_LLVM_RUNTIME_SANITIZERS=ON` builds libc++abi and
+libc++ a second time with it (`LLVM_USE_SANITIZER=MemoryWithOrigins`, so
+reports can say where a value came from with
+`-fsanitize-memory-track-origins`; libunwind stays uninstrumented, as
+MSan's own report unwinder uses it), and the toolchain links those when the
+project-wide compile flags ask for MSan:
+
+```sh
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<this dir>/toolchain.cmake \
+      -DHERMETIC_TARGET=linux-x86_64 -DHERMETIC_LLVM_RUNTIME_SANITIZERS=ON \
+      "-DHERMETIC_EXTRA_COMPILE_FLAGS=-fsanitize=memory;-fsanitize-memory-track-origins;-fno-omit-frame-pointer" \
+      -DHERMETIC_EXTRA_LINK_FLAGS=-fsanitize=memory
+```
+
+The flags must be project-wide (`HERMETIC_EXTRA_COMPILE_FLAGS`, or
+`CMAKE_C_FLAGS` / `CMAKE_CXX_FLAGS` on the command line): the toolchain
+chooses the C++ library when it is loaded, and every library the program
+links must be instrumented too, including prebuilt ones. Asking for MSan
+with musl, or without the sanitizer runtimes, is an error saying so. The
+sample's `linux-x86_64-msan` and `linux-aarch64-msan` presets check that
+a program using libc++ runs without reports and that a genuine read of
+uninitialized memory is reported.
+
+MSan programs restart themselves with address space randomization
+disabled, which Docker's default seccomp profile forbids ("unable to
+disable ASLR"): run them in containers with
+`--security-opt seccomp=unconfined` (the tests do).
 
 ## macOS targets
 
@@ -691,6 +726,8 @@ A runtime set is a plain directory:
                                     ld-linux-*.so, libc_nonshared.a
                              musl:  libc.a and empty libm.a libpthread.a ...
                              libc++.a (with libc++abi) libc++abi.a libunwind.a
+<set>/msan/lib               with HERMETIC_LLVM_RUNTIME_SANITIZERS on glibc x86_64 and aarch64: the same
+                             three built with MemorySanitizer (-fsanitize=memory links them instead)
 <set>/resource               clang resource directory: builtin headers,
                              lib/<triple>/libclang_rt.builtins.a, clang_rt.crtbegin.o, clang_rt.crtend.o,
                              and with HERMETIC_LLVM_RUNTIME_SANITIZERS the asan/ubsan/tsan/msan/hwasan/
@@ -901,5 +938,5 @@ is still to come.
   targets (`HERMETIC_COMPILER=msvc`), with the same linker and archiver.
 - Sanitizer runtimes are optional (`HERMETIC_LLVM_RUNTIME_SANITIZERS`)
   rather than always built; hermetic-llvm's per-sanitizer flag groups
-  (ignorelists, CFI, MSan libc++) are not reproduced, `-fsanitize=...` is
-  passed by the project.
+  (ignorelists, CFI) are not reproduced, `-fsanitize=...` is passed by the
+  project; the MSan-instrumented libc++ is part of the glibc sets.

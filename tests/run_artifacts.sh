@@ -80,8 +80,12 @@ for dir in "${artifacts}"/*/*/; do
     image="$(image_for "${target}" "${libc}")"
     abs="$(cd "${dir}" && pwd)"
     echo "--- docker ${platform} ${image}"
-    docker run --rm --platform="${platform}" -v "${abs}:/b:ro" "${image}" \
-      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi'
+    # MemorySanitizer re-executes itself with ASLR disabled, which Docker's
+    # default seccomp profile forbids.
+    opts=()
+    if [ -e "${abs}/hello_msan_catch" ]; then opts=(--security-opt seccomp=unconfined); fi
+    docker run --rm ${opts[@]+"${opts[@]}"} --platform="${platform}" -v "${abs}:/b:ro" "${image}" \
+      sh -ec '/b/hello_c; /b/hello_cxx; if [ -e /b/hello_shared ]; then LD_LIBRARY_PATH=/b /b/hello_shared; fi; if [ -e /b/hello_msan_catch ]; then if out=$(/b/hello_msan_catch 2>&1); then echo "hello_msan_catch: no MemorySanitizer report"; exit 1; fi; echo "$out" | grep "libc++ under MSan:"; echo "$out" | grep -q "use-of-uninitialized-value" || { echo "$out"; exit 1; }; echo "hello_msan_catch: MemorySanitizer reported the uninitialized read: OK"; fi'
     case "${libc}" in
       gnu.2.4*)
         echo "--- expecting a glibc mismatch on bullseye"
