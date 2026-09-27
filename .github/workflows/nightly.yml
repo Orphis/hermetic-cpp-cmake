@@ -107,6 +107,8 @@ jobs:
       HERMETIC_TESTS_SKIP_DOCKER: "1"
     steps:
       - uses: actions/checkout@v4
+      # The same CMake everywhere, recent enough for import std.
+      - uses: ./.github/actions/setup-cmake
       # Downloaded archives: restored by every run, saved by runs on master
       # only, so that branches and pull requests reuse master's instead of
       # storing their own copy (400 to 600 MB per host) whenever the tables

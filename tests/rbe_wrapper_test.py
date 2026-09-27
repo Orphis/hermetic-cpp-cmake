@@ -61,6 +61,14 @@ def main():
             rc, r = dry_run(root, build, [tool, arg])
             check(f"accepts {arg}", rc == 0 and "problems" not in r, json.dumps(r))
 
+        # An output name CMake derived from an absolute path (a source
+        # outside the source and build trees): not a path to rewrite, and a
+        # machine-specific name the check reports.
+        rc, r = dry_run(root, build, [tool, "-o", f"CMakeFiles/t.dir{root}/.hermetic-cpp/std.cppm.o",
+                                      "-c", f"{root}/.hermetic-cpp/std.cppm"])
+        check("an absolute path inside a longer path is reported, not rewritten",
+              rc == 1 and "problems" in r, json.dumps(r))
+
         rc, r = dry_run(root, build, [os.path.realpath(sys.executable), f"-I{host}"])
         check("tools outside the root are local actions", rc == 0 and r is None)
         scratch = f"{build}/CMakeFiles/CMakeScratch/TryCompile-abc"

@@ -256,6 +256,7 @@ supported targets, libc versions, compiler prebuilts and runtime sets.
 | `HERMETIC_CACHE_DIR` | `$HERMETIC_CACHE_DIR`, `$XDG_CACHE_HOME/hermetic-cpp`, `~/.cache/hermetic-cpp`, `%LOCALAPPDATA%/hermetic-cpp` | Where archives, sources, compilers and runtime sets live. Archives placed in `<cache>/downloads/` are used instead of downloading. |
 | `HERMETIC_MALLOC` | | Replace the C library's allocator in every executable: `mimalloc`, or the name of a library target of the project implementing [`malloc/hermetic_malloc.h`](malloc/hermetic_malloc.h). See [Replacing malloc](#replacing-malloc). |
 | `HERMETIC_MALLOC_DEFINITIONS` | | mimalloc's compile-time settings, a list such as `MI_SECURE=4;MI_DEFAULT_ALLOW_THP=0` (`MI_SECURE`, `MI_GUARDED`, `MI_STATS`, `MI_PADDING`, `MI_DEBUG`, the `MI_DEFAULT_*` option defaults, ...). |
+| `HERMETIC_MACOS_LIBCXX_MODULES` | `OFF` | macOS targets: provide the module sources of the SDK's libc++ for `import std`, from the LLVM sources of the same release (downloaded). See [C++ modules and import std](#c-modules-and-import-std). |
 | `HERMETIC_KEEP_ARCHIVES` / `_KEEP_BUILD_DIRS` | `OFF` | Keep downloaded archives / runtime set build trees. |
 | `HERMETIC_SHOW_PROGRESS`, `HERMETIC_DOWNLOAD_ARGS`, `HERMETIC_VERBOSE` | | Download progress, extra `file(DOWNLOAD)` arguments (e.g. `NETRC;REQUIRED`), diagnostics. |
 
@@ -589,6 +590,67 @@ to `/hermetic-cpp/malloc` in debug information like the cache, so builds with
 the allocator stay reproducible across hosts and checkouts and ready for
 remote execution.
 
+## C++ modules and import std
+
+Named modules work with the Ninja generators on every target with a C++
+library. `import std;` also works on every target, provided the C++ library
+ships the standard library's module sources, and the toolchain tells CMake
+where they are: it sets `CMAKE_CXX_STDLIB_MODULES_JSON` (CMake 4.2 and
+newer), which CMake would otherwise ask the compiler for, without the flags
+that name the runtime set. A project that uses `import std` still enables
+CMake's experimental gate itself, before `project()`, with the value of its
+CMake release (`CMAKE_EXPERIMENTAL_CXX_IMPORT_STD`, the `CxxImportStd`
+feature), and sets `CMAKE_CXX_MODULE_STD` (or the `CXX_MODULE_STD`
+property) with C++23 or newer. With a `cmake_minimum_required` older than
+3.28 (policy CMP0155), sources that import modules outside a `CXX_MODULES`
+file set also need `CMAKE_CXX_SCAN_FOR_MODULES` (or the
+`CXX_SCAN_FOR_MODULES` property).
+
+| Target | Standard library modules |
+| --- | --- |
+| Linux (glibc, musl), Windows on the GNU ABI | libc++'s, from the runtime set |
+| Windows, MSVC ABI with libc++ | libc++'s, from the runtime set |
+| Windows, MSVC ABI with the MSVC STL | the toolset's (`std.ixx`), for clang-cl and `cl.exe`; the toolchain converts its `modules.json` to the format CMake reads |
+| macOS | with `HERMETIC_MACOS_LIBCXX_MODULES=ON` |
+| WebAssembly | none (no C++ library) |
+
+- **macOS**: Apple's SDK carries libc++'s headers but not its module
+  sources, which must come from the same libc++ release. With
+  `HERMETIC_MACOS_LIBCXX_MODULES=ON` the toolchain reads that release from
+  the SDK (`_LIBCPP_VERSION`, 22.1.6 for the 27.0 SDK), takes `libcxx/modules`
+  from the LLVM sources of that version (or the newest listed release of the
+  same major version) and generates them into `<cache>/macos`. It is off by
+  default because it downloads that LLVM source archive. `std::format` of
+  floating-point numbers needs macOS 13.3, so a lower
+  `CMAKE_OSX_DEPLOYMENT_TARGET` fails there.
+- **MSVC STL with clang-cl**: needs clang 23.1.2 (the default) or newer.
+  23.1.0 cannot build the STL's `std` module ("reference to 'align_val_t'
+  is ambiguous", llvm/llvm-project#218152, fixed in 23.1.1): with it, the
+  mirrored module sources hold an `#error` saying so instead, which only a
+  project importing std runs into. 22.x names anonymous namespaces on the
+  MSVC ABI after the main file's path without the prefix maps
+  (llvm/llvm-project#194542, in clang 23), so its binaries depend on where
+  the build directory is. The mirrored sources also silence the warnings
+  clang gives about them (`#include` in the module's purview, the reserved
+  name `std`), which they turn off for `cl.exe` with `#pragma warning`.
+- **Reproducibility**: objects, libraries and programs built with modules
+  are as reproducible as the rest, debug information included. The
+  toolchain mirrors the standard library's module sources into
+  `<build>/hermetic-cpp-modules` (mapped to `/hermetic-cpp/modules` in debug
+  information), since CMake names the objects of sources outside the
+  source and build trees after their absolute path, which would put the
+  cache's location into output names and commands. The built module
+  interfaces (`.pcm`) record their source file's path as given, which
+  `-ffile-prefix-map` does not rewrite: they are intermediate files, but
+  with remote execution an importer's action key covers them, so they are
+  only shared between machines when their sources are named relatively, as
+  the reference wrapper does (the remote execution check covers a modules
+  preset).
+
+The sample's `*-modules` presets build [{fmt}](https://github.com/fmtlib/fmt)
+as a module that imports std itself, a module of the sample's own and a
+program importing both (`tests/hello/modules`).
+
 ## Remote execution
 
 Remote build execution (RBE) caches an action by its command line and
@@ -625,7 +687,7 @@ machine, and try_compile checks, which run locally, are left alone.
   does both.
 - What the toolchain does for it with `HERMETIC_REPRODUCIBLE`: debug
   info records the working directory as `.` (`-ffile-compilation-dir=.`),
-  the cache is mapped to a fixed name, and targets without a runtime set
+  the cache and the build directory are mapped to fixed names, and targets without a runtime set
   name the compiler's resource directory explicitly (the driver would
   otherwise derive an absolute path from its own location, which no
   command-line rewrite reaches).
@@ -639,7 +701,9 @@ steps are not meant to run remotely.
 ### Debugging
 
 Debug info then names the cache as `/hermetic-cpp/cache`, the compiler as
-`/hermetic-cpp/llvm` and the working directory as `.` (sources a remote
+`/hermetic-cpp/llvm`, sources inside the build directory (generated ones,
+FetchContent's) under `/hermetic-cpp/build`, and the working directory as
+`.` (sources a remote
 execution wrapper made relative stay relative to the build directory), so a
 debugger has to be told where those are. The toolchain writes the settings
 into every build directory:
@@ -777,7 +841,8 @@ them:
   and `HERMETIC_MALLOC=mimalloc` on musl, glibc, macOS
   and Windows (`/MT` and `/MD`, `clang-cl` and `cl.exe`, MinGW-w64), whose programs check that their
   blocks, the C library's and a shared library's included, come from
-  mimalloc. Each job builds at most a few runtime sets from source.
+  mimalloc, and C++ modules with `import std` on every one of those
+  platforms. Each job builds at most a few runtime sets from source.
 - [`nightly.yml`](.github/workflows/nightly.yml), daily and on demand
   (`gh workflow run nightly.yml`, optionally with `-f presets="..."` to run
   chosen presets on every job): the glibc version sweep (2.28, 2.34, 2.44)

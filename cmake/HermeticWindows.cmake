@@ -152,9 +152,13 @@ function(hermetic_write_case_overlay OUT_FILE)
       string(APPEND head "  'use-external-names': false,\n")
     endif()
   endif()
+  # Already written: rewriting it would make every compile that reads it
+  # out of date. (Not with file(STRINGS), which escapes the ";" between the
+  # directories and never matched.)
   if(EXISTS "${OUT_FILE}")
-    file(STRINGS "${OUT_FILE}" first LIMIT_COUNT 1)
-    if(first STREQUAL marker)
+    string(LENGTH "${marker}\n" length)
+    file(READ "${OUT_FILE}" first LIMIT ${length})
+    if(first STREQUAL "${marker}\n")
       return()
     endif()
   endif()
@@ -449,4 +453,68 @@ function(hermetic_windows_flags WINSDK ARCH OUT_COMPILE OUT_LINK)
   if(arg_OUT_LINK_DRIVER)
     set(${arg_OUT_LINK_DRIVER} "${link_driver}" PARENT_SCOPE)
   endif()
+endfunction()
+
+# The MSVC STL's module sources (std.ixx, std.compat.ixx) for clang-cl, as
+# hermetic_mirror_stdlib_modules copies them (a TRANSFORM of the text in
+# CONTENT_VAR):
+# - They disable cl.exe's warning about #include in a module's purview
+#   (C5244) with #pragma warning, which clang does not read: clang said the
+#   same, with its reserved-name warning, some sixty times per build.
+# - clang 23.1.0 cannot build them (llvm/llvm-project#218152, fixed in
+#   23.1.1): a clear #error instead of its "reference to 'align_val_t' is
+#   ambiguous", raised only when a project imports std.
+function(hermetic_msvc_stl_module_for_clang CONTENT_VAR LLVM_VERSION)
+  set(content "${${CONTENT_VAR}}")
+  set(marker "// hermetic-cpp: for clang-cl\n")
+  if(LLVM_VERSION MATCHES "^23\\.1\\.0(-|$)")
+    # The error and the module declaration alone (which CMake's dependency
+    # scan needs): clang's own errors would follow it otherwise.
+    string(REGEX MATCH "\nexport module [A-Za-z0-9_.]+;" declaration "${content}")
+    set(${CONTENT_VAR} "${marker}#pragma clang diagnostic ignored \"-Wreserved-module-identifier\"\n#error \"clang ${LLVM_VERSION} cannot build the std module of the MSVC STL (llvm/llvm-project#218152): use HERMETIC_LLVM_VERSION 23.1.2 or newer, or HERMETIC_CXX_STDLIB=libc++\"${declaration}\n" PARENT_SCOPE)
+    return()
+  endif()
+  set(block "${marker}#pragma clang diagnostic ignored \"-Winclude-angled-in-module-purview\"\n#pragma clang diagnostic ignored \"-Wreserved-module-identifier\"\n")
+  # Right after the global module fragment's "module;", which comes first;
+  # std.compat.ixx has none, and gets an empty one to hold the pragmas
+  # ahead of its module declaration.
+  string(REGEX MATCH "(^|\n)module;\r?\n" introducer "${content}")
+  if(introducer)
+    string(FIND "${content}" "${introducer}" pos)
+    string(LENGTH "${introducer}" length)
+    math(EXPR pos "${pos} + ${length}")
+    string(SUBSTRING "${content}" 0 ${pos} head)
+    string(SUBSTRING "${content}" ${pos} -1 tail)
+    set(content "${head}${block}${tail}")
+  else()
+    set(content "module;\n${block}${content}")
+  endif()
+  set(${CONTENT_VAR} "${content}" PARENT_SCOPE)
+endfunction()
+
+# import std with the MSVC STL: the toolset ships its module sources
+# (modules/std.ixx, std.compat.ixx) with a modules.json of Microsoft's own
+# format, which CMake converts only when it finds the file itself. The
+# toolchain names it (CMAKE_CXX_STDLIB_MODULES_JSON), so it writes the
+# converted metadata next to it, with relative paths. Sets ${OUT} to that
+# file, or to nothing when the toolset has no module sources.
+function(hermetic_msvc_stl_modules_json MSVC_INCLUDE_DIR OUT)
+  set(${OUT} "" PARENT_SCOPE)
+  get_filename_component(dir "${MSVC_INCLUDE_DIR}/../modules" ABSOLUTE)
+  if(NOT EXISTS "${dir}/std.ixx")
+    return()
+  endif()
+  set(modules "")
+  foreach(pair "std=std.ixx" "std.compat=std.compat.ixx")
+    string(REGEX MATCH "^([^=]+)=(.*)$" _ "${pair}")
+    if(EXISTS "${dir}/${CMAKE_MATCH_2}")
+      if(modules)
+        string(APPEND modules ",")
+      endif()
+      string(APPEND modules "\n    {\"logical-name\": \"${CMAKE_MATCH_1}\", \"source-path\": \"${CMAKE_MATCH_2}\", \"is-std-library\": true}")
+    endif()
+  endforeach()
+  file(CONFIGURE OUTPUT "${dir}/hermetic-cpp.modules.json"
+    CONTENT "{\n  \"version\": 1,\n  \"revision\": 1,\n  \"modules\": [${modules}\n  ]\n}\n")
+  set(${OUT} "${dir}/hermetic-cpp.modules.json" PARENT_SCOPE)
 endfunction()

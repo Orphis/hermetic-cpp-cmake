@@ -57,7 +57,7 @@ run_in_docker() {
   local platform="$1" image="$2" dir="$3"
   echo "--- running in docker (${platform}, ${image})"
   docker run --rm --platform="${platform}" -v "${dir}:/build:ro" "${image}" \
-    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi'
+    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi; if [ -e /build/hello_modules ]; then /build/hello_modules; fi'
 }
 
 # A binary linked against a newer glibc than the image provides must refuse
