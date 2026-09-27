@@ -192,6 +192,18 @@ add_custom_target(musl_extra ALL DEPENDS ${crt_objects} ${empty_libs})
 install(TARGETS c ARCHIVE DESTINATION usr/lib)
 install(FILES ${crt_objects} ${empty_libs} DESTINATION usr/lib)
 install(DIRECTORY "${MUSL_SOURCE_DIR}/include/" DESTINATION usr/include FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY "${MUSL_SOURCE_DIR}/arch/generic/bits/" DESTINATION usr/include/bits FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY "${MUSL_SOURCE_DIR}/arch/${MUSL_ARCH}/bits/" DESTINATION usr/include/bits FILES_MATCHING PATTERN "*.h")
+# bits/: the architecture's header where it has one, else the generic one.
+# Each is installed once: installing the generic directory and then the
+# architecture's over it skips the latter's files, which the release tarball
+# gives the same timestamps (install() only copies files that look newer).
+file(GLOB generic_bits RELATIVE "${MUSL_SOURCE_DIR}/arch/generic/bits" "${MUSL_SOURCE_DIR}/arch/generic/bits/*.h")
+file(GLOB arch_bits RELATIVE "${MUSL_SOURCE_DIR}/arch/${MUSL_ARCH}/bits" "${MUSL_SOURCE_DIR}/arch/${MUSL_ARCH}/bits/*.h")
+set(bits_headers "")
+foreach(h IN LISTS generic_bits)
+  if(NOT h IN_LIST arch_bits)
+    list(APPEND bits_headers "${MUSL_SOURCE_DIR}/arch/generic/bits/${h}")
+  endif()
+endforeach()
+list(TRANSFORM arch_bits PREPEND "${MUSL_SOURCE_DIR}/arch/${MUSL_ARCH}/bits/")
+install(FILES ${bits_headers} ${arch_bits} DESTINATION usr/include/bits)
 install(FILES "${gen}/include/bits/alltypes.h" "${gen}/include/bits/syscall.h" DESTINATION usr/include/bits)
