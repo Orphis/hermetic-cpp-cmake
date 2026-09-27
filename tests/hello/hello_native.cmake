@@ -11,6 +11,26 @@ add_executable(hello_c hello.c)
 add_executable(hello_cxx hello.cpp)
 target_link_libraries(hello_cxx PRIVATE greeter_static Threads::Threads)
 
+# Sanitizers: a program that runs through libc++ and threads cleanly, then
+# has the bug the sanitizer is for, whose report the tests expect.
+if(NOT WIN32)
+  foreach(_san memory thread hwaddress address undefined)
+    if(CMAKE_CXX_FLAGS MATCHES "fsanitize=([^ ;]*,)?${_san}([, ;]|$)")
+      string(TOUPPER "${_san}" _san)
+      add_executable(hello_san_catch san_catch.cpp)
+      target_compile_definitions(hello_san_catch PRIVATE SAN_CATCH_${_san})
+      target_link_libraries(hello_san_catch PRIVATE Threads::Threads)
+      # libFuzzer, which combines with these.
+      if(_san MATCHES "^(MEMORY|ADDRESS|UNDEFINED)$")
+        add_executable(hello_fuzz hello_fuzz.c)
+        target_compile_options(hello_fuzz PRIVATE -fsanitize=fuzzer)
+        target_link_options(hello_fuzz PRIVATE -fsanitize=fuzzer)
+      endif()
+      break()
+    endif()
+  endforeach()
+endif()
+
 # HERMETIC_MALLOC: the programs check where their blocks come from, unless a
 # sanitizer brings its own allocator (the shim stands aside then).
 if(HERMETIC_MALLOC_BACKEND AND NOT CMAKE_C_FLAGS MATCHES "fsanitize=[^ ]*(address|thread|memory)")

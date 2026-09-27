@@ -445,6 +445,28 @@ macro(hermetic_configure)
     hermetic_append_flags(_hl_cxx_flags -stdlib=libc++)
     hermetic_append_flags(_hl_link_flags -nostdlib++)
     hermetic_append_flags(_hl_cxx_libs -lc++ -lc++abi)
+    # MemorySanitizer (-fsanitize=memory in the project-wide compile flags):
+    # the C++ runtimes built with it, from <set>/msan/lib, since MSan
+    # reports every value it did not see initialized, and libc++ would
+    # otherwise be full of them.
+    set(_hl_global_flags "${HERMETIC_EXTRA_COMPILE_FLAGS} ${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}")
+    # Sanitizers whose runtime intercepts libc functions find the real ones
+    # with dlsym(RTLD_NEXT), which fully static binaries (musl here) cannot
+    # answer: their programs crash on start (libFuzzer's too, for its signal
+    # handlers). UBSan needs no interception.
+    if(_hl_libc_family STREQUAL "musl")
+      foreach(_hl_san address memory thread leak hwaddress realtime dataflow numerical type fuzzer)
+        if(_hl_global_flags MATCHES "-fsanitize=([^ ;]*,)?${_hl_san}([, ;]|$)")
+          hermetic_fatal("-fsanitize=${_hl_san} does not work with musl: musl binaries are fully static, and the sanitizer's runtime reaches libc through the dynamic linker (use HERMETIC_LIBC=gnu.<version>, or -fsanitize=undefined)")
+        endif()
+      endforeach()
+    endif()
+    if(_hl_global_flags MATCHES "-fsanitize=([^ ;]*,)?memory([, ;]|$)")
+      if(NOT EXISTS "${_hl_set}/msan/lib/libc++.a")
+        hermetic_fatal("-fsanitize=memory needs HERMETIC_LLVM_RUNTIME_SANITIZERS=ON (the runtime set then holds libc++ built with MemorySanitizer), on x86_64 or aarch64")
+      endif()
+      hermetic_append_flags(_hl_link_flags "-L${_hl_set}/msan/lib")
+    endif()
     if(_hl_libc_family STREQUAL "musl")
       # Fully static, like hermetic-llvm: no dynamic loader at all.
       if(NOT DEFINED HERMETIC_PIE OR HERMETIC_PIE)

@@ -137,6 +137,66 @@
       }
     },
     {
+      "name": "linux-x86_64-msan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=memory;-fsanitize-memory-track-origins;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=memory"
+      }
+    },
+    {
+      "name": "linux-aarch64-msan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=memory;-fsanitize-memory-track-origins;-fno-omit-frame-pointer",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=memory"
+      }
+    },
+    {
+      "name": "linux-x86_64-tsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-x86_64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=thread",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "linux-aarch64-tsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=thread",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "linux-aarch64-hwasan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=hwaddress",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=hwaddress"
+      }
+    },
+    {
+      "name": "linux-aarch64-ubsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "HERMETIC_TARGET": "linux-aarch64",
+        "HERMETIC_LLVM_RUNTIME_SANITIZERS": "ON",
+        "HERMETIC_EXTRA_COMPILE_FLAGS": "-fsanitize=undefined",
+        "HERMETIC_EXTRA_LINK_FLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
       "name": "linux-armv7",
       "inherits": "base",
       "cacheVariables": {
@@ -627,6 +687,30 @@
     {
       "name": "linux-aarch64-asan",
       "configurePreset": "linux-aarch64-asan"
+    },
+    {
+      "name": "linux-x86_64-msan",
+      "configurePreset": "linux-x86_64-msan"
+    },
+    {
+      "name": "linux-aarch64-msan",
+      "configurePreset": "linux-aarch64-msan"
+    },
+    {
+      "name": "linux-x86_64-tsan",
+      "configurePreset": "linux-x86_64-tsan"
+    },
+    {
+      "name": "linux-aarch64-tsan",
+      "configurePreset": "linux-aarch64-tsan"
+    },
+    {
+      "name": "linux-aarch64-hwasan",
+      "configurePreset": "linux-aarch64-hwasan"
+    },
+    {
+      "name": "linux-aarch64-ubsan",
+      "configurePreset": "linux-aarch64-ubsan"
     },
     {
       "name": "linux-armv7",

@@ -54,10 +54,13 @@ elf_pattern_for() {
 }
 
 run_in_docker() {
-  local platform="$1" image="$2" dir="$3"
+  local platform="$1" image="$2" dir="$3" opts=()
   echo "--- running in docker (${platform}, ${image})"
-  docker run --rm --platform="${platform}" -v "${dir}:/build:ro" "${image}" \
-    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi'
+  # MemorySanitizer and ThreadSanitizer re-execute themselves with ASLR
+  # disabled, which Docker's default seccomp profile forbids.
+  if [ -e "${dir}/hello_san_catch" ]; then opts=(--security-opt seccomp=unconfined); fi
+  docker run --rm ${opts[@]+"${opts[@]}"} --platform="${platform}" -v "${dir}:/build:ro" "${image}" \
+    sh -ec '/build/hello_c; /build/hello_cxx; if [ -e /build/hello_shared ]; then LD_LIBRARY_PATH=/build /build/hello_shared; fi; if [ -e /build/hello_san_catch ]; then out=$(/build/hello_san_catch 2>&1) || true; want=$(echo "$out" | sed -n "s/^.* expects: //p"); echo "$out" | grep "^libc++ under .* OK$" && [ -n "$want" ] && echo "$out" | grep -qF "$want" || { echo "$out"; exit 1; }; echo "hello_san_catch: reported $want: OK"; fi; if [ -e /build/hello_fuzz ]; then out=$(cd /tmp && /build/hello_fuzz -runs=10000000 -seed=1 2>&1) || true; echo "$out" | grep -q "deadly signal" || { echo "$out" | tail -20; exit 1; }; echo "hello_fuzz: libFuzzer found the crashing input: OK"; fi'
 }
 
 # A binary linked against a newer glibc than the image provides must refuse

@@ -310,9 +310,10 @@ endfunction()
 
 # Configures, builds and installs a CMake project with the bootstrap toolchain.
 #   hermetic_llvm_build_stage(NAME <stage> SOURCE <dir> BUILD <dir> INSTALL_PREFIX <dir>
-#     BOOTSTRAP <var=value>... ARGS <-D...>...)
+#     BOOTSTRAP <var=value>... ARGS <-D...>... [ENV <var=value>...])
+# ENV: environment variables for the build step.
 function(hermetic_llvm_build_stage)
-  cmake_parse_arguments(A "" "NAME;SOURCE;BUILD;INSTALL_PREFIX;LOG_DIR" "BOOTSTRAP;ARGS;CACHE" ${ARGN})
+  cmake_parse_arguments(A "" "NAME;SOURCE;BUILD;INSTALL_PREFIX;LOG_DIR" "BOOTSTRAP;ARGS;CACHE;ENV" ${ARGN})
   file(MAKE_DIRECTORY "${A_LOG_DIR}")
   set(log "${A_LOG_DIR}/${A_NAME}.log")
   set(generator "")
@@ -349,7 +350,9 @@ function(hermetic_llvm_build_stage)
     hermetic_fatal("${A_NAME}: configure failed, see ${log}")
   endif()
   hermetic_log("  ${A_NAME}: building")
-  execute_process(COMMAND "${CMAKE_COMMAND}" --build "${A_BUILD}"
+  # The bootstrap settings in the environment too, for projects the build
+  # configures itself (bootstrap.toolchain.cmake reads them from there).
+  execute_process(COMMAND "${CMAKE_COMMAND}" -E env ${A_BOOTSTRAP} ${A_ENV} "${CMAKE_COMMAND}" --build "${A_BUILD}"
     OUTPUT_FILE "${log}.build" ERROR_FILE "${log}.build" RESULT_VARIABLE result)
   if(NOT result EQUAL 0)
     hermetic_fatal("${A_NAME}: build failed, see ${log}.build")
@@ -515,12 +518,7 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
     set(musl_flag ON)
     set(glibc_flag OFF)
   endif()
-  hermetic_llvm_build_stage(NAME libcxx SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx"
-    INSTALL_PREFIX "${tmp}/usr" LOG_DIR "${log_dir}"
-    BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}" "HERMETIC_LLVM_BOOTSTRAP_RESOURCE_DIR=${tmp}/resource"
-      "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-rtlib=compiler-rt --unwindlib=none"
-    CACHE "LLVM_ENABLE_RUNTIMES=libunwind|libcxxabi|libcxx"
-    ARGS "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
+  set(libcxx_args "-DLLVM_DEFAULT_TARGET_TRIPLE=${triple}"
       -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_TESTS=OFF
       # Static archives that also work inside shared libraries.
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON
@@ -539,13 +537,28 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
       -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_USE_COMPILER_RT=ON "-DLIBCXX_HAS_MUSL_LIBC=${musl_flag}"
       -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
       -DLIBCXX_INCLUDE_BENCHMARKS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_DOCS=OFF)
+  set(libcxx_bootstrap ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}" "HERMETIC_LLVM_BOOTSTRAP_RESOURCE_DIR=${tmp}/resource"
+    "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-rtlib=compiler-rt --unwindlib=none")
+  hermetic_llvm_build_stage(NAME libcxx SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx"
+    INSTALL_PREFIX "${tmp}/usr" LOG_DIR "${log_dir}" BOOTSTRAP ${libcxx_bootstrap}
+    CACHE "LLVM_ENABLE_RUNTIMES=libunwind|libcxxabi|libcxx"
+    ARGS ${libcxx_args})
 
   # 4. Sanitizer, fuzzer and profile runtimes: a second compiler-rt pass that
   #    links against the builtins and libc built above.
   set(sanitizer_json "")
   if(sanitizers)
+    # libFuzzer's private libc++ is merged into it with `clang++ -r`, which
+    # runs the default linker, "ld": lld under that name (its GNU flavor on
+    # every host), which Clang finds through COMPILER_PATH.
+    set(exe "")
+    if(CMAKE_HOST_WIN32)
+      set(exe ".exe")
+    endif()
+    file(MAKE_DIRECTORY "${build_root}/ld")
+    file(CREATE_LINK "${LLVM_ROOT}/bin/ld.lld${exe}" "${build_root}/ld/ld${exe}" COPY_ON_ERROR SYMBOLIC)
     hermetic_llvm_build_stage(NAME sanitizers SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/sanitizers"
-      INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}"
+      INSTALL_PREFIX "${tmp}/resource" LOG_DIR "${log_dir}" ENV "COMPILER_PATH=${build_root}/ld"
       BOOTSTRAP ${bootstrap} "HERMETIC_LLVM_BOOTSTRAP_SYSROOT=${tmp}" "HERMETIC_LLVM_BOOTSTRAP_RESOURCE_DIR=${tmp}/resource"
         "HERMETIC_LLVM_BOOTSTRAP_EXTRA_FLAGS=-rtlib=compiler-rt --unwindlib=none" "HERMETIC_LLVM_BOOTSTRAP_LINK_TESTS=ON"
         "HERMETIC_LLVM_BOOTSTRAP_EXTRA_CXX_FLAGS=-stdlib=libc++" "HERMETIC_LLVM_BOOTSTRAP_CXX_LIBS=-nostdlib++ -lc++ -lc++abi -lunwind -lpthread -ldl"
@@ -555,11 +568,39 @@ function(hermetic_llvm_build_runtime_set LLVM_ROOT LLVM_VERSION TARGET LIBC OUT_
         -DCOMPILER_RT_BUILD_SANITIZERS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=ON -DCOMPILER_RT_BUILD_PROFILE=ON
         -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF
         -DCOMPILER_RT_BUILD_GWP_ASAN=OFF -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF
-        -DCOMPILER_RT_USE_LIBCXX=OFF -DSANITIZER_CXX_ABI=libc++ -DCOMPILER_RT_SANITIZERS_TO_BUILD=all)
+        -DSANITIZER_CXX_ABI=libc++ -DCOMPILER_RT_SANITIZERS_TO_BUILD=all
+        # libFuzzer with a private libc++ merged in (namespace __Fuzzer), as
+        # upstream ships it: nothing shared with the program's C++ library,
+        # which may be built differently (with MemorySanitizer, say).
+        -DCOMPILER_RT_USE_LIBCXX=ON "-DLIBCXX_HAS_MUSL_LIBC=${musl_flag}")
     set(sanitizer_json ", \"sanitizers\"")
   endif()
 
-  # 5. Manifest and stamp.
+  # 5. MemorySanitizer only reports what it sees initialized, so everything
+  #    in the program must be instrumented, the C++ runtimes included: a
+  #    second build of libunwind, libc++abi and libc++ with it, into
+  #    <set>/msan/lib (the headers are the same), which the toolchain links
+  #    instead when the compile flags ask for -fsanitize=memory. glibc only
+  #    (compiler-rt's MSan does not support musl), on the architectures it
+  #    supports. libunwind stays uninstrumented, like the system unwinder of
+  #    upstream's MSan setups: its register context is filled in by assembly,
+  #    which MSan sees as uninitialized, and MSan's own report unwinder calls
+  #    into it (an instrumented one recurses until the stack overflows).
+  #    libunwind makes its extra flags PUBLIC, so it is not merged into
+  #    libc++abi here, which would otherwise inherit -fno-sanitize=memory:
+  #    programs link <set>/msan/lib/libunwind.a on its own instead.
+  if(sanitizers AND family STREQUAL "gnu" AND tgt_ARCH MATCHES "^(x86_64|aarch64)$")
+    hermetic_llvm_build_stage(NAME libcxx-msan SOURCE "${llvm_src}/runtimes" BUILD "${build_root}/libcxx-msan"
+      INSTALL_PREFIX "${tmp}/msan" LOG_DIR "${log_dir}" BOOTSTRAP ${libcxx_bootstrap}
+      CACHE "LLVM_ENABLE_RUNTIMES=libunwind|libcxxabi|libcxx"
+      ARGS ${libcxx_args} -DLLVM_USE_SANITIZER=MemoryWithOrigins
+        -DLIBUNWIND_ADDITIONAL_COMPILE_FLAGS=-fno-sanitize=memory
+        -DLIBCXXABI_STATICALLY_LINK_UNWINDER_IN_STATIC_LIBRARY=OFF
+        -DLIBCXX_INSTALL_HEADERS=OFF -DLIBCXXABI_INSTALL_HEADERS=OFF -DLIBUNWIND_INSTALL_HEADERS=OFF)
+    set(sanitizer_json "${sanitizer_json}, \"msan-libcxx\"")
+  endif()
+
+  # 6. Manifest and stamp.
   string(TIMESTAMP now UTC)
   file(WRITE "${tmp}/runtime-set.json" "{
   \"id\": \"${id}\",
