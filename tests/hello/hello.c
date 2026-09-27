@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef __linux__
+#include <sys/stat.h>
+#endif
 #if defined(HELLO_MALLOC) && defined(_WIN32) && (defined(_DLL) || defined(__MINGW32__))
 /* HERMETIC_MALLOC on ucrtbase.dll (the DLL runtime, MinGW-w64): mimalloc.dll,
  * which ucrtbase.dll's allocation functions were redirected to. */
@@ -22,6 +25,12 @@ int main(void) {
   snprintf(s, 32, "%.1f", sqrt(16.0));
   char* d = strdup(s);
   int ok = strcmp(d, "4.0") == 0 && OWNED(s) && OWNED(d);
+#ifdef __linux__
+  /* The C library's structures as the kernel fills them: a sysroot with the
+   * wrong architecture headers gets st_mode and st_nlink swapped. */
+  struct stat st;
+  ok = ok && stat("/", &st) == 0 && S_ISDIR(st.st_mode);
+#endif
   free(d);
   free(s);
   printf("hello from C: %s\n", ok ? "OK" : "FAIL");
