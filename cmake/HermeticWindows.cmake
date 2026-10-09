@@ -289,10 +289,23 @@ function(hermetic_provide_windows_sdk ARCH OUT)
   _hermetic_json_payload("${pkg}" url hash)
   # The same package carries the SDK's tools (rc, mt, midl, mc, signtool,
   # makeappx, dxc, ...), Windows executables: on a Windows host the ones for
-  # its architecture are extracted alongside the headers and their directory
-  # exported as HERMETIC_WINDOWS_SDK_TOOLS_DIR.
+  # its architecture are extracted too, on their own, and their directory
+  # exported as HERMETIC_WINDOWS_SDK_TOOLS_DIR. The headers get the same
+  # directory on every host: compiles name it (debug info, the case
+  # overlay), so a Windows target built on a Windows host and on another
+  # one comes out the same.
   hermetic_detect_host(host_os host_arch)
   set(tools "")
+  # On a Windows host the archive is needed again for the tools.
+  set(keep_archives "${HERMETIC_KEEP_ARCHIVES}")
+  if(host_os STREQUAL "windows")
+    set(HERMETIC_KEEP_ARCHIVES ON)
+  endif()
+  hermetic_fetch_archive(NAME "winsdk-${sdk_version}-headers" KIND winsdk HASH "${hash}" URLS "${url}"
+    STRIP_COMPONENTS 0 PATTERNS "c/Include" OUT_DIR sdk_dir)
+  set(HERMETIC_KEEP_ARCHIVES "${keep_archives}")
+  _hermetic_single_subdir("${sdk_dir}/c/Include" sdk_include)
+  get_filename_component(sdk_include_version "${sdk_include}" NAME)
   if(host_os STREQUAL "windows")
     if(host_arch STREQUAL "aarch64")
       set(host_ms_arch arm64)
@@ -301,16 +314,9 @@ function(hermetic_provide_windows_sdk ARCH OUT)
     endif()
     # (The glob also matches a few legacy GenXBF.dll directories for older
     # SDK versions; the tools directory is the one matching the headers.)
-    hermetic_fetch_archive(NAME "winsdk-${sdk_version}-headers-tools-${host_ms_arch}" KIND winsdk HASH "${hash}" URLS "${url}"
-      STRIP_COMPONENTS 0 PATTERNS "c/Include" "c/bin/*/${host_ms_arch}/*" OUT_DIR sdk_dir)
-  else()
-    hermetic_fetch_archive(NAME "winsdk-${sdk_version}-headers" KIND winsdk HASH "${hash}" URLS "${url}"
-      STRIP_COMPONENTS 0 PATTERNS "c/Include" OUT_DIR sdk_dir)
-  endif()
-  _hermetic_single_subdir("${sdk_dir}/c/Include" sdk_include)
-  get_filename_component(sdk_include_version "${sdk_include}" NAME)
-  if(host_os STREQUAL "windows")
-    set(tools "${sdk_dir}/c/bin/${sdk_include_version}/${host_ms_arch}")
+    hermetic_fetch_archive(NAME "winsdk-${sdk_version}-tools-${host_ms_arch}" KIND winsdk HASH "${hash}" URLS "${url}"
+      STRIP_COMPONENTS 0 PATTERNS "c/bin/*/${host_ms_arch}/*" OUT_DIR sdk_tools_dir)
+    set(tools "${sdk_tools_dir}/c/bin/${sdk_include_version}/${host_ms_arch}")
     if(NOT EXISTS "${tools}/mt.exe")
       hermetic_fatal("Windows SDK package did not contain the ${host_ms_arch} tools under ${tools}")
     endif()
