@@ -10,6 +10,10 @@ target_include_directories(greeter_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(hello_c hello.c)
 add_executable(hello_cxx hello.cpp)
 target_link_libraries(hello_cxx PRIVATE greeter_static Threads::Threads)
+if(WIN32)
+  enable_language(RC)
+  target_sources(hello_c PRIVATE hello.rc)
+endif()
 
 # Sanitizers: a program that runs through libc++ and threads cleanly, then
 # has the bug the sanitizer is for, whose report the tests expect.
